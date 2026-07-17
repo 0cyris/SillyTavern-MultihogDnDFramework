@@ -1,0 +1,90 @@
+/* preview-overrides.css — standalone-preview adjustments layered AFTER the
+ * extension's style.css. Un-fixes panel positioning, hides interactive chrome
+ * that has no handlers outside SillyTavern, and supplies fallbacks for
+ * SillyTavern host CSS variables and FontAwesome glyphs. */
+
+:root {
+    --SmartThemeBodyColor: #e0e0e0;
+    --SmartThemeBodyColorText: #e0e0e0;
+    --SmartThemeBodyColorTextMuted: #999;
+    --SmartThemeQuoteColor: #9a86c9;
+    --SmartThemeBlurTrans: rgba(20, 20, 24, 0.85);
+    --smartThemeBorder: rgba(255, 255, 255, 0.12);
+    --smartThemeBlur: 10px;
+    --smartThemeMenuColorText: #e0e0e0;
+    --primaryFontFamily: 'Segoe UI', system-ui, sans-serif;
+    --monospaceFontFamily: 'Cascadia Code', 'Fira Code', monospace;
+    --mono-font: 'Cascadia Code', 'Fira Code', monospace;
+    --black70a: rgba(0, 0, 0, 0.7);
+    --black50a: rgba(0, 0, 0, 0.5);
+    --black30a: rgba(0, 0, 0, 0.3);
+    --white10a: rgba(255, 255, 255, 0.1);
+    --white20a: rgba(255, 255, 255, 0.2);
+    --white30a: rgba(255, 255, 255, 0.3);
+}
+
+body {
+    margin: 0;
+    background: #14151a;
+    color: var(--SmartThemeBodyColor);
+    font-family: var(--primaryFontFamily);
+}
+
+.gc-preview-page {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px 12px 48px;
+}
+
+.gc-preview-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.gc-preview-title { font-size: 18px; font-weight: 700; }
+.gc-preview-desc { font-size: 12px; color: #9aa; }
+.gc-preview-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.gc-preview-chip {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    white-space: nowrap;
+}
+.gc-preview-chip.off { opacity: 0.45; text-decoration: line-through; }
+.gc-preview-footer { margin-top: 18px; font-size: 10px; color: #667; text-align: center; }
+
+/* Panel: static flow instead of the extension's fixed/absolute sidebar. */
+.rpg-tracker-panel {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    display: block !important;
+    border-radius: 10px;
+}
+
+/* Interactive chrome with no handlers in a static page. */
+.rt-detach-btn,
+.rt-category-settings-btn,
+.rt-fullview-btn,
+.rt-reattach-btn-inline,
+.rt-portrait-add-btn,
+.rt-pagination {
+    display: none !important;
+}
+
+/* FontAwesome is not bundled — replace common glyphs with text fallbacks. */
+.fa-solid::before, .fa-regular::before, .fas::before, .far::before { content: '•'; font-family: inherit; }
+.fa-gear::before, .fa-cog::before { content: '⚙'; }
+.fa-thumbtack::before { content: '📌'; }
+.fa-chevron-down::before { content: '▾'; }
+.fa-chevron-up::before { content: '▴'; }
+.fa-xmark::before, .fa-times::before { content: '✕'; }

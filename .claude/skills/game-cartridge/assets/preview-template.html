@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+__STYLE_CSS__
+</style>
+<style>
+__OVERRIDES_CSS__
+</style>
+</head>
+<body>
+<div class="gc-preview-page">
+    <div class="gc-preview-header">
+        <div class="gc-preview-title">__ICON__ __NAME__</div>
+        <div class="gc-preview-desc">__DESCRIPTION__</div>
+        <div class="gc-preview-chips">__CHIPS__</div>
+    </div>
+    <div class="rpg-tracker-panel __THEME__" style="opacity: 1;">
+__CONTENT__
+    </div>
+    <div class="gc-preview-footer">__FOOTER__</div>
+</div>
+<script>
+// Collapse toggle — the only interactivity the preview supports.
+document.querySelectorAll('.rt-section-header').forEach(function (h) {
+    h.addEventListener('click', function () {
+        var card = h.closest('.rt-section-card');
+        if (card) card.classList.toggle('rt-collapsed');
+    });
+});
+</script>
+</body>
+</html>
