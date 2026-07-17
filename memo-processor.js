@@ -762,16 +762,27 @@ function replaceMemoBlock(memo, tag, innerContent) {
     return (memo ? memo.trimEnd() + '\n\n' : '') + block;
 }
 
-// Member boundary: ONLY a true entity header line (Name (Class): X/Y HP), never a sub-field
-// like "Combat:" or "Status:". Sub-field lines are continuations of the current entry.
+// Member boundary: ONLY a true entity header line, never a sub-field like "Combat:"
+// or "Status:" (sub-field lines are continuations of the current entry). Three header
+// shapes are recognized, tried in order:
+//   1. HP-anchored, the D&D-default stock format: "Name (Class): X/Y HP"
+//   2. Compact "Benched" entries written by the bench-relocation code itself
+//   3. A parenthetical role before the colon: "Name (Role): ...anything..." — the
+//      general "Name (Class/Archetype): ..." shape every stock party prompt in this
+//      framework teaches (Default's "Name (Class): X/Y HP", or a non-HP system's own
+//      "Name (Archetype): Tier X | Rank X" etc). Sub-field lines put any parenthetical
+//      AFTER their colon (e.g. "Talents: Foo (+1 Bar)"), never before it, so this stays
+//      safe against false positives from arbitrary custom sub-field labels a cartridge
+//      author might invent, without needing to hardcode every possible label.
 const PARTY_MEMBER_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?):\s*([\d,]+)(?:\/([\d,]+))?\s*HP\b/i;
 const PARTY_MEMBER_COMPACT_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?):\s*(Benched\s*\([^)]*\)|Benched\b.*)$/i;
+const PARTY_MEMBER_PAREN_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?)\s*\([^()]*\)\s*:\s*(.*)$/;
 const PARTY_SUBFIELD_LABELS = /^(Combat|Gear|Proficiencies|Attr|Saves|Skills|Traits|Abilities|Spells|HD|Status):/i;
 
 function isPartyMemberHeaderLine(line) {
     const trimmed = line.trim().replace(/^\s*[-*+•–—](?:\s+|(?=[A-Za-z]))/, '');
     if (PARTY_SUBFIELD_LABELS.test(trimmed)) return false;
-    return PARTY_MEMBER_HEADER_RX.test(trimmed) || PARTY_MEMBER_COMPACT_HEADER_RX.test(trimmed);
+    return PARTY_MEMBER_HEADER_RX.test(trimmed) || PARTY_MEMBER_COMPACT_HEADER_RX.test(trimmed) || PARTY_MEMBER_PAREN_HEADER_RX.test(trimmed);
 }
 
 /** @returns {{name: string, lines: string[]}[]} */
@@ -789,6 +800,8 @@ function splitPartyMemberEntries(blockContent) {
         if (hp) return hp[1].trim();
         const compact = trimmed.match(PARTY_MEMBER_COMPACT_HEADER_RX);
         if (compact) return compact[1].trim();
+        const paren = trimmed.match(PARTY_MEMBER_PAREN_HEADER_RX);
+        if (paren) return paren[1].trim();
         return null;
     };
 
@@ -804,6 +817,20 @@ function splitPartyMemberEntries(blockContent) {
         if (currentName) currentLines.push(rawLine.trim());
     }
     if (currentName) entries.push({ name: currentName, lines: [...currentLines] });
+
+    // Last-resort safety net: if content is non-empty but genuinely no line matched any
+    // known header shape (a cartridge format none of the three patterns above cover),
+    // treat the whole block as one entity anchored on its first line rather than
+    // silently discarding real data — callers (hydratePartyRelocationStats,
+    // dedupePartyAgainstBenched) treat "no entries" as "no members" and will overwrite
+    // the block with empty content, which is much worse than merging unrecognized
+    // members into a single entry.
+    if (!entries.length) {
+        const nonBlank = rawLines.filter(l => l.trim());
+        if (nonBlank.length) {
+            return [{ name: nonBlank[0].trim(), lines: nonBlank.map(l => l.trim()) }];
+        }
+    }
     return entries;
 }
 
