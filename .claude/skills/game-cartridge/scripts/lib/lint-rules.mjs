@@ -268,14 +268,21 @@ export function runLintRules({ wrapper, payload, payloadKeys, baseTags, markerKe
     ];
     for (const [name, map] of keyedMaps) {
         if (!map || typeof map !== 'object') continue;
-        const factoryKeys = new Set(FACTORY_MAP_KEYS[name] || []);
-        if (!factoryKeys.size) continue;
+        // "valid" (accepted without complaint) vs "expected" (has a real factory
+        // default, so its absence is an actual backfill event) differ only for
+        // syspromptModules: isBaseSectionEnabled() reads ANY base tag as a valid
+        // key generically (see setFactoryMapKeys), but only the ~10 canonical
+        // toggle keys have a factory default to backfill — the rest are simply
+        // absent by design (undefined base tags default to enabled).
+        const validKeys = new Set(FACTORY_MAP_KEYS[name] || []);
+        const expectedKeys = name === 'syspromptModules' ? new Set(FACTORY_MAP_KEYS.syspromptModulesExpected || []) : validKeys;
+        if (!validKeys.size) continue;
         for (const k of Object.keys(map)) {
-            if (!factoryKeys.has(k)) {
+            if (!validKeys.has(k)) {
                 add('GC-W070', 'warning', `$.payload.${name}.${k}`, `unknown ${name} key "${k}" — the extension never reads it`, true);
             }
         }
-        for (const k of factoryKeys) {
+        for (const k of expectedKeys) {
             if (map[k] === undefined) {
                 add('GC-W072', 'warning', `$.payload.${name}.${k}`, `missing ${name} key "${k}" — backfilled with its factory default on import`, true);
             }
@@ -331,9 +338,33 @@ export function runLintRules({ wrapper, payload, payloadKeys, baseTags, markerKe
  */
 const FACTORY_MAP_KEYS = {};
 
-export function setFactoryMapKeys(factoryPayload) {
+/**
+ * @param {object} factoryPayload live getFactoryCartridgePayload() result
+ * @param {string[]} [baseTags] live top-level sysprompt.txt section tags. Needed
+ *   because isBaseSectionEnabled(tag, settings) reads settings.syspromptModules[tag]
+ *   generically for ANY base tag, not just the ~10 with dedicated Narrator
+ *   Configuration checkboxes (loot, resting, etc). Setting e.g.
+ *   syspromptModules.rng_system = false is the documented, correct way to pair
+ *   an unlocked_base override with its base section (see game-systems-guide.md)
+ *   — without baseTags here, GC-W070 would wrongly flag every such key as unknown.
+ *   'relationship_tracking' is excluded: isBaseSectionEnabled special-cases that
+ *   tag to read npcRelationshipBars instead, so a syspromptModules key for it is
+ *   genuinely never read.
+ */
+export function setFactoryMapKeys(factoryPayload, baseTags = []) {
     FACTORY_MAP_KEYS.modules = Object.keys(factoryPayload.modules || {});
     FACTORY_MAP_KEYS.stockPrompts = Object.keys(factoryPayload.stockPrompts || {});
-    FACTORY_MAP_KEYS.syspromptModules = Object.keys(factoryPayload.syspromptModules || {});
+    // "Expected" = the canonical toggle keys with a real factory default value
+    // (their absence is an actual backfill event on import).
+    FACTORY_MAP_KEYS.syspromptModulesExpected = Object.keys(factoryPayload.syspromptModules || {});
+    // "Valid" = expected ∪ every base tag (isBaseSectionEnabled reads
+    // syspromptModules[tag] generically for any of them — see setFactoryMapKeys
+    // doc comment above for why 'relationship_tracking' is excluded).
+    FACTORY_MAP_KEYS.syspromptModules = [
+        ...new Set([
+            ...FACTORY_MAP_KEYS.syspromptModulesExpected,
+            ...baseTags.filter((t) => t !== 'relationship_tracking'),
+        ]),
+    ];
     FACTORY_MAP_KEYS.routerModules = Object.keys(factoryPayload.routerModules || {});
 }

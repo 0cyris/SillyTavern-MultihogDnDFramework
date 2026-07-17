@@ -52,7 +52,7 @@ function collectFindings(fw, wrapper, payload, schema, liveData) {
 }
 
 /** Build the normalized (fixed) cartridge object. Deterministic and idempotent. */
-function buildFixed(fw, wrapper, payload) {
+function buildFixed(fw, wrapper, payload, baseTags = []) {
     const factory = fw.stateManager.getFactoryCartridgePayload();
     const clone = (v) => JSON.parse(JSON.stringify(v));
 
@@ -62,13 +62,22 @@ function buildFixed(fw, wrapper, payload) {
         fixedPayload[key] = payload[key] !== undefined ? clone(payload[key]) : clone(factory[key]);
     }
 
-    // 2. Keyed maps: drop unknown subkeys, backfill missing ones.
+    // 2. Keyed maps: drop unknown subkeys, backfill missing ones. syspromptModules
+    // is special: isBaseSectionEnabled(tag, settings) reads settings.syspromptModules[tag]
+    // generically for ANY base section tag, not just the ~10 canonical toggle keys
+    // (see lint-rules.mjs setFactoryMapKeys doc comment) — most commonly set to
+    // `false` to pair an unlocked_base override with its base section. Restricting
+    // this map to factory keys only would silently discard that pairing.
     for (const mapKey of ['modules', 'stockPrompts', 'syspromptModules', 'routerModules']) {
         const factoryMap = factory[mapKey];
         const inputMap = (fixedPayload[mapKey] && typeof fixedPayload[mapKey] === 'object' && !Array.isArray(fixedPayload[mapKey])) ? fixedPayload[mapKey] : {};
+        const validExtraKeys = mapKey === 'syspromptModules' ? new Set(baseTags.filter((t) => t !== 'relationship_tracking')) : new Set();
         const merged = {};
         for (const k of Object.keys(factoryMap)) {
             merged[k] = inputMap[k] !== undefined ? inputMap[k] : clone(factoryMap[k]);
+        }
+        for (const [k, v] of Object.entries(inputMap)) {
+            if (merged[k] === undefined && validExtraKeys.has(k)) merged[k] = v;
         }
         fixedPayload[mapKey] = merged;
     }
@@ -151,7 +160,7 @@ async function main() {
     const inputPath = path.resolve(files[0]);
     const fw = await bootFramework();
     const liveData = await computeLiveData();
-    setFactoryMapKeys(fw.stateManager.getFactoryCartridgePayload());
+    setFactoryMapKeys(fw.stateManager.getFactoryCartridgePayload(), liveData.lists.baseSectionTags);
     const schema = JSON.parse((await import('node:fs')).readFileSync(path.join(SKILL_ROOT, 'cartridge.schema.json'), 'utf8'));
 
     let wrapper, payload;
@@ -170,7 +179,7 @@ async function main() {
 
     if (flags.has('--fix')) {
         appliedFixes = findings.filter((f) => f.fixable).length;
-        const fixed = buildFixed(fw, wrapper, payload);
+        const fixed = buildFixed(fw, wrapper, payload, liveData.lists.baseSectionTags);
         fixedPath = inputPath.replace(/\.json$/i, '') + '.fixed.json';
         writeFileSync(fixedPath, JSON.stringify(fixed, null, 2) + '\n');
         // Re-lint the fixed document; exit code reflects what REMAINS.

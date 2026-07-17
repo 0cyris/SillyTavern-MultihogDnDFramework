@@ -38,7 +38,7 @@ const run = (script, args) => execFileSync(process.execPath, [path.join(SCRIPTS_
 const fw = await bootFramework();
 const live = await computeLiveData();
 const factory = fw.stateManager.getFactoryCartridgePayload();
-setFactoryMapKeys(factory);
+setFactoryMapKeys(factory, live.lists.baseSectionTags);
 const schema = JSON.parse(readFileSync(path.join(SKILL_ROOT, 'cartridge.schema.json'), 'utf8'));
 const defaultCartridge = JSON.parse(readFileSync(DEFAULT_CARTRIDGE, 'utf8'));
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'gc-selftest-'));
