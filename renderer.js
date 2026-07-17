@@ -1327,35 +1327,67 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         continue;
                     }
 
-                    // 2b. CHARACTER/PARTY plain-name fallback anchor:
-                    // If no HP pattern matched and this is a CHARACTER or PARTY block
-                    // and we have no active entity yet, treat the first line as the entity name
-                    // header (without an HP bar). This decouples portrait rendering from the
-                    // strict "Name: X/Y HP" format requirement.
-                    if (!hpMatch && (tag === 'CHARACTER' || tag === 'PARTY') && lastEntityIdx === -1) {
-                        let entityLabel = line.trim();
-                        let restOfHeader = '';
-                        const plainNameColonMatch = line.match(/^(.+?):\s*(.*)/);
-                        if (plainNameColonMatch) {
-                            if (plainNameColonMatch[1].trim().toLowerCase() === 'name') {
-                                entityLabel = plainNameColonMatch[2].trim();
-                            } else {
-                                entityLabel = plainNameColonMatch[1].trim();
-                                restOfHeader = plainNameColonMatch[2].trim();
+                    // 2b. CHARACTER/PARTY/COMBAT non-HP entity anchors (no "Name: X/Y HP" line —
+                    // e.g. a Wounds/Shock system): two shapes, tried in order.
+                    if (!hpMatch && (tag === 'CHARACTER' || tag === 'PARTY' || tag === 'COMBAT')) {
+                        // 2b-i. "Name (Role): ..." — a parenthetical role/class immediately before
+                        // the colon. This is a genuine NEW-entity signal even when an entity is
+                        // already active, so a multi-member PARTY/COMBAT block in a non-HP format
+                        // splits into one card per member instead of collapsing everyone into the
+                        // first entity's sub-fields. Known sub-field labels (Combat:, Gear:, etc.)
+                        // never put a paren immediately before their own colon — their parens, if
+                        // any, sit inside the VALUE after the colon (e.g. "Talents: Foo (+1 Bar)")
+                        // — so this is safe against misfiring on a continuation line.
+                        const parenMatch = line.match(/^(.+?)\s*\(([^()]*)\)\s*:\s*(.*)$/);
+                        const parenLabel = parenMatch ? parenMatch[1].trim().toLowerCase() : null;
+                        const isKnownSubfieldLabel = parenLabel !== null && Object.prototype.hasOwnProperty.call(STOCK_FIELD_RULES, parenLabel);
+
+                        if (parenMatch && !isKnownSubfieldLabel) {
+                            currentEntity = parenMatch[1].trim();
+                            lastEntityIdx = results.length;
+                            const restOfHeader = `(${parenMatch[2]}) ${parenMatch[3]}`.trim();
+                            let headerHtml = `<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div>`;
+                            if (restOfHeader) {
+                                headerHtml += `<span class="rt-hp-label" style="opacity:0.75; font-size:0.9em;">${escapeHtmlWithColor(restOfHeader)}</span>`;
                             }
+                            headerHtml += `</div>`;
+                            results.push(headerHtml);
+                            continue;
                         }
 
-                        currentEntity = entityLabel;
-                        lastEntityIdx = results.length;
+                        // 2b-ii. Plain-name last resort: no parens either. Only safe to use for
+                        // anchoring the very FIRST entity in the block — with no active entity yet
+                        // there's nothing for this line to be a continuation OF, so treating it as
+                        // a header can't misfire. For a SECOND+ entity we can't tell a genuinely
+                        // new (but parenless) header apart from an ordinary continuation line of
+                        // the current one, so this fallback intentionally does not fire once an
+                        // entity is already active — the paren-header shape above, or a proper
+                        // "Name: X/Y HP" line, remain the only entity boundaries in that case.
+                        if (lastEntityIdx === -1) {
+                            let entityLabel = line.trim();
+                            let restOfHeader = '';
+                            const plainNameColonMatch = line.match(/^(.+?):\s*(.*)/);
+                            if (plainNameColonMatch) {
+                                if (plainNameColonMatch[1].trim().toLowerCase() === 'name') {
+                                    entityLabel = plainNameColonMatch[2].trim();
+                                } else {
+                                    entityLabel = plainNameColonMatch[1].trim();
+                                    restOfHeader = plainNameColonMatch[2].trim();
+                                }
+                            }
 
-                        // Render as entity-name header with optional rest as a sub-label (e.g. class info)
-                        let headerHtml = `<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div>`;
-                        if (restOfHeader) {
-                            headerHtml += `<span class="rt-hp-label" style="opacity:0.75; font-size:0.9em;">${escapeHtmlWithColor(restOfHeader)}</span>`;
+                            currentEntity = entityLabel;
+                            lastEntityIdx = results.length;
+
+                            // Render as entity-name header with optional rest as a sub-label (e.g. class info)
+                            let headerHtml = `<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div>`;
+                            if (restOfHeader) {
+                                headerHtml += `<span class="rt-hp-label" style="opacity:0.75; font-size:0.9em;">${escapeHtmlWithColor(restOfHeader)}</span>`;
+                            }
+                            headerHtml += `</div>`;
+                            results.push(headerHtml);
+                            continue;
                         }
-                        headerHtml += `</div>`;
-                        results.push(headerHtml);
-                        continue;
                     }
 
                     // 3. Sub-field Logic (Sticky Context)
