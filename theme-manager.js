@@ -1,6 +1,6 @@
 import { getSettings } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
-import { saveSettings, refreshRenderedView, applyTrackerThemeToDom } from './index.js';
+import { saveSettings, refreshRenderedView, applyTrackerThemeToDom } from './src/app/runtime-bridge.js';
 
 let themeUndoStack = [];
 
@@ -245,11 +245,9 @@ export function handleRecolor(barId, currentBg, targetEl) {
         const ss = getSettings();
         if (!ss.barColors) ss.barColors = {};
         ss.barColors[barId] = { ...cfg };
-        // Debounced (not forced) — repeatedly adjusting a color (dragging the
-        // picker, toggling modes) shouldn't force an immediate settings + chat-state
-        // save on every tick. The visual preview below is already instant via
-        // refreshRenderedView(); only the actual persistence is delayed.
-        saveSettings(false, 5000);
+        // Persist immediately; ST's saveSettingsDebounced still coalesces disk I/O.
+        // Visual preview below is instant via refreshRenderedView().
+        saveSettings();
         refreshRenderedView();
     };
 
@@ -347,6 +345,25 @@ export function handleRecolor(barId, currentBg, targetEl) {
                     wrap.querySelectorAll('.rt-phase-node.past, .rt-phase-node.current').forEach(el => { el.style.background = bg; el.style.borderColor = bg; });
                     wrap.querySelectorAll('.rt-phase-node.current').forEach(el => { el.style.boxShadow = `0 0 8px ${bg}`; });
                     wrap.querySelectorAll('.rt-phase-line.filled').forEach(el => { el.style.background = bg; });
+                }
+                else if (wrap.classList.contains('rt-barrel-color-control')) {
+                    const direction = wrap.dataset.barrelDirection;
+                    const fill = wrap.parentElement?.querySelector(`.rt-barrel-fill[data-barrel-direction="${direction}"]`);
+                    if (fill) fill.style.background = bg;
+                    const value = wrap.closest('.rt-barrel-row')?.querySelector(`.rt-barrel-value[data-barrel-direction="${direction}"]`);
+                    if (value) {
+                        if (/^linear-gradient\(/i.test(bg)) {
+                            value.style.background = bg;
+                            value.style.webkitBackgroundClip = 'text';
+                            value.style.backgroundClip = 'text';
+                            value.style.color = 'transparent';
+                        } else {
+                            value.style.background = '';
+                            value.style.webkitBackgroundClip = '';
+                            value.style.backgroundClip = '';
+                            value.style.color = bg;
+                        }
+                    }
                 }
                 else if (wrap.classList.contains('rt-stars-icon')) { wrap.style.color = bg; }
             });

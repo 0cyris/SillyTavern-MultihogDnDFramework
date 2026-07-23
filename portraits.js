@@ -1,9 +1,9 @@
 import { getSettings, getActiveChatId, getEffectiveRouterCampaignPrefix } from './state-manager.js';
-import { saveSettings } from './index.js';
+import { saveSettings } from './src/app/runtime-bridge.js';
 import { sendStateRequest } from './llm-client.js';
 import { parseMemoBlocks } from './renderer.js';
 import { escapeHtml, memoForGmContext } from './memo-processor.js';
-import { getLorebookManifest } from './router.js';
+import { getLorebookManifest, scanRecentOutputForPresentNpcs } from './router.js';
 import {
     persistPortraitSrc,
     deletePortraitFile,
@@ -11,7 +11,24 @@ import {
     purgeAllPortraitData,
     countPortraitPathRefs,
     resolvePortraitDisplaySrc,
+    normalizeEntityName,
+    lookupCustomPortraitSrc,
 } from './portrait-storage.js';
+
+/**
+ * Portrait/location AI generation toast — info/success can be hidden via settings.
+ * @param {'info'|'success'|'warning'|'error'} level
+ * @param {string} message
+ * @param {string} [title]
+ * @param {object} [options] toastr options (e.g. timeOut)
+ */
+export function imageGenToast(level, message, title = 'RPG Tracker', options) {
+    const lvl = String(level || 'info').toLowerCase();
+    if (getSettings().hideImageGenToasts && (lvl === 'info' || lvl === 'success')) return;
+    const fn = toastr[lvl] || toastr['info'];
+    if (options) fn(message, title, options);
+    else fn(message, title);
+}
 
 // Read an image File as a full-resolution Base64 data URL
 export function fileToDataUrl(file) {
@@ -24,26 +41,18 @@ export function fileToDataUrl(file) {
     });
 }
 
-// Compress and scale a cropped image to a 512x512 square JPEG Base64 data URL
+/**
+ * Preserve portrait image at native resolution (no forced downscale).
+ * Name kept for call-site compatibility; previously forced 512×512 JPEG.
+ * @param {string} dataUrl
+ * @returns {Promise<string>}
+ */
 export function scaleImageTo512Square(dataUrl) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width  = 512;
-            canvas.height = 512;
-            canvas.getContext('2d').drawImage(img, 0, 0, 512, 512);
-            resolve(canvas.toDataURL('image/jpeg', 0.85));
-        };
-        img.onerror = reject;
-        img.src = dataUrl;
-    });
+    return Promise.resolve(dataUrl);
 }
 
-export function normalizeEntityName(name) {
-    if (!name) return '';
-    return name.replace(/\s*\(.*?\)/g, '').trim();
-}
+// Re-export portrait key helpers (single source of truth in portrait-storage.js)
+export { normalizeEntityName, lookupCustomPortraitSrc } from './portrait-storage.js';
 
 export async function applyPortraitData(entityName, src) {
     const s = getSettings();
@@ -73,6 +82,275 @@ export async function applyPortraitData(entityName, src) {
     // Portrait sets are infrequent, deliberate actions (not rapid keystrokes like the memo
     // textarea) — force an immediate flush instead of risking the 2s debounce window.
     await saveSettings(true);
+}
+
+/**
+ * Move a portrait map entry when an NPC/character is renamed (portraits are keyed by name).
+ * Sync map update only — caller may batch saves.
+ * @param {string} oldName
+ * @param {string} newName
+ * @returns {{ moved: boolean, displaced: string|null, src: string|null }}
+ */
+function migratePortraitMapKey(oldName, newName) {
+    const oldKey = normalizeEntityName(oldName);
+    const newKey = normalizeEntityName(newName);
+    if (!oldKey || !newKey || oldKey === newKey) {
+        return { moved: false, displaced: null, src: null };
+    }
+
+    const s = getSettings();
+    if (!s.customPortraits) return { moved: false, displaced: null, src: null };
+    const src = s.customPortraits[oldKey];
+    if (!src) return { moved: false, displaced: null, src: null };
+
+    const displaced = s.customPortraits[newKey] || null;
+    s.customPortraits[newKey] = src;
+    delete s.customPortraits[oldKey];
+
+    if (s.chatStates && typeof s.chatStates === 'object') {
+        for (const chatId of Object.keys(s.chatStates)) {
+            const part = s.chatStates[chatId];
+            if (!part?.customPortraits || typeof part.customPortraits !== 'object') continue;
+            if (part.customPortraits[oldKey]) {
+                part.customPortraits[newKey] = part.customPortraits[oldKey];
+                delete part.customPortraits[oldKey];
+            }
+        }
+    }
+
+    return { moved: true, displaced: displaced && displaced !== src ? displaced : null, src };
+}
+
+/**
+ * Move a portrait map entry when an NPC/character is renamed (portraits are keyed by name).
+ * @param {string} oldName
+ * @param {string} newName
+ * @returns {Promise<boolean>} true if a key was moved
+ */
+export async function renamePortraitEntity(oldName, newName) {
+    const result = migratePortraitMapKey(oldName, newName);
+    if (!result.moved) return false;
+
+    const s = getSettings();
+    if (result.displaced && isManagedPortraitPath(result.displaced) && countPortraitPathRefs(s, result.displaced) === 0) {
+        await deletePortraitFile(result.displaced);
+    }
+
+    await saveSettings(true);
+    return true;
+}
+
+/**
+ * Levenshtein edit distance (case-insensitive compare via callers).
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function editDistance(a, b) {
+    const m = a.length;
+    const n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    /** @type {number[]} */
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+        /** @type {number[]} */
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        }
+        prev = cur;
+    }
+    return prev[n];
+}
+
+/**
+ * Pair removed names with added names (memo renames / typo fixes).
+ * 1↔1 is always treated as a rename; otherwise greedy fuzzy match.
+ * @param {string[]} previous
+ * @param {string[]} current
+ * @returns {Array<[string, string]>} [oldName, newName] pairs
+ */
+function matchEntityRenames(previous, current) {
+    const prevSet = new Set(previous.map(n => n.toUpperCase()));
+    const currSet = new Set(current.map(n => n.toUpperCase()));
+    const removed = previous.filter(n => !currSet.has(n.toUpperCase()));
+    const added = current.filter(n => !prevSet.has(n.toUpperCase()));
+    if (!removed.length || !added.length) return [];
+
+    /** @type {Array<[string, string]>} */
+    const pairs = [];
+
+    if (removed.length === 1 && added.length === 1) {
+        pairs.push([removed[0], added[0]]);
+        return pairs;
+    }
+
+    const usedRemoved = new Set();
+    for (const newName of added) {
+        const newUp = newName.toUpperCase();
+        let best = null;
+        let bestDist = Infinity;
+        for (const oldName of removed) {
+            if (usedRemoved.has(oldName.toUpperCase())) continue;
+            const oldUp = oldName.toUpperCase();
+            const dist = editDistance(oldUp, newUp);
+            const maxLen = Math.max(oldUp.length, newUp.length) || 1;
+            const threshold = Math.max(2, Math.floor(maxLen / 3));
+            if (dist <= threshold && dist < bestDist) {
+                bestDist = dist;
+                best = oldName;
+            }
+        }
+        if (best) {
+            usedRemoved.add(best.toUpperCase());
+            pairs.push([best, newName]);
+        }
+    }
+    return pairs;
+}
+
+/** @returns {string[]} */
+function getBenchedPartyMembers() {
+    const s = getSettings();
+    if (!s.currentMemo) return [];
+    const blocks = parseMemoBlocks(s.currentMemo);
+    const block = blocks['BENCHED PARTY'];
+    if (!block) return [];
+    const members = [];
+    for (const line of block.split('\n').map(l => l.trim()).filter(Boolean)) {
+        const cleanLine = line.replace(/^\s*[-*+•–—](?:\s+|(?=[A-Za-z]))/, '');
+        const hpMatch = cleanLine.match(/^(.+?):\s*([\d,]+)(?:\/([\d,]+))?\s*HP/i);
+        if (hpMatch) members.push(hpMatch[1].trim());
+    }
+    return members;
+}
+
+/** @returns {string[]} PARTY + BENCHED PARTY names (display order, may have dupes if mis-filed) */
+function getAllRosterNames() {
+    return [...getPartyMembers(), ...getBenchedPartyMembers()];
+}
+
+/**
+ * Last memo entity names seen while the rendered tracker was active.
+ * Used to detect in-place renames (Raw View typo fixes) so portraits follow the new name.
+ * @type {{ roster: string[], enemies: string[], character: string|null } | null}
+ */
+let _lastMemoEntitySnapshot = null;
+
+/**
+ * If a current entity has no portrait, steal a close orphan key (typo / rename left behind).
+ * @param {string[]} names
+ * @returns {{ moved: boolean, displaced: string[] }}
+ */
+function salvageOrphanPortraitKeysForNames(names) {
+    const s = getSettings();
+    if (!s.customPortraits) return { moved: false, displaced: [] };
+
+    const currentKeys = new Set(
+        names.map(n => normalizeEntityName(n).toUpperCase()).filter(Boolean)
+    );
+    /** Reserved alias keys — never treat as orphan typo sources. */
+    const reserved = new Set(['CHARACTER', 'PC', 'PLAYER']);
+    let orphanKeys = Object.keys(s.customPortraits).filter(k => {
+        const up = k.toUpperCase();
+        return !currentKeys.has(up) && !reserved.has(up);
+    });
+    if (!orphanKeys.length) return { moved: false, displaced: [] };
+
+    let moved = false;
+    /** @type {string[]} */
+    const displaced = [];
+    for (const name of names) {
+        const norm = normalizeEntityName(name);
+        if (!norm || s.customPortraits[norm]) continue;
+        const nameUp = norm.toUpperCase();
+        let best = null;
+        let bestDist = Infinity;
+        for (const orphan of orphanKeys) {
+            const dist = editDistance(orphan.toUpperCase(), nameUp);
+            const maxLen = Math.max(orphan.length, nameUp.length) || 1;
+            const threshold = Math.max(2, Math.floor(maxLen / 3));
+            if (dist > 0 && dist <= threshold && dist < bestDist) {
+                bestDist = dist;
+                best = orphan;
+            }
+        }
+        if (!best) continue;
+        const result = migratePortraitMapKey(best, name);
+        if (result.moved) {
+            moved = true;
+            if (result.displaced) displaced.push(result.displaced);
+            orphanKeys = orphanKeys.filter(k => k.toUpperCase() !== best.toUpperCase());
+            console.log(`[RPG Tracker] Portrait key salvaged for rename: "${best}" → "${name}"`);
+        }
+    }
+    return { moved, displaced };
+}
+
+/**
+ * Detect State Tracker memo renames and move portrait keys before render / auto-gen.
+ * Fixes empty portrait + re-generation when changing one letter in Raw View then returning.
+ * @returns {boolean} true if any portrait key was moved
+ */
+export function reconcileMemoPortraitRenames() {
+    const s = getSettings();
+    const roster = getAllRosterNames();
+    const enemies = getEnemyEntities();
+    const character = getPrimaryCharacterBlockName(s) || null;
+    const allNames = [
+        ...roster,
+        ...enemies,
+        ...(character ? [character] : []),
+    ];
+
+    /** @type {Array<[string, string]>} */
+    const pairs = [];
+    if (_lastMemoEntitySnapshot) {
+        pairs.push(...matchEntityRenames(_lastMemoEntitySnapshot.roster, roster));
+        pairs.push(...matchEntityRenames(_lastMemoEntitySnapshot.enemies, enemies));
+        if (_lastMemoEntitySnapshot.character && character
+            && _lastMemoEntitySnapshot.character.toUpperCase() !== character.toUpperCase()) {
+            pairs.push([_lastMemoEntitySnapshot.character, character]);
+        }
+    }
+
+    /** @type {string[]} */
+    const orphanDisplaced = [];
+    let moved = false;
+    for (const [oldName, newName] of pairs) {
+        const result = migratePortraitMapKey(oldName, newName);
+        if (result.moved) {
+            moved = true;
+            if (result.displaced) orphanDisplaced.push(result.displaced);
+            console.log(`[RPG Tracker] Portrait key migrated after memo rename: "${oldName}" → "${newName}"`);
+        }
+        knownEntities.delete(oldName.toUpperCase());
+        knownEntities.add(newName.toUpperCase());
+    }
+
+    const salvaged = salvageOrphanPortraitKeysForNames(allNames);
+    if (salvaged.moved) {
+        moved = true;
+        orphanDisplaced.push(...salvaged.displaced);
+    }
+
+    _lastMemoEntitySnapshot = {
+        roster: [...roster],
+        enemies: [...enemies],
+        character,
+    };
+
+    if (moved) {
+        for (const path of orphanDisplaced) {
+            if (isManagedPortraitPath(path) && countPortraitPathRefs(s, path) === 0) {
+                void deletePortraitFile(path);
+            }
+        }
+        void saveSettings(true);
+    }
+    return moved;
 }
 
 // ── Pollinations.ai model list (image-only, sorted cheapest → most expensive) ──
@@ -424,7 +702,7 @@ export async function generatePortraitDirect(prompt, entityName) {
         }
         const parser = new SlashCommandParser();
         const escapedPrompt = prompt.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const command = `/imagine quiet=true gallery=false "${escapedPrompt}"`;
+        const command = `/imagine quiet=true gallery=false extend=false "${escapedPrompt}"`;
         const closure = parser.parse(command);
         const result = await closure.execute();
         if (result && result.isError) {
@@ -442,7 +720,8 @@ export async function generatePortraitDirect(prompt, entityName) {
         const currentModel = s.pollinationsModel || 'flux';
  
         const doRequest = async (modelName) => {
-            const url = `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?key=${apiKey}&model=${modelName}&width=512&height=512`;
+            // Do not pass width/height — keep the model's native output resolution.
+            const url = `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?key=${apiKey}&model=${modelName}`;
             
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 20000); // 20-second timeout
@@ -655,7 +934,7 @@ export async function generateWithPollinations(prompt, entityName, localApply, r
                 const finalUrl = dataUrl.startsWith('data:') ? await scaleImageTo512Square(dataUrl) : dataUrl;
                 await localApply(finalUrl);
                 if (typeof refresh === 'function') refresh();
-                toastr['success'](`Portrait applied for ${entityName}!`, 'RPG Tracker');
+                imageGenToast('success', `Portrait applied for ${entityName}!`, 'RPG Tracker');
             } catch (err) {
                 toastr['error']('Cannot apply — generation failed: ' + err.message, 'RPG Tracker');
             }
@@ -745,7 +1024,7 @@ export async function generateWithNativeExtension(prompt, entityName, localApply
                 const finalUrl = imageUrl.startsWith('data:') ? await scaleImageTo512Square(imageUrl) : imageUrl;
                 await localApply(finalUrl);
                 if (typeof refresh === 'function') refresh();
-                toastr['success'](`Portrait applied for ${entityName}!`, 'RPG Tracker');
+                imageGenToast('success', `Portrait applied for ${entityName}!`, 'RPG Tracker');
             } catch (err) {
                 toastr['error']('Cannot apply — generation failed: ' + err.message, 'RPG Tracker');
             }
@@ -814,9 +1093,8 @@ export function resolvePortraitSrcForPlayerCharacter(settings, pcName) {
         }
     }
     for (const name of candidates) {
-        const normName = normalizeEntityName(name);
-        const src = s.customPortraits?.[normName];
-        if (src) return resolvePortraitDisplaySrc(src);
+        const src = lookupCustomPortraitSrc(s, name);
+        if (src) return src;
     }
     return '';
 }
@@ -911,15 +1189,15 @@ export async function autoGeneratePartyPortraits(refresh) {
     // Filter out those who already have a portrait
     const toGenerate = partyMembers.filter(name => !hasPortrait(name));
     if (toGenerate.length === 0) {
-        toastr['info']('All party members and characters already have portraits.', 'RPG Tracker');
+        imageGenToast('info', 'All party members and characters already have portraits.', 'RPG Tracker');
         return;
     }
 
-    toastr['info'](`Starting auto-generation for ${toGenerate.length} party members...`, 'RPG Tracker');
+    imageGenToast('info', `Starting auto-generation for ${toGenerate.length} party members...`, 'RPG Tracker');
     let successCount = 0;
 
     for (const name of toGenerate) {
-        toastr['info'](`Generating for ${name}...`, 'RPG Tracker');
+        imageGenToast('info', `Generating for ${name}...`, 'RPG Tracker');
         try {
             const prompt = await generatePortraitPrompt(name);
             const dataUrl = await generatePortraitDirect(prompt, name);
@@ -933,7 +1211,7 @@ export async function autoGeneratePartyPortraits(refresh) {
     }
 
     if (successCount > 0) {
-        toastr['success'](`Finished! Applied ${successCount} party portraits.`, 'RPG Tracker');
+        imageGenToast('success', `Finished! Applied ${successCount} party portraits.`, 'RPG Tracker');
     }
 }
 
@@ -952,15 +1230,15 @@ export async function autoGenerateEnemyPortraits(refresh) {
     // Filter out those who already have a portrait
     const toGenerate = enemies.filter(name => !hasPortrait(name));
     if (toGenerate.length === 0) {
-        toastr['info']('All enemies already have portraits.', 'RPG Tracker');
+        imageGenToast('info', 'All enemies already have portraits.', 'RPG Tracker');
         return;
     }
 
-    toastr['info'](`Starting auto-generation for ${toGenerate.length} enemies...`, 'RPG Tracker');
+    imageGenToast('info', `Starting auto-generation for ${toGenerate.length} enemies...`, 'RPG Tracker');
     let successCount = 0;
 
     for (const name of toGenerate) {
-        toastr['info'](`Generating for enemy ${name}...`, 'RPG Tracker');
+        imageGenToast('info', `Generating for enemy ${name}...`, 'RPG Tracker');
         try {
             const prompt = await generatePortraitPrompt(name);
             const dataUrl = await generatePortraitDirect(prompt, name);
@@ -974,7 +1252,7 @@ export async function autoGenerateEnemyPortraits(refresh) {
     }
 
     if (successCount > 0) {
-        toastr['success'](`Finished! Applied ${successCount} enemy portraits.`, 'RPG Tracker');
+        imageGenToast('success', `Finished! Applied ${successCount} enemy portraits.`, 'RPG Tracker');
     }
 }
 
@@ -992,6 +1270,40 @@ export async function removeAllPortraits(refresh) {
 
 // Keep track of names currently generating to avoid duplicate requests
 const activeGenerations = new Set();
+
+/**
+ * Single shared queue for all auto image gens (portraits + locations).
+ * ComfyUI / native image gen cannot handle a combat batch firing in parallel —
+ * enqueue jobs and run them one at a time.
+ * @type {Array<() => Promise<void>>}
+ */
+const _imageGenQueue = [];
+let _imageGenQueueRunning = false;
+
+async function _drainImageGenQueue() {
+    if (_imageGenQueueRunning) return;
+    _imageGenQueueRunning = true;
+    try {
+        while (_imageGenQueue.length > 0) {
+            const job = _imageGenQueue.shift();
+            try {
+                await job();
+            } catch (err) {
+                console.error('[RPG Tracker] Image gen queue job failed:', err);
+            }
+        }
+    } finally {
+        _imageGenQueueRunning = false;
+        // A job may have enqueued more work while we were finishing.
+        if (_imageGenQueue.length > 0) void _drainImageGenQueue();
+    }
+}
+
+/** @param {() => Promise<void>} job */
+function enqueueImageGen(job) {
+    _imageGenQueue.push(job);
+    void _drainImageGenQueue();
+}
 
 /**
  * Checks if a custom portrait already exists for the given entity name.
@@ -1045,8 +1357,8 @@ export function getEnemyEntities() {
 }
 
 /**
- * Triggers background portrait generation for a name asynchronously.
- * Does not block the main execution flow.
+ * Queues background portrait generation for a name (sequential — one image at a time).
+ * Does not block the main execution flow; jobs share a global ComfyUI-safe queue.
  * @param {string} name
  * @param {function} refresh - callback to refresh the UI on success
  */
@@ -1058,9 +1370,14 @@ export function triggerBackgroundPortraitGeneration(name, refresh, npcContent = 
     if (alreadyGenerating) return;
 
     activeGenerations.add(name);
-    toastr['info'](`Auto-generating portrait for ${name} in background...`, 'RPG Tracker');
+    const queuePos = _imageGenQueue.length + (_imageGenQueueRunning ? 1 : 0);
+    if (queuePos <= 0) {
+        imageGenToast('info', `Auto-generating portrait for ${name}...`, 'RPG Tracker');
+    } else {
+        imageGenToast('info', `Queued portrait for ${name} (${queuePos} ahead)...`, 'RPG Tracker');
+    }
 
-    (async () => {
+    enqueueImageGen(async () => {
         try {
             console.log(`[RPG Tracker] Generating prompt for "${name}" (NPC content provided: ${!!npcContent})`);
             const prompt = npcContent
@@ -1069,7 +1386,6 @@ export function triggerBackgroundPortraitGeneration(name, refresh, npcContent = 
             console.log(`[RPG Tracker] Generated prompt for "${name}":`, prompt);
             if (!prompt) {
                 console.warn(`[RPG Tracker] Could not generate prompt for ${name} - no context found.`);
-                activeGenerations.delete(name);
                 return;
             }
             console.log(`[RPG Tracker] Calling generatePortraitDirect for "${name}"...`);
@@ -1078,7 +1394,7 @@ export function triggerBackgroundPortraitGeneration(name, refresh, npcContent = 
             const scaled = await scaleImageTo512Square(dataUrl);
             console.log(`[RPG Tracker] Applying portrait data for "${name}"...`);
             await applyPortraitData(name, scaled);
-            toastr['success'](`Portrait auto-generated and applied for ${name}!`, 'RPG Tracker');
+            imageGenToast('success', `Portrait auto-generated and applied for ${name}!`, 'RPG Tracker');
             if (typeof refresh === 'function') {
                 console.log(`[RPG Tracker] Triggering UI refresh callback...`);
                 refresh();
@@ -1100,7 +1416,7 @@ export function triggerBackgroundPortraitGeneration(name, refresh, npcContent = 
             activeGenerations.delete(name);
             console.log(`[RPG Tracker] Removed "${name}" from activeGenerations. Remaining:`, Array.from(activeGenerations));
         }
-    })();
+    });
 }
 
 // Track entities already in the party/combat to avoid auto-generating on page refresh (F5)
@@ -1115,6 +1431,7 @@ export function resetAutoGenerationTracking() {
     console.log('[RPG Tracker] resetAutoGenerationTracking called. Clearing knownEntities and resetting isFirstCheck to true.');
     knownEntities.clear();
     isFirstCheck = true;
+    _lastMemoEntitySnapshot = null;
 }
 
 /**
@@ -1201,6 +1518,9 @@ export async function checkAndTriggerAutoGenerations(refresh) {
         console.log('[RPG Tracker] checkAndTriggerAutoGenerations: enablePortraits is false. Exiting.');
         return;
     }
+
+    // Move portrait keys for in-place memo renames before treating names as "new".
+    reconcileMemoPortraitRenames();
 
     const currentParty = getPartyMembers();
     const currentEnemies = getEnemyEntities();
@@ -1401,41 +1721,14 @@ export async function applyLocationImageData(locationPath, src) {
     await saveSettings(true);
 }
 
-/** Center-crop to 16:9 landscape; output keeps the cropped pixel resolution (no fixed downscale). */
+/**
+ * Pass through location images at native resolution (no forced downscale or re-encode).
+ * Name kept for call-site compatibility; previously center-cropped to 16:9 JPEG.
+ * @param {string} dataUrl
+ * @returns {Promise<string>}
+ */
 export function scaleImageToLandscape(dataUrl) {
-    const LANDSCAPE_ASPECT = 16 / 9;
-
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            const srcAspect = img.width / img.height;
-            let sx = 0;
-            let sy = 0;
-            let sw = img.width;
-            let sh = img.height;
-            if (srcAspect > LANDSCAPE_ASPECT) {
-                sh = img.height;
-                sw = sh * LANDSCAPE_ASPECT;
-                sx = (img.width - sw) / 2;
-            } else {
-                sw = img.width;
-                sh = sw / LANDSCAPE_ASPECT;
-                sy = (img.height - sh) / 2;
-            }
-
-            const outW = Math.max(1, Math.round(sw));
-            const outH = Math.max(1, Math.round(sh));
-
-            const canvas = document.createElement('canvas');
-            canvas.width = outW;
-            canvas.height = outH;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
-            resolve(canvas.toDataURL('image/jpeg', 0.85));
-        };
-        img.onerror = reject;
-        img.src = dataUrl;
-    });
+    return Promise.resolve(dataUrl);
 }
 
 /**
@@ -1511,55 +1804,18 @@ function normalizeCharacterLabel(label) {
 }
 
 /**
- * NPCs currently active in Lorebook Agent memory (activeRouterKeys).
+ * NPCs whose names appear in the most recent narrator output (Present-Now name scanner).
+ * First/last name match only — not lorebook key[] keywords. Independent of activeRouterKeys.
  * @param {object} [settings]
  * @returns {Promise<Array<{ label: string, content: string }>>}
  */
-async function loadPresentNpcsFromActiveKeys(settings) {
-    const s = settings || getSettings();
-    const ctx = SillyTavern.getContext();
-    const activeKeys = s.activeRouterKeys || [];
-    if (!activeKeys.length) return [];
-
-    const needed = new Set();
-    for (const k of activeKeys) {
-        const [bookName] = k.split('::');
-        if (!bookName) continue;
-        const lower = bookName.toLowerCase();
-        if (lower.endsWith('_npcs') || lower.endsWith('_npc') || lower === 'npcs' || lower === 'npc') {
-            needed.add(bookName);
-        }
-    }
-    if (!needed.size) return [];
-
-    const books = {};
-    const loads = await Promise.all([...needed].map(async (bookName) => {
-        try {
-            return [bookName, await ctx.loadWorldInfo(bookName)];
-        } catch {
-            return [bookName, null];
-        }
-    }));
-    for (const [bookName, book] of loads) {
-        if (book) books[bookName] = book;
-    }
-
-    const npcs = [];
-    for (const k of activeKeys) {
-        const [bookName, uid] = k.split('::');
-        const lower = (bookName || '').toLowerCase();
-        if (!lower.endsWith('_npcs') && !lower.endsWith('_npc') && lower !== 'npcs' && lower !== 'npc') continue;
-        const entry = books[bookName]?.entries?.[uid];
-        if (!entry) continue;
-        const label = (entry.comment || entry.key?.[0] || '').trim();
-        if (!label) continue;
-        npcs.push({ label, content: (entry.content || '').trim() });
-    }
-    return npcs;
+async function loadPresentNpcsFromRecentOutput(settings) {
+    const matched = await scanRecentOutputForPresentNpcs();
+    return matched.map(m => ({ label: m.label, content: m.content || '' }));
 }
 
 /**
- * Player Character (always) plus optional active Lorebook NPCs for location scene prompts.
+ * Player Character (always) plus NPCs present in the latest narrator output for location scene prompts.
  * @param {object} [settings]
  * @param {object} [ctx]
  * @returns {Promise<Array<{ label: string, content: string, isPlayerCharacter?: boolean }>>}
@@ -1580,7 +1836,9 @@ async function loadPresentCharactersForLocationPrompt(settings, ctx) {
     }
 
     if (s.portraitLocationIncludePresentNpcs) {
-        const npcs = await loadPresentNpcsFromActiveKeys(s);
+        // Fresh Present-Now name scan of the latest output — must run here so image
+        // generation never uses stale Lorebook Agent active keys or broad key[] matches.
+        const npcs = await loadPresentNpcsFromRecentOutput(s);
         const pcNorm = pc ? normalizeCharacterLabel(pc.name) : '';
         for (const npc of npcs) {
             if (pcNorm && normalizeCharacterLabel(npc.label) === pcNorm) continue;
@@ -1642,6 +1900,9 @@ export async function generateLocationImagePrompt(locationPath, locContent) {
     } catch { /* ignore */ }
 
     try {
+        // Present-Now name scan of the latest narrator output — runs here so Characters Present Now
+        // is fresh immediately before the image-generation prompt is sent (not after).
+        // Matches NPC names only (first/last), not lorebook key[] keywords.
         const presentCharacters = await loadPresentCharactersForLocationPrompt(s, ctx);
         if (presentCharacters.length > 0) {
             const charBlocks = presentCharacters.map(ch =>
@@ -1709,16 +1970,22 @@ export function triggerBackgroundLocationGeneration(locationPath, refresh, locCo
     const leaf = normPath.split(' :: ').pop() || normPath;
     const isRealtimeArrival = !!opts.realtimeArrival;
     if (!isRealtimeArrival) {
-        toastr['info'](`${forceReplace ? 'Regenerating' : 'Auto-generating'} location image for ${leaf} in background...`, 'RPG Tracker');
+        const queuePos = _imageGenQueue.length + (_imageGenQueueRunning ? 1 : 0);
+        if (queuePos <= 0) {
+            imageGenToast('info', `${forceReplace ? 'Regenerating' : 'Auto-generating'} location image for ${leaf}...`, 'RPG Tracker');
+        } else {
+            imageGenToast('info', `Queued location image for ${leaf} (${queuePos} ahead)...`, 'RPG Tracker');
+        }
     } else if (typeof refresh === 'function') {
         refresh();
     }
 
-    (async () => {
+    enqueueImageGen(async () => {
         try {
+            // generateLocationImagePrompt runs the Present-Now keyword scanner (latest
+            // output only) before building the image prompt — must stay ahead of generatePortraitDirect.
             const prompt = await generateLocationImagePrompt(normPath, locContent);
             if (!prompt) {
-                activeLocationGenerations.delete(normPath);
                 if (isRealtimeArrival && typeof refresh === 'function') refresh();
                 return;
             }
@@ -1726,7 +1993,7 @@ export function triggerBackgroundLocationGeneration(locationPath, refresh, locCo
             const scaled = await scaleImageToLandscape(dataUrl);
             await applyLocationImageData(normPath, scaled);
             if (!isRealtimeArrival) {
-                toastr['success'](`${forceReplace ? 'Location image regenerated' : 'Location image auto-generated'} for ${leaf}!`, 'RPG Tracker');
+                imageGenToast('success', `${forceReplace ? 'Location image regenerated' : 'Location image auto-generated'} for ${leaf}!`, 'RPG Tracker');
             }
             if (typeof refresh === 'function') refresh();
         } catch (err) {
@@ -1739,7 +2006,7 @@ export function triggerBackgroundLocationGeneration(locationPath, refresh, locCo
         } finally {
             activeLocationGenerations.delete(normPath);
         }
-    })();
+    });
 }
 
 /**

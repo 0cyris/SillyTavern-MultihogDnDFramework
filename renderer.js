@@ -1,13 +1,26 @@
 import { getSettings, getBarBackground, getBarShowAsPercentage } from './state-manager.js';
-import { resolvePortraitDisplaySrc } from './portrait-storage.js';
-import { escapeHtml, highlightParens, highlightNumbers, parseInWorldTime, isRestTimeUnset, formatTimeDiff, isArchivedQuestStatus, questHasEffectiveDeadline } from './memo-processor.js';
-import { BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE } from './constants.js';
+import { lookupCustomPortraitSrc } from './portrait-storage.js';
+import { escapeHtml, decodeHtml, highlightParens, highlightNumbers, parseInWorldTime, isRestTimeUnset, formatTimeDiff, isArchivedQuestStatus, questHasEffectiveDeadline, isEmergentQuest } from './memo-processor.js';
+import { BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, renderStartingGearTierOptions } from './constants.js';
 
 // ── Renderer module: pure HTML string producers, localStorage helpers ──
 // No live DOM mutations. All functions return strings or void (localStorage).
 
 const DEFAULT_HP_COLOR = '#00ffaa';
 const DEFAULT_XP_COLOR = 'linear-gradient(90deg, #0088ff, #00d4ff)';
+
+/** CSS tint for any browser-supported solid color token (named or hexadecimal). */
+function makeColorTintStyle(color, backgroundPct = 12, borderPct = 40) {
+    return `background:color-mix(in srgb, ${color} ${backgroundPct}%, transparent);border-color:color-mix(in srgb, ${color} ${borderPct}%, transparent);color:${color};`;
+}
+
+/** Mirrors a BARREL fill on its value text, including user-selected gradients. */
+function makeBarrelValueStyle(background) {
+    if (/^linear-gradient\(/i.test(background)) {
+        return `background:${background};-webkit-background-clip:text;background-clip:text;color:transparent;`;
+    }
+    return `color:${background};`;
+}
 
 /**
  * Extracts a time-of-day emoji + accent color from any free-form string containing
@@ -116,7 +129,7 @@ export function renderDayNightBadge(str) {
             case 'pills':
                 return `<div class="rt-entity-sub-line rt-units-container">${labelHtml} ${renderPills(value, rule.color)}</div>`;
             case 'badge': {
-                const badgeColorStyle = rule.color ? ` style="background:${rule.color}22;border-color:${rule.color}66;color:${rule.color};"` : '';
+                const badgeColorStyle = rule.color ? ` style="${makeColorTintStyle(rule.color)}"` : '';
                 return `<div class="rt-entity-sub-line rt-units-container">${labelHtml} <span class="rt-unit-pill no-desc"${badgeColorStyle}><span class="rt-unit-name">${escapeHtmlWithColor(value)}</span></span></div>`;
             }
             case 'highlight': {
@@ -126,6 +139,61 @@ export function renderDayNightBadge(str) {
             }
             case 'numbers':
                 return `<div class="rt-entity-sub-line">${labelHtml} ${highlightNumbers(escapeHtmlWithColor(value))}</div>`;
+            case 'barrel': {
+                // A signed, centre-zero bar. The value format is deliberately generic:
+                //   -38/150, +38/150, 38/-150..+150, or -38/-150..+150
+                // Labels and trailing text are display-only, so BARREL works for any
+                // relationship, reputation, alignment, morale, or custom tracker axis.
+                const signedRange = value.match(/([+-]?\d[\d,]*)\s*\/\s*([+-]?\d[\d,]*)\s*(?:\.\.|to)\s*([+-]?\d[\d,]*)/i);
+                const valueAndMax = value.match(/([+-]?\d[\d,]*)\s*\/\s*([+-]?\d[\d,]*)/);
+                const m = signedRange || valueAndMax;
+
+                if (m) {
+                    const current = parseInt(m[1].replace(/,/g, ''), 10);
+                    const rangeMax = signedRange
+                        ? Math.max(Math.abs(parseInt(m[2].replace(/,/g, ''), 10)), Math.abs(parseInt(m[3].replace(/,/g, ''), 10)))
+                        : Math.abs(parseInt(m[2].replace(/,/g, ''), 10));
+
+                    if (Number.isFinite(current) && Number.isFinite(rangeMax) && rangeMax > 0) {
+                        const clamped = Math.max(-rangeMax, Math.min(rangeMax, current));
+                        const pct = (Math.abs(clamped) / rangeMax) * 50;
+                        const isPositive = clamped >= 0;
+                        const extra = value.replace(m[0], '').trim();
+                        const positiveDefault = rule.positiveColor || rule.color || 'linear-gradient(90deg, #4ade8088, #4ade80)';
+                        const negativeDefault = rule.negativeColor || rule.color || 'linear-gradient(270deg, #ef444488, #ef4444)';
+                        const positiveBarId = barId ? `${barId}:positive` : '';
+                        const negativeBarId = barId ? `${barId}:negative` : '';
+                        const positiveBg = getBarBackground(positiveBarId, positiveDefault, pct);
+                        const negativeBg = getBarBackground(negativeBarId, negativeDefault, pct);
+                        const positiveRecolorData = positiveBarId
+                            ? ` data-recolor-id="${escapeHtml(positiveBarId)}" data-recolor-current="${escapeHtml(positiveBg)}" data-barrel-direction="positive" title="Click to recolor the positive side"`
+                            : '';
+                        const negativeRecolorData = negativeBarId
+                            ? ` data-recolor-id="${escapeHtml(negativeBarId)}" data-recolor-current="${escapeHtml(negativeBg)}" data-barrel-direction="negative" title="Click to recolor the negative side"`
+                            : '';
+                        const valueClass = clamped > 0 ? 'rt-barrel-value-positive' : clamped < 0 ? 'rt-barrel-value-negative' : 'rt-barrel-value-zero';
+                        const valueDirection = clamped > 0 ? 'positive' : clamped < 0 ? 'negative' : 'zero';
+                        const valueColorStyle = valueDirection === 'zero'
+                            ? ''
+                            : ` style="${makeBarrelValueStyle(valueDirection === 'positive' ? positiveBg : negativeBg)}"`;
+                        const displayValue = `${clamped > 0 ? '+' : ''}${clamped}/${rangeMax}`;
+
+                        return `<div class="rt-entity-sub-line rt-barrel-row">
+                            ${labelHtml}
+                            <div class="rt-barrel-track" aria-label="${escapeHtml(`${labelText || 'Value'} ${displayValue}`)}">
+                                <div class="rt-barrel-color-control rt-barrel-negative-control"${negativeRecolorData}></div>
+                                <div class="rt-barrel-color-control rt-barrel-positive-control"${positiveRecolorData}></div>
+                                <div class="rt-barrel-center-marker"></div>
+                                <div class="rt-barrel-fill ${isPositive ? 'rt-barrel-positive' : 'rt-barrel-negative'}" data-barrel-direction="${isPositive ? 'positive' : 'negative'}" style="width:${pct.toFixed(1)}%;background:${isPositive ? positiveBg : negativeBg};"></div>
+                            </div>
+                            <span class="rt-barrel-value ${valueClass}" data-barrel-direction="${valueDirection}"${valueColorStyle}>${displayValue}${extra ? ` ${escapeHtml(extra)}` : ''}</span>
+                        </div>`;
+                    }
+                }
+
+                // A BARREL tag with no readable value remains useful as a styled text line.
+                return `<div class="rt-entity-sub-line">${labelHtml} ${escapeHtmlWithColor(value)}</div>`;
+            }
             case 'hp_bar': {
                 // Flexible: parses any "X/Y" optionally with extra text e.g. "45/100 (5 temp)"
                 const m = value.match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)/);
@@ -198,7 +266,7 @@ export function renderDayNightBadge(str) {
                 return `<div class="rt-objective ${statusClass}">${labelHtml}<span class="rt-obj-icon">${icon}</span> <span class="rt-obj-text">${escapeHtmlWithColor(cleanVal)}</span></div>`;
             }
             case 'reward': {
-                const rewardStyle = rule.color ? ` style="color:${rule.color};border-color:${rule.color}66;"` : '';
+                const rewardStyle = rule.color ? ` style="${makeColorTintStyle(rule.color, 0, 40)}"` : '';
                 return `<div class="rt-entity-sub-line"><span class="rt-reward-chip"${rewardStyle}>${labelHtml ? labelHtml + ' ' : ''}🎁 ${escapeHtmlWithColor(value)}</span></div>`;
             }
             case 'difficulty': {
@@ -414,7 +482,7 @@ export function renderDayNightBadge(str) {
             case 'pill_colored': {
                 // A custom color override replaces the fixed buff/debuff/magic class entirely.
                 const pClass = rule.color ? '' : (rule.pillClass || '');
-                const colorStyle = rule.color ? ` style="background:${rule.color}1a;border-color:${rule.color}66;color:${rule.color};"` : '';
+                const colorStyle = rule.color ? ` style="${makeColorTintStyle(rule.color)}"` : '';
                 const pillHtml = splitSmart(value).map(p => {
                     p = p.trim();
                     const descMatch = p.match(/^(.*?)\s*\((.*?)\)$/);
@@ -429,17 +497,17 @@ export function renderDayNightBadge(str) {
             }
             case 'badge_colored': {
                 const bColor = rule.color || '#fff';
-                return `<div class="rt-entity-sub-line">${labelHtml}<span class="rt-difficulty-badge" style="background:${bColor}22; color:${bColor}; border:1px solid ${bColor}55;">${escapeHtmlWithColor(value)}</span></div>`;
+                return `<div class="rt-entity-sub-line">${labelHtml}<span class="rt-difficulty-badge" style="${makeColorTintStyle(bColor)}">${escapeHtmlWithColor(value)}</span></div>`;
             }
             case 'coin': {
                 const cColor = rule.color || '#fff';
                 const icon = rule.icon || '🪙';
-                return `<div class="rt-entity-sub-line">${labelHtml}<span class="rt-coin-badge" style="color:${cColor}; border-color:${cColor}44;">${icon} ${escapeHtmlWithColor(value)}</span></div>`;
+                return `<div class="rt-entity-sub-line">${labelHtml}<span class="rt-coin-badge" style="${makeColorTintStyle(cColor, 0, 27)}">${icon} ${escapeHtmlWithColor(value)}</span></div>`;
             }
             case 'dice_roll': {
                 // value is something like "1d20+5 = 18"
                 const diceStyle = rule.color
-                    ? `background:${rule.color}22; border:1px solid ${rule.color}66; color:${rule.color};`
+                    ? makeColorTintStyle(rule.color)
                     : 'background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);';
                 return `<div class="rt-entity-sub-line">${labelHtml}<span class="rt-dice-roll" style="${diceStyle} padding:2px 6px; border-radius:4px; font-family:monospace; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-dice-d20" style="opacity:0.7"></i> ${escapeHtmlWithColor(value)}</span></div>`;
             }
@@ -488,20 +556,48 @@ export function renderDayNightBadge(str) {
             }
             html += `<div class="rt-spell-row"><span class="rt-spell-level">${escapeHtmlWithColor(lbl.trim())}</span><div class="rt-spell-inline-group"><div class="rt-spell-list">${pipsHtml}${spellsHtml}</div></div></div>`;
         }
-        return html || `<div class="rt-entity-sub-line"><span class="rt-entity-sub-label">Spells:</span> ${highlightParens(escapeHtmlWithColor(val))}</div>`;
+        // Party/CHARACTER style matched — return leveled rows.
+        if (html) return html;
+        // Combat / flat list: Spells: Ray of Sickness (2/2), Fire Bolt (at will) → blue magic pills.
+        return `<div class="rt-entity-sub-line rt-units-container"><span class="rt-entity-sub-label">Spells:</span> ${renderPillsAsMagic(val)}</div>`;
     }
+
+    /** Like renderPills, but always uses the blue magic pill style (combat caster spells). */
+    const renderPillsAsMagic = (text) => {
+        return splitSmart(text).map(t => {
+            let displayText = t;
+            if (t.startsWith('(+)') || t.startsWith('(+) ')) {
+                displayText = t.replace(/^\(\+\)\s*/, '');
+            } else if (t.startsWith('(-)') || t.startsWith('(-) ')) {
+                displayText = t.replace(/^\(-\)\s*/, '');
+            }
+
+            const m = displayText.match(/^(.+?)\s*\((.+)\)$/);
+            if (m) {
+                const [, name, desc] = m;
+                let iconHtml = '';
+                const resourceMatch = desc.match(/(\d+)\s*\/\s*(\d+)/);
+                if (resourceMatch) {
+                    iconHtml = `<span class="rt-unit-icon">${escapeHtmlWithColor(resourceMatch[0])}</span>`;
+                }
+                return `<span class="rt-unit-pill rt-pill-magic">
+                    <span class="rt-unit-name">${escapeHtmlWithColor(name)}</span>
+                    ${iconHtml}
+                    <span class="rt-unit-descr">(${escapeHtmlWithColor(desc)})</span>
+                </span>`;
+            }
+            return `<span class="rt-unit-pill rt-pill-magic no-desc"><span class="rt-unit-name">${escapeHtmlWithColor(displayText)}</span></span>`;
+        }).join('');
+    };
 
 
     // Shared marker type map used by tokenizeMarkers and tryRenderMarker.
     export const MARKER_TYPE_MAP = {
         PILLS:{ renderType: 'pills', example: 'Status (Hover for details), Condition (Another detail)' }, PLS:{ renderType: 'pills', example: 'Status (Hover for details)', aliasOf: 'PILLS' },
-        BAR:{ renderType: 'hp_bar', example: '50/100 (Red HP/Standing)' }, B:{ renderType: 'hp_bar', example: '50/100 (Red HP/Standing)', aliasOf: 'BAR' }, HPBAR:{ renderType: 'hp_bar', example: '50/100 (Red HP/Standing)', aliasOf: 'BAR' }, HPB:{ renderType: 'hp_bar', example: '50/100 (Red HP/Standing)', aliasOf: 'BAR' }, HP: { renderType: 'hp_bar', example: '50/100 (Red HP/Standing)', aliasOf: 'BAR' },
-        BARRED:{ renderType: 'hp_bar', color: 'linear-gradient(90deg,#e74c3c,#c0392b)', example: '50/100 (Crimson Blood)' },
-        BARBLUE:{ renderType: 'hp_bar', color: 'linear-gradient(90deg,#3498db,#2980b9)', example: '50/100 (Blue Mana/Mana)' },
-        BARGREEN:{ renderType: 'hp_bar', color: 'linear-gradient(90deg,#2ecc71,#27ae60)', example: '50/100 (Green Stamina)' },
-        BARYELLOW:{ renderType: 'hp_bar', color: 'linear-gradient(90deg,#f1c40f,#f39c12)', example: '50/100 (Yellow Energy)' },
-        BARPURPLE:{ renderType: 'hp_bar', color: 'linear-gradient(90deg,#9b59b6,#8e44ad)', example: '50/100 (Purple Void)' },
-        BARORANGE:{ renderType: 'hp_bar', color: 'linear-gradient(90deg,#e67e22,#d35400)', example: '50/100 (Orange Heat)' },
+        PILL:{ renderType: 'pill_colored', example: 'Status (Single colored pill)' },
+        BAR:{ renderType: 'hp_bar', example: '50/100 (Colored resource bar)' }, B:{ renderType: 'hp_bar', example: '50/100 (Colored resource bar)', aliasOf: 'BAR' }, HPBAR:{ renderType: 'hp_bar', example: '50/100 (Red HP/Standing)', aliasOf: 'BAR' }, HPB:{ renderType: 'hp_bar', example: '50/100 (Red HP/Standing)', aliasOf: 'BAR' }, HP: { renderType: 'hp_bar', example: '50/100 (Red HP/Standing)', aliasOf: 'BAR' },
+        BARREL:{ renderType: 'barrel', example: 'Trust: -38/150 (signed centre-zero bar; click each side to recolor)' },
+        NPC:{ renderType: 'npc', example: 'Gandolf: (freeform NPC card; uses a matching Lorebook Agent portrait)' },
         XPBAR:{ renderType: 'xp_bar', example: '450/1000 Level 3 (XP/Progress)' }, XB:{ renderType: 'xp_bar', example: '450/1000 Level 3 (XP/Progress)', aliasOf: 'XPBAR' },
         TEXT:{ renderType: 'text', example: 'Some text (Plain)' },
         BADGE:{ renderType: 'badge', example: 'Neutral (Reputation badge)' }, BDG:{ renderType: 'badge', example: 'Neutral (Reputation badge)', aliasOf: 'BADGE' },
@@ -510,16 +606,6 @@ export function renderDayNightBadge(str) {
         REWARD:{ renderType: 'reward', example: '500 XP (Loot reward badge)' },
         DIFFICULTY:{ renderType: 'difficulty', example: 'Hard (Difficulty star badge)' },
         PROGRESS:{ renderType: 'progress', example: '3/5 (Fraction progress)' },
-        PROGRESSRED:{ renderType: 'progress', color: '#e74c3c', example: '3/5 (Red fraction progress)' },
-        PROGRESSBLUE:{ renderType: 'progress', color: '#3498db', example: '3/5 (Blue fraction progress)' },
-        PROGRESSGREEN:{ renderType: 'progress', color: '#2ecc71', example: '3/5 (Green fraction progress)' },
-        PROGRESSYELLOW:{ renderType: 'progress', color: '#f1c40f', example: '3/5 (Yellow fraction progress)' },
-        PROGRESSPURPLE:{ renderType: 'progress', color: '#9b59b6', example: '3/5 (Purple fraction progress)' },
-        PROGRESSORANGE:{ renderType: 'progress', color: '#e67e22', example: '3/5 (Orange fraction progress)' },
-        PROGRESSCYAN:{ renderType: 'progress', color: '#00ffff', example: '3/5 (Cyan fraction progress)' },
-        PILLRED:{ renderType: 'pill_colored', pillClass: 'rt-pill-debuff', example: 'Stunned (Cannot take actions)' },
-        PILLGREEN:{ renderType: 'pill_colored', pillClass: 'rt-pill-buff', example: 'Focused (Clear minded, no distractions)' },
-        PILLBLUE:{ renderType: 'pill_colored', pillClass: 'rt-pill-magic', example: 'Shielded (Absorbs 10 damage)' },
         WARNING:{ renderType: 'badge_colored', color: '#f1c40f', example: 'Caution (Amber badge)' },
         DANGER:{ renderType: 'badge_colored', color: '#e74c3c', example: 'Hostile (Red badge)' },
         SUCCESS:{ renderType: 'badge_colored', color: '#2ecc71', example: 'Active (Green badge)' },
@@ -554,33 +640,37 @@ export function renderDayNightBadge(str) {
     }
 
     // Regex that matches the NEXT ((MARKER)) token anywhere in a string.
-    // Used iteratively by tokenizeMarkers. Supports an optional inline color
-    // override suffix: ((TAG - #HEX)) for a solid color, or
-    // ((TAG - #HEX1 #HEX2)) for a two-color gradient (bar-like types only).
-    // Restricted to 6-digit #RRGGBB hex: several render paths concatenate an
-    // alpha suffix directly onto the color string (e.g. `${color}22`), which
-    // only produces valid CSS when the base color is exactly 6 hex digits.
+    // Any base marker can take a named CSS color directly as a suffix
+    // (`((PILLPINK))`, `((BARRED))`) or a delimited color override
+    // (`((PILL - rebeccapurple))`, `((BAR - #ff6699))`).
     const HEX_COLOR_PATTERN = '#[0-9a-fA-F]{6}';
-    export const MARKER_TOKEN_RE = new RegExp(`\\(\\((${Object.keys(MARKER_TYPE_MAP).join('|')})(?:\\s*-\\s*(${HEX_COLOR_PATTERN})(?:\\s+(${HEX_COLOR_PATTERN}))?)?\\)\\)`, 'i');
+    const NAMED_COLOR_PATTERN = '[a-zA-Z]+';
+    const MARKER_COLOR_PATTERN = `(?:${HEX_COLOR_PATTERN}|${NAMED_COLOR_PATTERN})`;
+    const MARKER_BASE_PATTERN = Object.keys(MARKER_TYPE_MAP).sort((a, b) => b.length - a.length).join('|');
+    export const MARKER_TOKEN_RE = new RegExp(`\\(\\((${MARKER_BASE_PATTERN})(?:(${NAMED_COLOR_PATTERN}))?(?:\\s*-\\s*(${MARKER_COLOR_PATTERN})(?:\\s+(${MARKER_COLOR_PATTERN}))?)?\\)\\)`, 'i');
 
     /** Render types whose default color is already a gradient/gradient-friendly bar fill. */
     const GRADIENT_CAPABLE_RENDER_TYPES = new Set(['hp_bar', 'xp_bar', 'progress']);
 
-    /** Strictly validates a 6-digit #RRGGBB hex color to prevent CSS injection and malformed alpha-suffix concatenation. */
-    function isValidHexColor(str) {
-        return /^#[0-9a-fA-F]{6}$/.test(str || '');
+    /** Strictly validates an allowed CSS color token to prevent CSS injection. */
+    function isValidMarkerColor(str) {
+        return /^#[0-9a-fA-F]{6}$/.test(str || '') || /^[a-zA-Z]+$/.test(str || '');
     }
 
     /**
      * Clones `baseRule` with `color` overridden from a parsed marker color suffix.
      * Two valid colors on a gradient-capable render type (bars/progress) produce a
-     * linear-gradient; otherwise only the first color is used (second is ignored).
+     * linear-gradient. BARREL assigns them to its positive and negative sides;
+     * otherwise only the first color is used (second is ignored).
      * Invalid hex values are ignored entirely, falling back to the base rule's color.
      */
     function applyMarkerColorOverride(baseRule, color1, color2) {
-        if (!isValidHexColor(color1)) return baseRule;
+        if (!isValidMarkerColor(color1)) return baseRule;
         const rule = { ...baseRule };
-        if (color2 && isValidHexColor(color2) && GRADIENT_CAPABLE_RENDER_TYPES.has(rule.renderType)) {
+        if (rule.renderType === 'barrel') {
+            rule.positiveColor = color1;
+            rule.negativeColor = color2 && isValidMarkerColor(color2) ? color2 : color1;
+        } else if (color2 && isValidMarkerColor(color2) && GRADIENT_CAPABLE_RENDER_TYPES.has(rule.renderType)) {
             rule.color = `linear-gradient(90deg, ${color1}, ${color2})`;
         } else {
             rule.color = color1;
@@ -609,14 +699,30 @@ export function renderDayNightBadge(str) {
 
             const preText = remaining.slice(0, m.index).trim();
             const markerType = m[1].toUpperCase();
-            const colorArg1 = m[2] || null;
-            const colorArg2 = m[3] || null;
+            const colorSuffix = m[2] || null;
+            const colorArg1 = m[3] || null;
+            const colorArg2 = m[4] || null;
             remaining = remaining.slice(m.index + m[0].length).trimStart();
 
             const baseRule = MARKER_TYPE_MAP[markerType] || { renderType: 'text' };
-            const rule = colorArg1 ? applyMarkerColorOverride(baseRule, colorArg1, colorArg2) : baseRule;
+            const rule = colorArg1
+                ? applyMarkerColorOverride(baseRule, colorArg1, colorArg2)
+                : colorSuffix
+                    ? applyMarkerColorOverride(baseRule, colorSuffix)
+                    : baseRule;
 
             segments.push({ preText, markerType, rule });
+        }
+
+        // A numeric tab stop can appear immediately before any marker, including
+        // the first one: `|50 ((PILLS)) Affection tier`. It is interpreted as a
+        // percentage of the available row width and removed from display content.
+        for (const segment of segments) {
+            const tabMatch = segment.preText.match(/^(.*?)\s*\|(\d+(?:\.\d+)?)\s*$/);
+            if (tabMatch) {
+                segment.preText = tabMatch[1].trim();
+                segment.tabStop = Math.max(0, Math.min(100, Number(tabMatch[2])));
+            }
         }
 
         // Assign each segment its content:
@@ -626,7 +732,8 @@ export function renderDayNightBadge(str) {
         // segment[i+1] so renderMarkerSegment doesn't double-prepend it as a label.
         for (let i = 0; i < segments.length; i++) {
             if (i < segments.length - 1) {
-                segments[i].content = segments[i + 1].preText;
+                // `||` is an explicit layout separator, not part of either marker's content.
+                segments[i].content = segments[i + 1].preText.replace(/\s*\|\|\s*$/, '').trim();
                 segments[i + 1].preText = ''; // consumed — don't re-use as label
             } else {
                 segments[i].content = remaining.trim();
@@ -634,6 +741,41 @@ export function renderDayNightBadge(str) {
         }
 
         return segments;
+    }
+
+    /**
+     * Calculates marker starts/ends for numeric tab-stop rows. Unspecified
+     * segments are evenly distributed between the nearest explicit stops.
+     * @returns {Array<{start: number, end: number}>}
+     */
+    function resolveMarkerTabStops(segments) {
+        const count = segments.length;
+        const starts = Array(count);
+        starts[0] = segments[0].tabStop ?? 0;
+        let previous = 0;
+
+        for (let i = 1; i < count; i++) {
+            if (segments[i].tabStop === undefined) continue;
+            const next = segments[i].tabStop;
+            const previousStart = starts[previous];
+            for (let j = previous + 1; j < i; j++) {
+                starts[j] = previousStart + ((next - previousStart) * (j - previous)) / (i - previous);
+            }
+            starts[i] = next;
+            previous = i;
+        }
+
+        const previousStart = starts[previous];
+        for (let i = previous + 1; i < count; i++) {
+            starts[i] = previousStart + ((100 - previousStart) * (i - previous)) / (count - previous);
+        }
+
+        return starts.map((rawStart, i) => {
+            const start = Math.max(0, Math.min(99.9, rawStart));
+            const nextStart = i < count - 1 ? starts[i + 1] : 100;
+            const end = Math.max(start + 0.1, Math.min(100, nextStart));
+            return { start, end };
+        });
     }
 
     /**
@@ -675,7 +817,7 @@ export function renderDayNightBadge(str) {
             } else {
                 // No colon. For progression types, try to split "Label X/Y" into "Label: X/Y"
                 // by finding the X/Y numeric pattern.
-                const PROGRESSION = new Set(['hp_bar', 'xp_bar', 'progress', 'clock', 'stars', 'weight', 'orbs', 'slots', 'phase', 'gauge', 'charge']);
+                const PROGRESSION = new Set(['barrel', 'hp_bar', 'xp_bar', 'progress', 'clock', 'stars', 'weight', 'orbs', 'slots', 'phase', 'gauge', 'charge']);
                 const numMatch = PROGRESSION.has(rule.renderType)
                     ? preText.match(/^(.*?)\s+(\d[\d,]*\s*\/\s*\d[\d,]*.*)$/)
                     : null;
@@ -688,7 +830,7 @@ export function renderDayNightBadge(str) {
         }
 
         let barId = null;
-        const progressionTypes = ['hp_bar', 'xp_bar', 'progress', 'clock', 'stars', 'weight', 'orbs', 'slots', 'phase', 'gauge', 'charge'];
+        const progressionTypes = ['barrel', 'hp_bar', 'xp_bar', 'progress', 'clock', 'stars', 'weight', 'orbs', 'slots', 'phase', 'gauge', 'charge'];
         if (progressionTypes.includes(rule.renderType)) {
             const colonIdx = reconstructedContent.indexOf(':');
             const labelText = colonIdx !== -1 ? reconstructedContent.substring(0, colonIdx).trim() : 'Bar';
@@ -725,10 +867,12 @@ export function renderDayNightBadge(str) {
     export function tryRenderMarker(line, tag = '', entityName = '', lineIdx = null) {
         const segments = tokenizeMarkers(line);
         if (segments.length === 0) return null;
+        const usesExplicitColumns = line.includes('||');
+        const usesTabStops = segments.some(segment => segment.tabStop !== undefined);
 
         const lineAnchor = (!entityName && lineIdx !== null) ? `L${lineIdx}` : '';
 
-        if (segments.length === 1) {
+        if (segments.length === 1 && !usesTabStops) {
             // Single-marker fast path — identical to the previous behaviour.
             return renderMarkerSegment(segments[0], tag, entityName, lineAnchor);
         }
@@ -736,7 +880,8 @@ export function renderDayNightBadge(str) {
         // Multi-marker: render each segment and wrap it in a typed cell.
         // Stretchy render types (bars, progress) get flex:1 so they fill remaining
         // space; fixed types (pills, badges, text) take only their natural width.
-        const STRETCH_TYPES = new Set(['hp_bar', 'xp_bar', 'progress']);
+        const STRETCH_TYPES = new Set(['barrel', 'hp_bar', 'xp_bar', 'progress']);
+        const tabStops = usesTabStops ? resolveMarkerTabStops(segments) : null;
 
         // Pre-compute each segment's reconstructed text so we can use sibling content
         // as rowContext to disambiguate same-label bars across different rows.
@@ -749,13 +894,20 @@ export function renderDayNightBadge(str) {
             // the line anchor disambiguates across different lines with no entity context.
             const rowContext = `${segContents[i === 0 ? 1 : 0] ?? ''}:${i}${lineAnchor ? ':' + lineAnchor : ''}`;
             const html = renderMarkerSegment(seg, tag, entityName, rowContext);
-            const cellClass = STRETCH_TYPES.has(seg.rule.renderType)
+            const cellClass = usesTabStops
+                ? 'rt-mmc-cell rt-mmc-cell--tab-stop'
+                : usesExplicitColumns
+                ? 'rt-mmc-cell rt-mmc-cell--column'
+                : STRETCH_TYPES.has(seg.rule.renderType)
                 ? 'rt-mmc-cell rt-mmc-cell--stretch'
                 : 'rt-mmc-cell';
-            return `<div class="${cellClass}">${html}</div>`;
+            const layoutStyle = usesTabStops
+                ? ` style="grid-column:${Math.round(tabStops[i].start * 10) + 1} / ${Math.round(tabStops[i].end * 10) + 1};grid-row:1;"`
+                : '';
+            return `<div class="${cellClass}"${layoutStyle}>${html}</div>`;
         }).join('');
 
-        return `<div class="rt-multi-marker-row">${childrenHtml}</div>`;
+        return `<div class="rt-multi-marker-row${usesTabStops ? ' rt-multi-marker-row--tab-stops' : usesExplicitColumns ? ' rt-multi-marker-row--columns' : ''}">${childrenHtml}</div>`;
     }
 
     export function renderLineInEntityContext(tag, line, entityName, rawLine) {
@@ -794,6 +946,42 @@ export function renderDayNightBadge(str) {
         const kv = line.match(/^([^:]+):\s*(.+)$/);
         if (kv) return `<div class="rt-card-kv"><span class="rt-card-key">${escapeHtmlWithColor(kv[1].trim())}:</span><span class="rt-card-val">${escapeHtmlWithColor(kv[2].trim())}</span></div>`;
         return `<div class="rt-card-item">${escapeHtmlWithColor(line.trim())}</div>`;
+    }
+
+    /**
+     * Renders freeform NPC cards embedded in any tracker block.
+     * A `((NPC)) Name:` line starts a card; all following lines belong to it
+     * until the next NPC marker, and can use arbitrary labels and render tags.
+     */
+    function renderCustomBlockWithNpcMarkers(tag, lines) {
+        const results = [];
+        let lastEntityIdx = -1;
+        let currentEntity = '';
+
+        for (let idx = 0; idx < lines.length; idx++) {
+            const rawLine = lines[idx];
+            const marker = MARKER_TOKEN_RE.exec(rawLine);
+            const isNpcMarker = marker?.index === 0 && marker[1].toUpperCase() === 'NPC';
+
+            if (isNpcMarker) {
+                currentEntity = rawLine.slice(marker[0].length).trim().replace(/:\s*$/, '').trim() || 'NPC';
+                lastEntityIdx = results.length;
+                results.push(`<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div></div>`);
+                continue;
+            }
+
+            if (lastEntityIdx !== -1) {
+                results[lastEntityIdx] += renderLineInEntityContext(tag, rawLine, currentEntity, rawLine);
+            } else {
+                results.push(renderCustomBlockLine(tag, rawLine, idx));
+            }
+        }
+
+        return results.map(html => {
+            if (!html.startsWith('<div class="rt-entity-row">')) return html;
+            const nameMatch = html.match(/class="rt-entity-name"[^>]*>([^<]+)</);
+            return nameMatch ? wrapEntityHtml(decodeHtml(nameMatch[1].trim()), html) : html;
+        });
     }
 
     /**
@@ -877,7 +1065,7 @@ export function renderDayNightBadge(str) {
     };
 
     const renderPills = (text, customColor = null) => {
-        const colorStyle = customColor ? ` style="background:${customColor}1a;border-color:${customColor}66;color:${customColor};"` : '';
+        const colorStyle = customColor ? ` style="${makeColorTintStyle(customColor)}"` : '';
         return splitSmart(text).map(t => {
             // Detect buff/debuff prefix
             let pillClass = 'rt-unit-pill';
@@ -1064,8 +1252,7 @@ export function renderDayNightBadge(str) {
  */
 function renderPortraitHtml(entityName) {
     const s = getSettings();
-    const normName = entityName.replace(/\s*\(.*?\)/g, '').trim();
-    const src = resolvePortraitDisplaySrc((s.customPortraits || {})[normName]);
+    const src = lookupCustomPortraitSrc(s, entityName);
     if (src) {
         return `<img class="rt-entity-portrait" src="${escapeHtml(src)}" alt="${escapeHtml(entityName)}" />`;
     }
@@ -1227,9 +1414,9 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     const explicitType = mm ? MARKER_TYPE_MAP[markerCode] : null;
                     let line = mm ? mm[2].trim() : rawLine;
 
-                    // Detect inline hp-bar marker: "Entity Name ((BARGREEN)) 12/20"
-                    // Uses tokenizeMarkers (the same engine used for sub-field lines) so ALL
-                    // color-variant bar markers (BARGREEN, BARRED, BARPURPLE, etc.) work here,
+                    // Detect inline hp-bar marker: "Entity Name ((BARGREEN)) 12/20".
+                    // Uses tokenizeMarkers (the same engine used for sub-field lines) so
+                    // dynamically colored bar markers (for example ((BARRED))) work here,
                     // not just the handful in the old hardcoded regex.
                     // Only fires when the marker is NOT at line-start (MARKER_RX already handles that).
                     let inlineEntityName = null;
@@ -1240,7 +1427,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                             inlineEntityName = segs[0].preText.trim();
                             inlineBarRule    = segs[0].rule;          // carries color, renderType, etc.
                             line = segs[0].content.trim();            // just the value: "12/20" or "HP: 12/20"
-                            markerCode = segs[0].markerType;          // e.g. "BARGREEN"
+                            markerCode = segs[0].markerType;          // e.g. "BAR" from ((BARGREEN))
                         }
                     }
 
@@ -1269,13 +1456,13 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                     if (hpMatch) {
                         const [, nameRaw, curRaw, maxRaw, rest] = hpMatch;
-                        // inlineEntityName takes priority (set when "Name ((BARGREEN)) x/y" format used)
+                        // inlineEntityName takes priority (set when "Name ((BARGREEN)) x/y" is used)
                         const name = (inlineEntityName || nameRaw || '').trim();
                         const cur = Number(curRaw.replace(/,/g, ''));
                         const max = maxRaw ? Number(maxRaw.replace(/,/g, '')) : undefined;
                         const hasMax = max !== undefined;
                         const pct = hasMax ? Math.max(0, Math.min(100, (cur / max) * 100)) : 100;
-                        // If an inline color-bar rule was detected (e.g. ((BARGREEN))), use its
+                        // If an inline colored-bar rule was detected (e.g. ((BARGREEN))), use its
                         // color directly — don't override it with the damage-based red/yellow/green.
                         const hpColor = inlineBarRule?.color
                             ? inlineBarRule.color
@@ -1406,7 +1593,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     // Extract entity name from the first rt-entity-name span
                     const nameMatch = html.match(/class="rt-entity-name"[^>]*>([^<]+)</);
                     if (!nameMatch) return html;
-                    return wrapEntityHtml(nameMatch[1].trim(), html);
+                    return wrapEntityHtml(decodeHtml(nameMatch[1].trim()), html);
                 });
             }
 
@@ -1732,6 +1919,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
             default:
                 // Custom blocks: resolve each line via module rows → global rules → kv fallback
                 // Pass line index so positional row matching works even without label prefixes
+                if (lines.some(line => {
+                    const marker = MARKER_TOKEN_RE.exec(line);
+                    return marker?.index === 0 && marker[1].toUpperCase() === 'NPC';
+                })) {
+                    return renderCustomBlockWithNpcMarkers(tag, lines);
+                }
                 return lines.map((line, idx) => renderCustomBlockLine(tag, line, idx));
         }
     }
@@ -1742,11 +1935,17 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
             const useDdMmYy = !!obSettings.useDdMmYyFormat;
             const use24h = !!obSettings.use24hTime;
             const onboardingGenre = obSettings.onboardingGenre || 'fantasy';
+            const onboardingGearTier = obSettings.onboardingGearTier || 'auto';
+            const gearTierOptions = renderStartingGearTierOptions(onboardingGearTier);
             const startDateInputVal = obSettings.initialDate && obSettings.initialDate !== 'Day 1' ? obSettings.initialDate : '01/01/2026';
 
             return `<div class="rt-empty" style="text-align: left; align-items: flex-start; padding: 12px; gap: 10px; overflow-y: auto;">
                 <div style="text-align: center; width: 100%; margin-bottom: 2px; flex-shrink: 0;">
-                    <div class="rt-empty-icon" style="font-size: 1.7em; margin-bottom: 0;">📜</div>
+                    <div class="rt-empty-icon rt-onboarding-crest" aria-label="Fencers guarding a shield">
+                        <span class="rt-onboarding-crest-fencer" aria-hidden="true">🤺</span>
+                        <span class="rt-onboarding-crest-shield" aria-hidden="true">🛡️</span>
+                        <span class="rt-onboarding-crest-fencer rt-onboarding-crest-fencer-mirrored" aria-hidden="true">🤺</span>
+                    </div>
                     <div style="font-size: 16px; font-weight: bold; color: var(--rt-text);">Multihog D&D Framework</div>
                 </div>
 
@@ -1755,9 +1954,21 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <div class="rt-onboarding-hero-sub">Build your character step by step — presets, persona bio, and full stat generation.</div>
                 </div>
 
-                <div class="rt-onboarding-secondary rt-onboarding-drawer">
+                <div class="rt-quickstart" id="rt-quickstart">
+                    <div class="rt-quickstart-title">⚡ Instant Action</div>
+                    <div class="rt-quickstart-sub">Fully automated — pick a genre and the extension uses your Narrator Configuration, rolls your character, builds your persona &amp; Player Card, then starts the adventure for you.</div>
+                    <div class="rt-quickstart-genres" role="group" aria-label="Quick Start genre">
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="fantasy">⚔️ Fantasy</button>
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="realistic">🏙️ Modern</button>
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="scifi">🚀 Sci-Fi</button>
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="horror">👻 Horror</button>
+                    </div>
+                    <div class="rt-quickstart-status" id="rt-quickstart-status">Ready</div>
+                </div>
+
+                <div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-other-drawer">
                 <button type="button" class="rt-onboarding-drawer-toggle" id="rt-onboarding-drawer-toggle" aria-expanded="false" aria-controls="rt-onboarding-drawer-body">
-                    <span class="rt-onboarding-drawer-toggle-label">Other ways to begin</span>
+                    <span class="rt-onboarding-drawer-toggle-label"><span class="rt-onboarding-drawer-icon" aria-hidden="true">&#10022;</span><span>Other Ways to Begin<small>Fine-tune your start, create a persona, or import a character</small></span></span>
                     <span class="rt-onboarding-drawer-chevron" aria-hidden="true">&#9656;</span>
                 </button>
                 <div class="rt-onboarding-drawer-body" id="rt-onboarding-drawer-body">
@@ -1785,6 +1996,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                             </select>
                         </div>
                         <div class="rt-onboarding-field">
+                            <span class="rt-onboarding-field-label">Gear Tier</span>
+                            <select id="rt-onboarding-gear-tier" class="text_pole" title="How well-equipped the generated character should be." style="width: auto; min-width: 110px; padding: 2px 4px; font-size: 11px; height: 22px; border-radius: 4px; background: var(--black70a);">
+                                ${gearTierOptions}
+                            </select>
+                        </div>
+                        <div class="rt-onboarding-field">
                             <span class="rt-onboarding-field-label">Time &amp; Date</span>
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <div class="rt-seg-toggle" id="rt-onboarding-date-seg" role="group" title="Choose the calendar format used for [TIME] tracking.">
@@ -1800,6 +2017,22 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         </div>
                     </div>
                     <textarea id="rt-onboarding-custom-instructions" class="text_pole" placeholder="Custom setting/character instructions (e.g. Victorian London, space marine, gritty realism, cyberpunk decker...)" style="width: 100%; min-height: 40px; max-height: 120px; font-size: 11px; padding: 4px 6px; border-radius: 4px; background: var(--black70a); resize: vertical; margin-top: 2px;">${escapeHtml(obSettings.onboardingCustomInstructions || '')}</textarea>
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; padding:4px 0 2px; flex-wrap:wrap;">
+                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
+                            <input type="checkbox" id="rt-onboarding-persona-cb"${obSettings.onboardingCreatePersona ? ' checked' : ''} />
+                            <span>Create Persona (Recommended)</span>
+                        </label>
+                        <span class="rt-cr-help-icon" title="When checked, after generating a character the AI also writes an appearance, personality, habits, and backstory. A preview will appear — you can accept (which auto-creates a new SillyTavern persona locked to this chat) or regenerate just this part without re-rolling the whole character. Does not apply when using an existing Persona.">?</span>
+                        <span style="opacity:0.6; font-size:0.8em; margin-left:4px;">Word count:</span>
+                        <select id="rt-onboarding-persona-words" class="text_pole" style="width:65px; font-size:11px; height:22px; padding:2px 4px;">
+                            ${[100, 150, 200, 300, 400, 500, 750, 1000].map(n => {
+                                const sel = String(obSettings.onboardingPersonaWords || '150') === String(n) ? ' selected' : '';
+                                return `<option value="${n}"${sel}>${n}</option>`;
+                            }).join('')}
+                            <option value="other"${obSettings.onboardingPersonaWords === 'other' ? ' selected' : ''}>Other...</option>
+                        </select>
+                        <input id="rt-onboarding-persona-words-custom" type="number" class="text_pole" value="${escapeHtml(String(obSettings.onboardingPersonaWordsCustom || ''))}" style="display:${obSettings.onboardingPersonaWords === 'other' ? 'inline-block' : 'none'}; width:65px; font-size:11px; height:22px; padding:2px 4px; margin-left:4px;" placeholder="e.g. 800" min="50" max="5000" />
+                    </div>
                 </div>
 
                 <!-- Archetype Buttons -->
@@ -1923,6 +2156,14 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                             </select>
                         </div>
                     </div>
+                    <div class="rt-cr-row">
+                        <div class="rt-cr-field">
+                            <label class="rt-cr-label">Gear Tier <span class="rt-cr-help-icon" title="How well-equipped the character should be — from mundane starter kit to heroic named gear. Auto scales with level.">?</span></label>
+                            <select id="rt-cr-gear-tier" class="text_pole rt-cr-input">
+                                ${gearTierOptions}
+                            </select>
+                        </div>
+                    </div>
                     <div class="rt-cr-row rt-cr-time-row">
                         <div class="rt-cr-field" style="width:100%;">
                             <label class="rt-cr-label">Time &amp; Date <span class="rt-cr-help-icon" title="Calendar and clock format for [TIME] tracking in generated memos. Day 1 = narrative day count; DD/MM/YYYY = real calendar dates.">?</span></label>
@@ -2017,15 +2258,33 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     </div>
                     <div style="margin-top: 12px;">
                         🤖 <b>What Model to Use?</b><br><br>
-                        <b>MiMo 2.5 Pro:</b> Great bang for the buck; high output quality. This is what I use for the GM myself through OpenRouter.<br><br>
-                        For the State Tracker and Lorebook Agent, I use <b>Gemini 3.1 Flash-Lite</b>. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job.
+                        <b>MiMo 2.5 Pro</b> or <b>DeepSeek 4 Pro</b>: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.<br><br>
+                        For the State Tracker and Lorebook Agent, I use <b>Gemini 3.1 Flash-Lite</b>. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job.<br><br>
+                        If your model thinks too long in combat, enable <b>Combat API Override</b> in State Tracker settings — it auto-switches when the <code>[COMBAT]</code> tag is active in the tracker and switches back when combat ends. <b>Gemini 3.5 Flash</b> is a great choice for this; set thinking to <b>Medium</b> so it still thinks a little.<br><br>
+                        These are recommendations, not rules — experiment. Different models shine for different styles of play.
                     </div>
                 </div>
 
                 <!-- Narrator Configuration (Salad Bar) -->
-                <div style="margin-top: 12px; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 10px; background: rgba(255,255,255,0.03); width: 100%; box-sizing: border-box;">
-                    <b style="color: var(--rt-accent); font-size: 14px; display: block; margin-bottom: 6px;">Narrator Configuration</b>
-                    <small style="display: block; margin-bottom: 8px; opacity: 0.65; font-style: italic; line-height: 1.3;">Select your preferred modes and components. Changes apply to your system prompt automatically (unless Custom Sysprompt Mode is on).</small>
+                <div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-narrator-drawer">
+                    <button type="button" class="rt-onboarding-drawer-toggle" id="rt-onboarding-narrator-drawer-toggle" aria-expanded="false" aria-controls="rt-onboarding-narrator-drawer-body">
+                        <span class="rt-onboarding-drawer-toggle-label"><span class="rt-onboarding-drawer-icon" aria-hidden="true">&#10022;</span><span>Narrator Configuration<small>Set pacing, RNG, quests, and optional systems</small></span></span>
+                        <span class="rt-onboarding-drawer-chevron" aria-hidden="true">&#9656;</span>
+                    </button>
+                    <div class="rt-onboarding-drawer-body" id="rt-onboarding-narrator-drawer-body">
+                    <div class="rt-onboarding-drawer-body-inner">
+                    <div class="rt-onboarding-narrator-content" style="width: 100%; box-sizing: border-box;">
+                    <small style="display: block; margin-bottom: 8px; opacity: 0.65; font-style: italic; line-height: 1.3;">Select your preferred modes and components. Changes apply to your system prompt automatically.</small>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+                        <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">Pacing</span>
+                        <button type="button" class="rt-narrative-pacing-help" style="background: none; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: inherit; font-size: 0.72em; opacity: 0.7; padding: 1px 7px; cursor: pointer;">What are these?</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; padding-left: 5px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="normal" id="rt_onboarding_narrative_pacing_normal" /><span>Normal</span></label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="high_agency" id="rt_onboarding_narrative_pacing_high_agency" /><span>High-Agency Mode</span></label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="downtime" id="rt_onboarding_narrative_pacing_downtime" /><span>Downtime/Slice of Life Mode</span></label>
+                    </div>
                     
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
                         <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">RNG</span>
@@ -2034,15 +2293,15 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; padding-left: 5px;">
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="radio" name="rt_onboarding_rng_mode" value="hybrid" id="rt_onboarding_rng_hybrid" />
-                            <span>Pre-Seeded + Tool Calls</span>
+                            <span>Pre-Seeded + Tool Calls (Recommended without CYOA Mode)</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="radio" name="rt_onboarding_rng_mode" value="legacy" id="rt_onboarding_rng_legacy" />
-                            <span>Pre-Seeded Only</span>
+                            <span>Pre-Seeded Only (Recommended with CYOA Mode)</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="radio" name="rt_onboarding_rng_mode" value="none" id="rt_onboarding_rng_none" />
-                            <span>No RNG (LLM makes up numbers)</span>
+                            <span>No RNG (LLM makes up numbers, not recommended)</span>
                         </label>
                     </div>
 
@@ -2070,10 +2329,6 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                                 </label>
                             </div>
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" id="rt_onboarding_quests_difficulty" />
-                                <span>Difficulty</span>
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                 <input type="checkbox" id="rt_onboarding_quests_show_archive" checked />
                                 <span>Show completed/failed quests</span>
                             </label>
@@ -2098,24 +2353,22 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                             <input type="checkbox" id="rt_onboarding_mod_party_bench" />
                             <span>🏕️ Benched Party (Tracks temporarily separated companions)</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <div style="display:flex;align-items:center;gap:6px;">
                             <input type="checkbox" id="rt_onboarding_mod_cyoa_mode" />
                             <span>🧭 CYOA Mode (Numbered action choices at end of outputs)</span>
-                        </label>
+                            <button id="rt_onboarding_cyoa_settings_btn" style="background:none;border:1px solid rgba(255,255,255,0.25);border-radius:4px;color:inherit;font-size:0.75em;padding:1px 6px;cursor:pointer;flex-shrink:0;opacity:0.8;" title="CYOA Settings"><i class="fa-solid fa-gear"></i></button>
+                        </div>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" id="rt_onboarding_mod_npc_rel_bars" />
-                            <span>💞 Relationship System (BETA)</span>
+                            <span>💞 Relationship System (tracks each NPC's friendship and affection toward you)</span>
                         </label>
                     </div>
-
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
-                        <input type="checkbox" id="rt_onboarding_custom_sysprompt" />
-                        <span style="font-size: 0.88em; opacity: 0.8;">Custom Sysprompt Mode — I'll manage my own system prompt</span>
-                    </label>
 
                     <button id="rt_onboarding_btn_update_sysprompt" style="width: 100%; margin-top: 10px; padding: 7px 12px; background: rgba(0, 200, 140, 0.18); border: 1px solid #00c88c; border-radius: 4px; color: var(--rt-text, #eee); font-size: 0.88em; cursor: pointer;" title="Writes the system prompt to your Quick Prompt Main box based on the options selected above.">
                         ↑ Apply System Prompt
                     </button>
+                </div>
+                </div>
                 </div>
             </div>`;
         }
@@ -2211,6 +2464,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
             </button>
         ` : '';
 
+        const personaFromCharBtn = tag === 'CHARACTER' ? `
+            <button class="rt-char-to-persona-btn" data-tag="CHARACTER" title="Create Lorebook Agent Persona from this CHARACTER (uses sheet + last 3 story messages)">
+                👤
+            </button>
+        ` : '';
+
         const fullViewBtn = NO_PAGINATE.has(renderType) ? '' : `
             <button class="rt-fullview-btn${isFullView ? ' active' : ''}" data-tag="${tag}" title="${isFullView ? 'Switch to Paged View' : 'Switch to Full List'}">
                 ${isFullView ? '📜' : '📑'}
@@ -2241,6 +2500,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                 <span>${icon} ${displayName}</span>
                 <div class="rt-section-header-right">
                     ${totalValueBadge}
+                    ${personaFromCharBtn}
                     ${detachBtn}
                     ${fullViewBtn}
                     <button class="rt-category-settings-btn" data-tag="${tag}" title="Category Rendering Options">
@@ -2382,7 +2642,7 @@ function renderBenchedPartyPanel(benchedContent, isPanelCollapsed, expandedNames
     if (expandedNames.size > 0) {
         blockToItems('BENCHED PARTY', benchedContent).forEach(html => {
             const m = html.match(/class="rt-entity-name"[^>]*>([^<]+)</);
-            if (m) fullCardByName[m[1].trim()] = html;
+            if (m) fullCardByName[decodeHtml(m[1].trim())] = html;
         });
     }
 
@@ -2553,9 +2813,10 @@ export function renderQuestLog(quests, currentTime, collapsed, detached, filterT
         const dismissible = !!opts.dismissible;
 
         const hasDeadline = questHasEffectiveDeadline(quest);
+        const emergent = isEmergentQuest(quest);
 
         const { getQuestMood } = /** @type {any} */ (globalThis.__rpgQuestUtils || {});
-        const moodData = hasDeadline && typeof getQuestMood === 'function'
+        const moodData = hasDeadline && !emergent && typeof getQuestMood === 'function'
             ? getQuestMood(quest, currentTime, showFrustration)
             : { label: '', color: '#00cc77', value: null };
 
@@ -2572,10 +2833,11 @@ export function renderQuestLog(quests, currentTime, collapsed, detached, filterT
 
         const barTitle = showFrustration && moodData.label
             ? `NPC Mood: ${label} (${frust >= 0 ? '+' : ''}${frust.toFixed(2)})`
-            : (hasDeadline ? `Time Progress: ${label}` : '');
+            : (hasDeadline && !emergent ? `Time Progress: ${label}` : '');
 
         // Tick mark at the neutral position (33%) and deadline position (67%)
-        const moodBarHtml = hasDeadline ? `
+        // Emergent quests: no NPC expects completion → no mood/frustration bar
+        const moodBarHtml = hasDeadline && !emergent ? `
             <div class="rt-quest-mood-bar-wrap" title="${escapeHtml(barTitle)}">
                 <div class="rt-quest-mood-bar" style="width:${fillPct}%; background:${barColor};"></div>
                 <div class="rt-quest-mood-tick rt-quest-mood-tick-neutral"></div>
@@ -2649,16 +2911,6 @@ export function renderQuestLog(quests, currentTime, collapsed, detached, filterT
         if (quest.status !== 'active') cardClass += ' rt-quest-inactive';
         if (isFailed) cardClass += ' rt-quest-card-failed';
 
-        const diffColors = {
-            'Very Easy': '#a3e635', // Lime
-            'Easy': '#22c55e',      // Green
-            'Medium': '#f59e0b',    // Amber
-            'Hard': '#f97316',      // Orange
-            'Very Hard': '#ef4444'  // Red
-        };
-        const badgeBg = diffColors[quest.difficulty] || 'rgba(120, 120, 120, 0.2)';
-        const badgeColor = diffColors[quest.difficulty] ? '#000' : 'rgba(255,255,255,0.9)';
-        const diffBadge = quest.difficulty ? `<span class="rt-quest-badge" style="background: ${badgeBg}; color: ${badgeColor}; font-weight: 800; border: none;">${escapeHtml(String(quest.difficulty)).toUpperCase()}</span>` : '';
         const dismissBtn = dismissible
             ? `<button type="button" class="rt-quest-dismiss-btn" data-quest-id="${escapeHtml(quest.id)}" title="Remove from log">✕</button>`
             : '';
@@ -2667,7 +2919,6 @@ export function renderQuestLog(quests, currentTime, collapsed, detached, filterT
             <div class="rt-quest-header">
                 <span class="rt-quest-title">${escapeHtml(quest.title)}</span>
                 <div class="rt-quest-badges">
-                    ${diffBadge}
                     <span class="rt-quest-badge ${statusBadgeClass}">${statusLabel}</span>
                     ${dismissBtn}
                 </div>

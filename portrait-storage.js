@@ -1,5 +1,6 @@
 import { getRequestHeaders } from '../../../../script.js';
 import { getActiveChatId } from './state-manager.js';
+import { decodeHtml } from './memo-processor.js';
 
 /** Subfolder under `user/images/` for all Multihog portrait files. */
 export const PORTRAIT_STORAGE_FOLDER = 'multihogframework_portraits';
@@ -29,7 +30,23 @@ function normalizeStoredPortraitPath(path) {
 
 function normalizeEntityName(name) {
     if (!name) return '';
-    return name.replace(/\s*\(.*?\)/g, '').trim();
+    return decodeHtml(name).replace(/\s*\(.*?\)/g, '').trim();
+}
+
+export { normalizeEntityName };
+
+/** Resolve a stored portrait ref for an entity label (handles HTML entities + class suffix). */
+export function lookupCustomPortraitSrc(settings, entityName, portraitsMap) {
+    const key = normalizeEntityName(entityName);
+    if (!key) return '';
+    const map = portraitsMap ?? settings?.customPortraits;
+    // Lorebook Agent cards and tracker cards share this portrait map. Their names
+    // are usually identical, but a case-insensitive fallback makes a tracker card
+    // resilient to normal narrator formatting differences ("ALICE" vs "Alice").
+    const raw = map?.[key] || Object.entries(map || {}).find(([storedName]) =>
+        normalizeEntityName(storedName).localeCompare(key, undefined, { sensitivity: 'accent' }) === 0,
+    )?.[1];
+    return raw ? resolvePortraitDisplaySrc(raw) : '';
 }
 
 /** @returns {boolean} */

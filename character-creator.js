@@ -1,9 +1,9 @@
 import { getSettings, saveChatState, DEFAULT_PC_SECTIONS } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
-import { buildOnboardingXpHint, buildOnboardingTimeHint, buildMagicGearLevelHint } from './constants.js';
+import { buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint } from './constants.js';
 import { escapeHtml } from './memo-processor.js';
 import { getRequestHeaders } from '../../../../script.js';
-import { saveSettings, sendDirectPrompt, refreshAgentManifestNow, refreshRenderedView, syncTimeFormatSettingsUi } from './index.js';
+import { saveSettings, sendDirectPrompt, refreshAgentManifestNow, refreshRenderedView, syncTimeFormatSettingsUi } from './src/app/runtime-bridge.js';
 import { openPcSectionEditor } from './ui-editors.js';
 
 const _CR_CLASS_LISTS = {
@@ -57,6 +57,221 @@ const _CR_CLASS_CONSTANTS = [
     ['✨ AI decides','__story__'],
 ];
 
+/**
+ * Archetype class names for a genre (excludes Other / AI decides).
+ * @param {string} genre
+ * @returns {string[]}
+ */
+export function getArchetypesForGenre(genre) {
+    const list = _CR_CLASS_LISTS[genre] || _CR_CLASS_LISTS.fantasy;
+    return list.map(([, value]) => value).filter(Boolean);
+}
+
+/**
+ * Build the character-sheet prompt used by Character Creator and Quick Start.
+ * @param {object} opts
+ * @param {string} [opts.nameVal]
+ * @param {string} [opts.genderVal]
+ * @param {string} [opts.ageVal]
+ * @param {string} [opts.orientationVal]
+ * @param {string} [opts.speciesVal]
+ * @param {string} [opts.ethnicityVal]
+ * @param {string} opts.genre
+ * @param {number} opts.level
+ * @param {string} opts.gearTier
+ * @param {string} opts.classRaw
+ * @param {string} [opts.classOtherVal]
+ * @param {string} [opts.traitsVal]
+ * @param {string} [opts.abilitiesVal]
+ * @param {string} [opts.backgroundVal]
+ * @param {string} [opts.appearanceVal]
+ * @param {string} [opts.additionalVal]
+ * @returns {{ prompt: string, extraHints: string, cardSnippet: string }}
+ */
+export function buildCharacterGenerationPrompt(opts) {
+    const s = getSettings();
+    const nameVal = (opts.nameVal || '').trim();
+    const genderVal = (opts.genderVal || '').trim();
+    const ageVal = (opts.ageVal || '').trim();
+    const orientationVal = (opts.orientationVal || '').trim();
+    const speciesVal = (opts.speciesVal || '').trim();
+    const ethnicityVal = (opts.ethnicityVal || '').trim();
+    const genre = opts.genre || s.onboardingGenre || 'fantasy';
+    const level = opts.level || 1;
+    const gearTier = opts.gearTier || s.onboardingGearTier || 'auto';
+    const classRaw = opts.classRaw || '__story__';
+    const classOtherVal = (opts.classOtherVal || '').trim();
+    const traitsVal = (opts.traitsVal || '').trim();
+    const abilitiesVal = (opts.abilitiesVal || '').trim();
+    const backgroundVal = (opts.backgroundVal || '').trim();
+    const appearanceVal = (opts.appearanceVal || '').trim();
+    const additionalVal = (opts.additionalVal || '').trim();
+
+    const isStoryFitting = classRaw === '__story__';
+    const isOther = classRaw === '__other__';
+    const ctx2 = SillyTavern.getContext();
+    const charId = ctx2.characterId;
+    const card = charId !== undefined ? ctx2.characters?.[charId] : null;
+    const cardSnippet = card ? `\nActive Card: ${(card.name || '')} — ${(card.description || '')}` : '';
+
+    let classLine = '';
+    if (isStoryFitting) {
+        classLine = `Class: (choose a class that fits the current story, setting, and card naturally — be creative)`;
+    } else if (isOther && classOtherVal) {
+        classLine = `Class: ${classOtherVal}`;
+    } else if (!isOther && !isStoryFitting && classRaw) {
+        classLine = `Class: ${classRaw}`;
+    } else {
+        classLine = `Class: (invent a class fitting the setting and era — do NOT use fantasy D&D class names in non-fantasy contexts)`;
+    }
+
+    let extraHints = '';
+    if (nameVal || genderVal || ageVal || orientationVal || speciesVal || ethnicityVal || traitsVal || backgroundVal || appearanceVal || additionalVal) {
+        extraHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\n` +
+                     (nameVal ? `Name: ${nameVal}\n` : '') +
+                     (genderVal ? `Gender: ${genderVal}\n` : '') +
+                     (ageVal ? `Age: ${ageVal}\n` : '') +
+                     (orientationVal ? `Orientation: ${orientationVal}\n` : '') +
+                     (speciesVal ? `Species: ${speciesVal}\n` : '') +
+                     (ethnicityVal ? `Ethnicity: ${ethnicityVal}\n` : '') +
+                     (traitsVal ? `Traits: ${traitsVal}\n` : '') +
+                     (appearanceVal ? `Appearance Hints: ${appearanceVal}\n` : '') +
+                     (backgroundVal ? `Background Hints: ${backgroundVal}\n` : '') +
+                     (additionalVal ? `Additional: ${additionalVal}\n` : '');
+    }
+
+    const isCalendar = !!s.useDdMmYyFormat;
+    const startDateVal = isCalendar
+        ? (s.initialDate && s.initialDate !== 'Day 1' ? s.initialDate : '01/01/2026')
+        : 'Day 1';
+
+    const mods = s.modules || {};
+    const hasXp = !!mods['xp'];
+    const hasTime = !!mods['time'];
+    const hasInventory = !!mods['inventory'];
+    const hasSpells = !!mods['spells'];
+
+    const levelPrefix = hasXp
+        ? `STARTING LEVEL: ${level} (mandatory — the character MUST be exactly Level ${level}).`
+        : `STARTING LEVEL: ${level} (mandatory — the character MUST be exactly Level ${level}; scale/adjust HP, stats, saves, capabilities, and gear (everything a character of that level might have) to Level ${level} accordingly, but do NOT output an [XP] block as it is disabled).`;
+
+    const xpHint = hasXp ? buildOnboardingXpHint(level) : '';
+    const TIME_FORMAT_HINT = hasTime ? buildOnboardingTimeHint(startDateVal) : '';
+    const magicGearHint = buildStartingGearHint(level, genre, hasInventory, gearTier);
+
+    const activeBlocks = buildOnboardingActiveBlocks(s);
+    const closingTagExamples = activeBlocks.map(b => `[/${b}]`).join(', ');
+    const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.`;
+
+    const blockListStr = activeBlocks.join(', ');
+    const spellsClause = hasSpells ? " Only include [SPELLS] if the class genuinely uses magic." : '';
+
+    const SETTING_HINTS = {
+        realistic: `\n\nCRITICAL REALISM RULE: This is a realistic/non-fantasy setting.${hasSpells ? ' Do NOT output a [SPELLS] block.' : ''} Avoid fantasy classes and races. Use realistic currency (e.g. $, USD, GBP). Gear and weapons must be realistic. Firearms on new gear/NPCs/loot: damage ~2–3× D&D/PF norms by common sense (type/caliber); attack bonuses unchanged (not mid-scene conversion).`,
+        scifi: `\n\nCRITICAL SCI-FI RULE: Science-fiction setting.${hasSpells ? ' No [SPELLS] block.' : ''} No fantasy classes or races. Use Credits or equivalent currency. Gear should be futuristic.`,
+        horror: `\n\nCRITICAL HORROR RULE: Horror setting.${hasSpells ? ' No [SPELLS] block — occult abilities go in [ABILITIES].' : ''} No fantasy classes or races. Use realistic currency. Characters are grounded and vulnerable. Firearms (if any) on new gear/NPCs/loot: damage ~2–3× D&D/PF norms by common sense; attack bonuses unchanged (not mid-scene conversion).`,
+        fantasy: '',
+    };
+    const settingHint = SETTING_HINTS[genre] || '';
+    const combatSkillHint = buildCombatAndSkillScalingHint();
+    const f = (val, fallback) => val || fallback;
+
+    const prompt = `${levelPrefix}
+
+Design a complete player character that fits naturally into the current scenario, card, and recent chat history. Be authentic to the setting, era, and tone.
+
+--- PLAYER PREFERENCES ---
+Name:         ${f(nameVal, '(invent a creative, setting-appropriate name — NEVER use "User", "Unknown", or any placeholder)')}
+Gender:       ${f(genderVal, '(your choice)')}
+Age:          ${f(ageVal, '(your choice)')}
+Orientation:  ${f(orientationVal, '(your choice)')}
+Species:      ${f(speciesVal, '(your choice)')}
+Ethnicity:    ${f(ethnicityVal, '(your choice)')}
+${classLine}
+Traits:       ${f(traitsVal, '(invent 2–3 distinctive traits)')}
+Level:        ${level}
+Abilities:    ${f(abilitiesVal, '(generate fitting, creative abilities)')}
+Background:   ${f(backgroundVal, '(invent a brief origin)')}
+Appearance:   ${f(appearanceVal, '(invent a memorable appearance)')}
+${additionalVal ? `Additional:   ${additionalVal}` : ''}
+${cardSnippet ? `\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : ''}
+
+--- REQUIREMENTS ---
+• Fill every blank field above with creative, setting-appropriate content. No field may be empty, "Unknown", "N/A", or a placeholder.
+• The name must be original and fitting. NEVER write "User" or any variation.
+• Output every currently active state-memo field (enabled stock modules and custom fields): ${blockListStr}.${spellsClause}
+• Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.
+• ${isOther || isStoryFitting ? 'Invent the most fitting class for the setting and context.' : `Use the chosen class "${classRaw}" exactly as given — do not rename or substitute it.`}
+• If the setting is non-fantasy and no class was specified, create a class that feels natural to the world — not a fantasy D&D class name.
+• All stats, gear, and saves${hasXp ? ', and XP' : ''} must be consistent with Level ${level}.${magicGearHint}
+${combatSkillHint}
+${CHARACTER_FORMAT_HINT}${xpHint}${TIME_FORMAT_HINT}${settingHint}`;
+
+    return { prompt, extraHints, cardSnippet };
+}
+
+/**
+ * Generate a character sheet for Quick Start (no persona overlay).
+ * @param {{ genre: string, className: string, level?: number, gearTier?: string }} opts
+ * @returns {Promise<{ charName: string }>}
+ */
+export async function generateQuickStartCharacter(opts) {
+    const s = getSettings();
+    const genre = opts.genre || s.onboardingGenre || 'fantasy';
+    const level = opts.level ?? (parseInt(String(s.onboardingLevel || 1), 10) || 1);
+    const gearTier = opts.gearTier || s.onboardingGearTier || 'auto';
+    const className = opts.className;
+    if (!className) throw new Error('Quick Start requires a class archetype.');
+
+    const memoBefore = s.currentMemo || '';
+    const { prompt } = buildCharacterGenerationPrompt({
+        genre,
+        level,
+        gearTier,
+        classRaw: className,
+    });
+
+    await sendDirectPrompt(prompt);
+
+    const s2 = getSettings();
+    const memoAfter = s2.currentMemo || '';
+    if (!memoAfter || memoAfter === memoBefore || !/\[CHARACTER\]/i.test(memoAfter)) {
+        throw new Error('Character generation failed — State Model returned no character sheet. Check your API connection.');
+    }
+
+    const extractedName = extractCharNameFromMemo(memoAfter);
+    return { charName: extractedName || 'My Character' };
+}
+
+/**
+ * Insert (or replace) the Player Card in the Lorebook Agent for the active chat.
+ * @param {string} name
+ * @param {string} bio
+ * @param {number} [wordCount]
+ * @returns {Promise<boolean>} true if written
+ */
+export async function addPlayerCardToLorebookAgent(name, bio, wordCount = 150) {
+    const safeName = String(name || '').replace(/['"\\]/g, '').trim() || 'My Character';
+    const finalBio = String(bio || '').trim();
+    if (!finalBio) return false;
+
+    const s = getSettings();
+    if (!s.chatStates) s.chatStates = {};
+    const currentChatId = SillyTavern.getContext().chatId;
+    if (!currentChatId) return false;
+
+    if (!s.chatStates[currentChatId]) s.chatStates[currentChatId] = {};
+    s.chatStates[currentChatId].playerCharacter = {
+        name: safeName,
+        bio: finalBio,
+        wordCount: wordCount || 100,
+        timestamp: Date.now(),
+    };
+    saveChatState(currentChatId);
+    await refreshAgentManifestNow();
+    return true;
+}
+
 /** @returns {Record<string, string|number|boolean>} */
 export function collectCharacterCreatorDraft(panel) {
     const classSelect = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-class'));
@@ -71,6 +286,7 @@ export function collectCharacterCreatorDraft(panel) {
         ethnicity: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-ethnicity'))?.value ?? '',
         genre: /** @type {HTMLSelectElement} */ (panel.querySelector('#rt-cr-genre'))?.value ?? '',
         level: /** @type {HTMLSelectElement} */ (panel.querySelector('#rt-cr-level'))?.value ?? '1',
+        gearTier: /** @type {HTMLSelectElement} */ (panel.querySelector('#rt-cr-gear-tier'))?.value ?? 'auto',
         class: classSelect?.value ?? '__story__',
         classOther: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-class-other'))?.value ?? '',
         traits: /** @type {HTMLTextAreaElement} */ (panel.querySelector('#rt-cr-traits'))?.value ?? '',
@@ -100,6 +316,7 @@ export function applyCharacterCreatorDraft(panel, draft, populateClasses) {
     setVal('#rt-cr-ethnicity', draft.ethnicity);
     setVal('#rt-cr-genre', draft.genre ?? '');
     setVal('#rt-cr-level', String(draft.level ?? 1));
+    setVal('#rt-cr-gear-tier', draft.gearTier ?? 'auto');
     populateClasses(draft.genre ?? '');
     const classSelect = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-class'));
     const classOther = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-class-other'));
@@ -153,6 +370,7 @@ export function resetCharacterCreatorFields(panel, populateClasses) {
     setVal('#rt-cr-ethnicity', '');
     setVal('#rt-cr-genre', '');
     setVal('#rt-cr-level', String(s.onboardingLevel || 1));
+    setVal('#rt-cr-gear-tier', s.onboardingGearTier || 'auto');
     populateClasses('');
     const classSelect = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-class'));
     if (classSelect) classSelect.value = '__story__';
@@ -199,11 +417,13 @@ export function showCharacterRollPanel(el) {
     if (!panel) return;
     const heroEl = /** @type {HTMLElement|null} */ (el.querySelector('.rt-onboarding-hero'));
     const secondaryEl = /** @type {HTMLElement|null} */ (el.querySelector('.rt-onboarding-secondary'));
+    const quickStartEl = /** @type {HTMLElement|null} */ (el.querySelector('#rt-quickstart'));
     const allBtnGroups = /** @type {NodeListOf<HTMLElement>} */ (el.querySelectorAll('.rt-onboarding-buttons'));
 
     getSettings().characterCreatorPanelOpen = true;
 
     if (heroEl) heroEl.style.display = 'none';
+    if (quickStartEl) quickStartEl.style.display = 'none';
     if (secondaryEl) secondaryEl.style.display = 'none';
     panel.style.display = 'flex';
     syncTimeFormatSettingsUi(getSettings());
@@ -240,6 +460,8 @@ export function showCharacterRollPanel(el) {
         // Default genre to '' (None — AI decides); do NOT carry over onboardingGenre here
         if (genreSelect) genreSelect.value = '';
         if (levelSelect) levelSelect.value = String(s.onboardingLevel || 1);
+        const gearTierSelect = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-gear-tier'));
+        if (gearTierSelect) gearTierSelect.value = s.onboardingGearTier || 'auto';
     }
 
     const nameInput = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-name'));
@@ -298,6 +520,7 @@ export function showCharacterRollPanel(el) {
             getSettings().characterCreatorPanelOpen = false;
             panel.style.display = 'none';
             if (heroEl) heroEl.style.display = '';
+            if (quickStartEl) quickStartEl.style.display = '';
             if (secondaryEl) secondaryEl.style.display = '';
             const genre = getSettings().onboardingGenre || 'fantasy';
             allBtnGroups.forEach(g => {
@@ -399,6 +622,11 @@ async function handleCharRollGenerate(el, panel) {
     saveCharacterCreatorDraft(panel);
 
     const s = getSettings();
+    const gearTierEl = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-gear-tier'));
+    if (gearTierEl) {
+        s.onboardingGearTier = gearTierEl.value || 'auto';
+        saveSettings();
+    }
     const nameVal        = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-name'))?.value.trim()        || '';
     const genderVal      = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-gender'))?.value.trim()      || '';
     const ageVal         = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-age'))?.value.trim()         || '';
@@ -407,9 +635,10 @@ async function handleCharRollGenerate(el, panel) {
     const ethnicityVal   = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-ethnicity'))?.value.trim()   || '';
     const genre          = /** @type {HTMLSelectElement}  */ (panel.querySelector('#rt-cr-genre'))?.value              || s.onboardingGenre || 'fantasy';
     const level          = parseInt(/** @type {HTMLSelectElement} */ (panel.querySelector('#rt-cr-level'))?.value      || String(s.onboardingLevel || 1), 10) || 1;
+    const gearTier       = /** @type {HTMLSelectElement} */ (panel.querySelector('#rt-cr-gear-tier'))?.value || s.onboardingGearTier || 'auto';
     const classSelect    = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-class'));
-    let   classRaw       = classSelect?.value || '__story__';
-    let   classOtherVal  = /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-class-other'))?.value.trim()   || '';
+    const classRaw       = classSelect?.value || '__story__';
+    const classOtherVal  = /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-class-other'))?.value.trim()   || '';
     const traitsVal      = /** @type {HTMLTextAreaElement}*/ (panel.querySelector('#rt-cr-traits'))?.value.trim()       || '';
     const abilitiesVal   = /** @type {HTMLTextAreaElement}*/ (panel.querySelector('#rt-cr-abilities'))?.value.trim()    || '';
     const backgroundVal  = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-background'))?.value.trim()  || '';
@@ -422,107 +651,11 @@ async function handleCharRollGenerate(el, panel) {
     const wordsRaw       = wordsSelectEl?.value === 'other' ? wordsCustomEl?.value : wordsSelectEl?.value;
     const wordCount      = parseInt(wordsRaw || '150', 10) || 150;
 
-    const isStoryFitting = classRaw === '__story__';
-    const isOther        = classRaw === '__other__';
-    const ctx2 = SillyTavern.getContext();
-    const charId = ctx2.characterId;
-    const card = charId !== undefined ? ctx2.characters?.[charId] : null;
-    const cardSnippet = card ? `\nActive Card: ${(card.name || '')} — ${(card.description || '')}` : '';
-
-    let classLine = '';
-    if (isStoryFitting) {
-        classLine = `Class: (choose a class that fits the current story, setting, and card naturally — be creative)`;
-    } else if (isOther && classOtherVal) {
-        classLine = `Class: ${classOtherVal}`;
-    } else if (!isOther && !isStoryFitting && classRaw) {
-        classLine = `Class: ${classRaw}`;
-    } else {
-        classLine = `Class: (invent a class fitting the setting and era — do NOT use fantasy D&D class names in non-fantasy contexts)`;
-    }
-
-    let extraHints = '';
-    if (nameVal || genderVal || ageVal || orientationVal || speciesVal || ethnicityVal || traitsVal || backgroundVal || appearanceVal || additionalVal) {
-        extraHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\n` +
-                     (nameVal ? `Name: ${nameVal}\n` : '') +
-                     (genderVal ? `Gender: ${genderVal}\n` : '') +
-                     (ageVal ? `Age: ${ageVal}\n` : '') +
-                     (orientationVal ? `Orientation: ${orientationVal}\n` : '') +
-                     (speciesVal ? `Species: ${speciesVal}\n` : '') +
-                     (ethnicityVal ? `Ethnicity: ${ethnicityVal}\n` : '') +
-                     (traitsVal ? `Traits: ${traitsVal}\n` : '') +
-                     (appearanceVal ? `Appearance Hints: ${appearanceVal}\n` : '') +
-                     (backgroundVal ? `Background Hints: ${backgroundVal}\n` : '') +
-                     (additionalVal ? `Additional: ${additionalVal}\n` : '');
-    }
-
-    const isCalendar = !!s.useDdMmYyFormat;
-    const startDateVal = isCalendar
-        ? (s.initialDate && s.initialDate !== 'Day 1' ? s.initialDate : '01/01/2026')
-        : 'Day 1';
-
-    // Gate optional blocks on enabled modules
-    const mods = s.modules || {};
-    const hasXp        = !!mods['xp'];
-    const hasTime      = !!mods['time'];
-    const hasInventory = !!mods['inventory'];
-    const hasAbilities = !!mods['abilities'];
-    const hasSpells    = !!mods['spells'];
-
-    const levelPrefix = hasXp
-        ? `STARTING LEVEL: ${level} (mandatory — the character MUST be exactly Level ${level}).`
-        : `STARTING LEVEL: ${level} (mandatory — the character MUST be exactly Level ${level}; scale/adjust HP, stats, saves, capabilities, and gear (everything a character of that level might have) to Level ${level} accordingly, but do NOT output an [XP] block as it is disabled).`;
-
-    const xpHint = hasXp ? buildOnboardingXpHint(level) : '';
-    const TIME_FORMAT_HINT = hasTime ? buildOnboardingTimeHint(startDateVal) : '';
-    const magicGearHint = buildMagicGearLevelHint(level, genre, hasInventory);
-
-    // Build the dynamic block list for the closing-tag rule (only active blocks)
-    const activeBlocks = ['CHARACTER', ...(hasInventory ? ['INVENTORY'] : []), ...(hasAbilities ? ['ABILITIES'] : []), ...(hasSpells ? ['SPELLS'] : []), ...(hasXp ? ['XP'] : []), ...(hasTime ? ['TIME'] : [])];
-    const closingTagExamples = activeBlocks.map(b => `[/${b}]`).join(', ');
-    const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.`;
-
-    // Build the "Output X, Y, Z blocks" instruction
-    const blockListStr = activeBlocks.join(', ');
-    const spellsClause = hasSpells ? " Only include [SPELLS] if the class genuinely uses magic." : '';
-
-    const SETTING_HINTS = {
-        realistic: `\n\nCRITICAL REALISM RULE: This is a realistic/non-fantasy setting.${hasSpells ? ' Do NOT output a [SPELLS] block.' : ''} Avoid fantasy classes and races. Use realistic currency (e.g. $, USD, GBP). Gear and weapons must be realistic.`,
-        scifi: `\n\nCRITICAL SCI-FI RULE: Science-fiction setting.${hasSpells ? ' No [SPELLS] block.' : ''} No fantasy classes or races. Use Credits or equivalent currency. Gear should be futuristic.`,
-        horror: `\n\nCRITICAL HORROR RULE: Horror setting.${hasSpells ? ' No [SPELLS] block — occult abilities go in [ABILITIES].' : ''} No fantasy classes or races. Use realistic currency. Characters are grounded and vulnerable.`,
-        fantasy: '',
-    };
-    const settingHint = SETTING_HINTS[genre] || '';
-
-    const f = (val, fallback) => val || fallback;
-    const prompt = `${levelPrefix}
-
-Design a complete player character that fits naturally into the current scenario, card, and recent chat history. Be authentic to the setting, era, and tone.
-
---- PLAYER PREFERENCES ---
-Name:         ${f(nameVal, '(invent a creative, setting-appropriate name — NEVER use "User", "Unknown", or any placeholder)')}
-Gender:       ${f(genderVal, '(your choice)')}
-Age:          ${f(ageVal, '(your choice)')}
-Orientation:  ${f(orientationVal, '(your choice)')}
-Species:      ${f(speciesVal, '(your choice)')}
-Ethnicity:    ${f(ethnicityVal, '(your choice)')}
-${classLine}
-Traits:       ${f(traitsVal, '(invent 2–3 distinctive traits)')}
-Level:        ${level}
-Abilities:    ${f(abilitiesVal, '(generate fitting, creative abilities)')}
-Background:   ${f(backgroundVal, '(invent a brief origin)')}
-Appearance:   ${f(appearanceVal, '(invent a memorable appearance)')}
-${additionalVal ? `Additional:   ${additionalVal}` : ''}
-${cardSnippet ? `\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : ''}
-
---- REQUIREMENTS ---
-• Fill every blank field above with creative, setting-appropriate content. No field may be empty, "Unknown", "N/A", or a placeholder.
-• The name must be original and fitting. NEVER write "User" or any variation.
-• Output the following blocks: ${blockListStr}.${spellsClause}
-• Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.
-• ${isOther || isStoryFitting ? 'Invent the most fitting class for the setting and context.' : `Use the chosen class "${classRaw}" exactly as given — do not rename or substitute it.`}
-• If the setting is non-fantasy and no class was specified, create a class that feels natural to the world — not a fantasy D&D class name.
-• All stats, gear, and saves${hasXp ? ', and XP' : ''} must be consistent with Level ${level}.${magicGearHint}
-${CHARACTER_FORMAT_HINT}${xpHint}${TIME_FORMAT_HINT}${settingHint}`;
+    const { prompt, extraHints, cardSnippet } = buildCharacterGenerationPrompt({
+        nameVal, genderVal, ageVal, orientationVal, speciesVal, ethnicityVal,
+        genre, level, gearTier, classRaw, classOtherVal,
+        traitsVal, abilitiesVal, backgroundVal, appearanceVal, additionalVal,
+    });
 
     const onboardingEl = resolveOnboardingEl(el) || el;
     const livePanel = onboardingEl.querySelector('#rt-char-roll-panel') || panel;
@@ -550,10 +683,16 @@ ${CHARACTER_FORMAT_HINT}${xpHint}${TIME_FORMAT_HINT}${settingHint}`;
     }
 }
 
-export async function generatePersonaBio(charName, wordCount, extraHints = '') {
+export async function generatePersonaBio(charName, wordCount, extraHints = '', opts = {}) {
     const s = getSettings();
     const rawMemo = s.currentMemo || '';
-    const cleanMemo = rawMemo.replace(/<\/?memo>/gi, '').replace(/<[^>]+>/g, ' ').trim();
+    let cleanMemo = rawMemo.replace(/<\/?memo>/gi, '').replace(/<[^>]+>/g, ' ').trim();
+    if (opts.preferCharacterBlock) {
+        const charBlock = rawMemo.match(/\[CHARACTER\]([\s\S]*?)\[\/CHARACTER\]/i);
+        if (charBlock) {
+            cleanMemo = `[CHARACTER]\n${charBlock[1].trim()}\n[/CHARACTER]\n\n${cleanMemo}`;
+        }
+    }
 
     const coreSections = s.pcCoreSections && Array.isArray(s.pcCoreSections) && s.pcCoreSections.length > 0 ? s.pcCoreSections : DEFAULT_PC_SECTIONS;
     const sectionsTemplate = coreSections.map(sec => `${sec.name}:\n${sec.description}`).join('\n\n');
@@ -572,14 +711,24 @@ Rules:
 - Keep the prose grounded and natural. Avoid purple prose, excessive em-dashes, or clichés (e.g. "deliberate step", "breath hitched").
 - Do not include a preamble, title, or closing statement. Output ONLY the six sections.
 - CRITICAL: You MUST faithfully and explicitly incorporate ALL provided traits, background hints, species, gender, and appearance hints from the character card and the PLAYER PREFERENCES. Do not ignore user-provided details.
-- CRITICAL: Never output template macro strings such as {{char}}, {{user}}, or any other {{...}} placeholders. Always replace them with the actual character's name or a fitting proper name.`;
+- CRITICAL: Never output template macro strings such as {{char}}, {{user}}, or any other {{...}} placeholders. Always replace them with the actual character's name or a fitting proper name.
+- Use recent story messages only for voice, relationships, and ongoing situation — do not invent stats that contradict the character card.`;
 
     const { chat } = SillyTavern.getContext();
     let chatLog = '';
     if (chat && chat.length > 0) {
-        const numMsgs = s.directPromptContext > 0 ? s.directPromptContext : 15;
-        const recentChat = chat.slice(-numMsgs);
-        chatLog = `## NARRATIVE HISTORY (Last ${recentChat.length} messages)\n` +
+        const defaultLookback = s.directPromptContext > 0 ? s.directPromptContext : 15;
+        const numMsgs = Number.isFinite(opts.chatLookback) && opts.chatLookback > 0
+            ? opts.chatLookback
+            : defaultLookback;
+        // Prefer real story turns (skip empty/system) so "last N messages" means narrative context.
+        const storyMsgs = chat.filter(m => {
+            if (m?.is_system) return false;
+            const text = String(m?.mes || m?.content || '').trim();
+            return !!text;
+        });
+        const recentChat = storyMsgs.slice(-numMsgs);
+        chatLog = `## RECENT STORY (Last ${recentChat.length} messages)\n` +
             recentChat.map(m => {
                 const name = m.is_user ? 'Player' : (m.name || 'Narrator');
                 return `${name}: ${m.mes || m.content || ''}`;
@@ -664,7 +813,31 @@ async function injectAsSillyTavernPersona(name, description) {
     return avatarId;
 }
 
-export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHints = '') {
+/**
+ * Create/update a SillyTavern persona with the given name + bio, select it, and lock to chat.
+ * Used so the chat username matches [CHARACTER].
+ * @param {string} name
+ * @param {string} description
+ * @returns {Promise<string>} avatarId
+ */
+export async function activateSillyTavernPersona(name, description) {
+    const safeName = String(name || '').replace(/['"\\]/g, '').trim() || 'My Character';
+    const bio = String(description || '').trim();
+    if (!bio) throw new Error('Persona bio is empty.');
+
+    const avatarId = await injectAsSillyTavernPersona(safeName, bio);
+
+    try {
+        const ctx = SillyTavern.getContext();
+        if (typeof ctx.executeSlashCommandsWithOptions === 'function') {
+            await ctx.executeSlashCommandsWithOptions('/persona-lock').catch(() => {});
+        }
+    } catch (_) {}
+
+    return avatarId;
+}
+
+export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHints = '', opts = {}) {
     const existing = document.getElementById('rt-persona-confirm-overlay');
     if (existing) existing.remove();
 
@@ -717,21 +890,13 @@ export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHin
     // ── Accept button ────────────────────────────────────────────────────────
     overlay.querySelector('#rt-pco-accept').addEventListener('click', async () => {
         const finalBio = /** @type {HTMLTextAreaElement} */ (overlay.querySelector('#rt-pco-bio')).value.trim();
-        const ctx = SillyTavern.getContext();
         const safeName = charName.replace(/['"\\]/g, '').trim() || 'My Character';
         const acceptBtn = /** @type {HTMLButtonElement} */ (overlay.querySelector('#rt-pco-accept'));
         acceptBtn.disabled = true;
         acceptBtn.textContent = '⏳ Creating...';
 
         try {
-            await injectAsSillyTavernPersona(safeName, finalBio);
-
-            try {
-                if (typeof ctx.executeSlashCommandsWithOptions === 'function') {
-                    await ctx.executeSlashCommandsWithOptions('/persona-lock').catch(() => {});
-                }
-            } catch (_) {}
-
+            await activateSillyTavernPersona(safeName, finalBio);
             toastr['success'](`Persona "${safeName}" saved and selected. Check User Settings → Personas to confirm.`, 'Character Creator');
         } catch (e) {
             try { await navigator.clipboard.writeText(finalBio); } catch (_) {}
@@ -747,22 +912,8 @@ export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHin
      overlay.querySelector('#rt-pco-add-pc').addEventListener('click', async () => {
          const finalBio = /** @type {HTMLTextAreaElement} */ (overlay.querySelector('#rt-pco-bio')).value.trim();
          const safeName = charName.replace(/['"\\]/g, '').trim() || 'My Character';
-         
-         const s = getSettings();
-         if (!s.chatStates) s.chatStates = {};
-         const currentChatId = SillyTavern.getContext().chatId;
-         if (currentChatId) {
-             if (!s.chatStates[currentChatId]) s.chatStates[currentChatId] = {};
-             s.chatStates[currentChatId].playerCharacter = {
-                 name: safeName,
-                 bio: finalBio,
-                 wordCount: wordCount || 100,
-                 timestamp: Date.now()
-             };
-             saveChatState(currentChatId);
-             
-             await refreshAgentManifestNow();
-
+         const ok = await addPlayerCardToLorebookAgent(safeName, finalBio, wordCount || 100);
+         if (ok) {
              toastr['success'](`"${safeName}" added as Player in Lorebook Agent.`, 'Character Creator');
          } else {
              toastr['error']('No active chat found to link the Player Character.', 'Character Creator');
@@ -775,7 +926,7 @@ export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHin
          const regenBtn = /** @type {HTMLButtonElement} */ (overlay.querySelector('#rt-pco-regen'));
          regenBtn.disabled = true;
          regenBtn.textContent = '⏳ Regenerating...';
-         const newBio = await generatePersonaBio(charName, wordCount, extraHints);
+         const newBio = await generatePersonaBio(charName, wordCount, extraHints, opts);
          if (newBio) {
              /** @type {HTMLTextAreaElement} */ (overlay.querySelector('#rt-pco-bio')).value = newBio;
          } else {
@@ -786,7 +937,7 @@ export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHin
      });
 }
 
-function extractCharNameFromMemo(memo) {
+export function extractCharNameFromMemo(memo) {
     if (!memo) return '';
     const charBlock = memo.match(/\[CHARACTER\]([\s\S]*?)\[\/CHARACTER\]/i);
     if (charBlock) {
@@ -816,13 +967,16 @@ export function showPcImportPanel(el) {
     if (!panel) return;
     const heroEl = /** @type {HTMLElement|null} */ (el.querySelector('.rt-onboarding-hero'));
     const secondaryEl = /** @type {HTMLElement|null} */ (el.querySelector('.rt-onboarding-secondary'));
+    const quickStartEl = /** @type {HTMLElement|null} */ (el.querySelector('#rt-quickstart'));
     const allBtnGroups = /** @type {NodeListOf<HTMLElement>} */ (el.querySelectorAll('.rt-onboarding-buttons'));
 
     const savedDisplays = Array.from(allBtnGroups).map(g => g.style.display);
     const savedHeroDisplay = heroEl ? heroEl.style.display : '';
     const savedSecondaryDisplay = secondaryEl ? secondaryEl.style.display : '';
+    const savedQuickStartDisplay = quickStartEl ? quickStartEl.style.display : '';
 
     if (heroEl) heroEl.style.display = 'none';
+    if (quickStartEl) quickStartEl.style.display = 'none';
     if (secondaryEl) secondaryEl.style.display = 'none';
     panel.style.display = 'flex';
 
@@ -838,6 +992,7 @@ export function showPcImportPanel(el) {
         backBtn.addEventListener('click', () => {
             panel.style.display = 'none';
             if (heroEl) heroEl.style.display = savedHeroDisplay;
+            if (quickStartEl) quickStartEl.style.display = savedQuickStartDisplay;
             if (secondaryEl) secondaryEl.style.display = savedSecondaryDisplay;
             allBtnGroups.forEach((g, i) => { g.style.display = savedDisplays[i]; });
         }, { once: true });
@@ -999,13 +1154,22 @@ async function importPcFromCard(charCard, mode, el) {
     } catch (_) {}
     const worldCtx = contextLines.join('\n\n---\n\n');
 
+    const importBlockList = buildOnboardingActiveBlocks(s).join(', ');
+    const combatSkillHint = buildCombatAndSkillScalingHint();
+    const gearTierEl = /** @type {HTMLSelectElement|null} */ (el.querySelector('#rt-onboarding-gear-tier') || el.querySelector('#rt-cr-gear-tier'));
+    const gearTier = gearTierEl?.value || s.onboardingGearTier || 'auto';
+    s.onboardingGearTier = gearTier;
+    const importGenre = s.onboardingGenre || 'fantasy';
+    const importHasInventory = !!s.modules?.inventory;
+    const gearHint = buildStartingGearHint(s.onboardingLevel || 1, importGenre, importHasInventory, gearTier);
+
     // --- Step 1: State Memo ---
     const memoPromptMinimal = `You are a state tracker assistant. Translate this character card into state tracker format for the player character.
 
 RULES:
 - Preserve ALL values, stats, abilities, and inventory EXACTLY as written in the card.
 - Only adjust specific terminology that would be a hard logical impossibility in the current setting (e.g. "smartphone" in a medieval world).
-- Output [CHARACTER], [INVENTORY], [ABILITIES], [SPELLS] (if the class uses magic), [XP], and [TIME] blocks.
+- Output every currently active state-memo field (enabled stock modules and custom fields): ${importBlockList}.
 - Do NOT invent stats or equipment not present on the card.
 - Use the existing system prompt's block format.
 
@@ -1016,9 +1180,11 @@ ${worldCtx}`;
 RULES:
 - Fit the character's class, gear, backstory, and abilities naturally into the current world.
 - Rename anachronistic equipment or references to setting-appropriate equivalents.
-- Output [CHARACTER], [INVENTORY], [ABILITIES], [SPELLS] (if the class uses magic), [XP], and [TIME] blocks.
+- Output every currently active state-memo field (enabled stock modules and custom fields): ${importBlockList}.
 - Use the existing system prompt's block format.
 - CRITICAL: Never output template macro strings such as {{char}}, {{user}}, or any other {{...}} placeholders. Always replace them with the actual character's name or a fitting proper name.
+${gearHint}
+${combatSkillHint}
 
 ${worldCtx}`;
 

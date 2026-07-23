@@ -126,7 +126,7 @@
     --rt-card-header: rgba(240, 122, 170, 0.06);
 }
 
-/* ── AI Wizard Custom Theme ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ AI Wizard Custom Theme Ã¢â€â‚¬Ã¢â€â‚¬ */
 /* Variables are injected dynamically by the Theme Wizard into #rt-custom-theme-style */
 .rpg-tracker-panel.rt-theme-custom {
     --rt-bg: var(--rt-custom-bg, rgba(20, 20, 30, 0.96));
@@ -239,7 +239,7 @@
     overflow: visible !important;
 }
 
-/* ── State Tracker / Lorebook Agent card-flip mode (integrated docked layout) ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ State Tracker / Lorebook Agent card-flip mode (integrated docked layout) Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-header-face {
     display: flex;
     align-items: center;
@@ -474,12 +474,12 @@
     opacity: 1;
 }
 
-/* Disabled via the settings checkbox — full transparency */
+/* Disabled via the settings checkbox Ã¢â‚¬â€ full transparency */
 .rpg-tracker-panel.is-disabled {
     opacity: 0.68;
     filter: grayscale(0.6) brightness(0.8);
 }
-/* Block interaction on the content area only — the header (and overflow menu)
+/* Block interaction on the content area only Ã¢â‚¬â€ the header (and overflow menu)
    stay clickable so the user can re-enable. The panel shell itself keeps
    pointer-events so scroll events don't bleed through to the chat behind it. */
 .rpg-tracker-panel.is-disabled .rpg-tracker-content,
@@ -493,7 +493,7 @@
     pointer-events: auto;
 }
 
-/* Agent panel disabled — dim content but keep header interactive */
+/* Agent panel disabled Ã¢â‚¬â€ dim content but keep header interactive */
 .rpg-tracker-agent-panel.is-agent-disabled .rpg-tracker-content {
     opacity: 0.45;
     filter: grayscale(0.5) brightness(0.75);
@@ -505,7 +505,7 @@
     pointer-events: auto;
 }
 
-/* Paused via the pause button — visible but indicating pause */
+/* Paused via the pause button Ã¢â‚¬â€ visible but indicating pause */
 .rpg-tracker-panel.is-paused .rpg-tracker-memo-area,
 .rpg-tracker-panel.is-paused .rpg-tracker-render-view {
     opacity: 0.93;
@@ -607,7 +607,7 @@
     z-index: 1;
 }
 
-/* Night header starfield — scattered across the full bar width */
+/* Night header starfield Ã¢â‚¬â€ scattered across the full bar width */
 .rt-header-starfield {
     display: none;
     position: absolute;
@@ -797,7 +797,7 @@
     background: rgba(0, 0, 0, 0.2);
 }
 
-/* ── Direct Prompt Bar ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Direct Prompt Bar Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rpg-tracker-prompt-bar {
     display: flex;
     gap: 6px;
@@ -856,7 +856,7 @@
     border-color: var(--rt-accent);
 }
 
-/* ── Update Menu ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Update Menu Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-update-menu {
     position: absolute;
     background: var(--rt-card-bg);
@@ -895,7 +895,7 @@
     color: var(--rt-text-muted);
 }
 
-/* ── Rendered Card View ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Rendered Card View Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rpg-tracker-render-view {
     flex: 1;
     overflow-y: auto;
@@ -957,7 +957,7 @@
     gap: 6px;
 }
 
-.rt-fullview-btn, .rt-category-settings-btn {
+.rt-fullview-btn, .rt-category-settings-btn, .rt-char-to-persona-btn {
     background: none;
     border: none;
     padding: 0;
@@ -973,7 +973,7 @@
     justify-content: center;
 }
 
-.rt-fullview-btn:hover, .rt-category-settings-btn:hover {
+.rt-fullview-btn:hover, .rt-category-settings-btn:hover, .rt-char-to-persona-btn:hover {
     opacity: 1;
     color: var(--rt-text);
 }
@@ -1038,7 +1038,7 @@
     cursor: default;
 }
 
-/* ── Tab Mode (compact layout) ────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Tab Mode (compact layout) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 .rt-tabmode-wrap {
     display: flex;
@@ -1047,7 +1047,7 @@
     /* Guarantee at least one viewport's worth of height, and always leave a generous
        block of blank, scrollable room below the content on top of that (see
        padding-bottom below). Tab switches never programmatically move the scroll
-       position (see bindRenderedCardEvents in index.js) — instead, wherever the user
+       position (see bindRenderedCardEvents in index.js) Ã¢â‚¬â€ instead, wherever the user
        has parked the viewport should simply remain a valid scroll position no matter
        which tab is short or tall, so the browser never needs to clamp scrollTop and
        nothing visibly bounces when switching tabs. */
@@ -1189,7 +1189,7 @@
     text-align: center;
 }
 
-/* Secondary badge on PARTY's tab button reflecting its folded-in benched count —
+/* Secondary badge on PARTY's tab button reflecting its folded-in benched count Ã¢â‚¬â€
    offset to the bottom-right so it never collides with the primary (active-count) badge. */
 .rt-tab-badge-secondary {
     top: auto;
@@ -1199,7 +1199,7 @@
     color: #2a1400;
 }
 
-/* Benched Party sub-panel — folded into PARTY's own card as a compact "camp roster"
+/* Benched Party sub-panel Ã¢â‚¬â€ folded into PARTY's own card as a compact "camp roster"
    rather than a standalone module, evoking a party-base/camp screen: desaturated
    portraits, a warm campfire palette, click-to-expand accordion per member. */
 .rt-benched-panel {
@@ -1290,7 +1290,7 @@
 }
 
 .rt-benched-chip-portrait::after {
-    content: '🏕️';
+    content: 'Ã°Å¸Ââ€¢Ã¯Â¸Â';
     position: absolute;
     bottom: -5px;
     right: -5px;
@@ -1349,7 +1349,7 @@
     display: flex;
     flex-direction: column;
     /* Absorb the leftover space (see .rt-tabmode-wrap above) so short tab content
-       doesn't shrink the scrollable area — it just leaves blank room below it. */
+       doesn't shrink the scrollable area Ã¢â‚¬â€ it just leaves blank room below it. */
     flex: 1 0 auto;
 }
 
@@ -1392,12 +1392,38 @@
     margin-bottom: 4px;
 }
 
+.rt-onboarding-crest {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    margin-bottom: 0;
+    font-size: 1.5em;
+    line-height: 1;
+}
+
+.rt-onboarding-crest-fencer {
+    display: inline-block;
+    font-size: 0.82em;
+    filter: saturate(0.88) brightness(1.05);
+}
+
+.rt-onboarding-crest-fencer-mirrored {
+    transform: scaleX(-1);
+}
+
+.rt-onboarding-crest-shield {
+    display: inline-block;
+    font-size: 1.15em;
+    filter: drop-shadow(0 1px 3px rgba(100, 66, 210, 0.55));
+}
+
 .rt-empty small {
     color: var(--rt-text-muted);
     font-size: 0.92em;
 }
 
-/* ── Onboarding layout ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Onboarding layout Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-onboarding-config-row {
     display: flex;
     align-items: flex-end;
@@ -1518,6 +1544,76 @@
     padding: 0 6px;
 }
 
+.rt-quickstart {
+    width: 100%;
+    flex-shrink: 0;
+    margin: 0 0 12px;
+    padding: 10px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.rt-quickstart-title {
+    text-align: center;
+    font-size: 0.95em;
+    font-weight: 700;
+    color: var(--rt-text);
+    letter-spacing: 0.02em;
+}
+
+.rt-quickstart-sub {
+    text-align: center;
+    font-size: 0.74em;
+    opacity: 0.68;
+    line-height: 1.35;
+    padding: 0 4px;
+}
+
+.rt-quickstart-genres {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.rt-quickstart-genre-btn {
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.88em;
+    font-weight: 600;
+    font-family: var(--rt-font);
+    cursor: pointer;
+    border: 1px solid rgba(160, 120, 255, 0.35);
+    background: rgba(120, 80, 220, 0.14);
+    color: var(--rt-text, #e8e4f5);
+    transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.rt-quickstart-genre-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(196, 160, 255, 0.7);
+    background: rgba(120, 80, 220, 0.26);
+}
+
+.rt-quickstart-genre-btn:disabled {
+    opacity: 0.55;
+    cursor: wait;
+    transform: none;
+}
+
+.rt-quickstart-status {
+    text-align: center;
+    font-size: 0.72em;
+    opacity: 0.55;
+    min-height: 1.2em;
+    padding-top: 2px;
+}
+
 .rt-onboarding-secondary {
     width: 100%;
     display: flex;
@@ -1527,9 +1623,10 @@
 }
 
 .rt-onboarding-drawer {
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.14);
+    border: 1px solid rgba(136, 110, 255, 0.32);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(91, 63, 180, 0.22), rgba(13, 17, 39, 0.36));
+    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.16);
     overflow: hidden;
 }
 
@@ -1539,23 +1636,58 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 9px 12px;
+    padding: 10px 12px;
     border: none;
-    background: rgba(255, 255, 255, 0.03);
+    background: linear-gradient(90deg, rgba(133, 100, 240, 0.20), rgba(255, 255, 255, 0.035));
     color: inherit;
     font-family: var(--rt-font);
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    opacity: 0.72;
+    opacity: 1;
     cursor: pointer;
-    transition: background 0.15s ease, opacity 0.15s ease;
+    transition: background 0.15s ease, filter 0.15s ease;
 }
 
 .rt-onboarding-drawer-toggle:hover {
-    background: rgba(255, 255, 255, 0.06);
-    opacity: 0.9;
+    background: linear-gradient(90deg, rgba(159, 124, 255, 0.32), rgba(255, 255, 255, 0.07));
+    filter: brightness(1.1);
+}
+
+.rt-onboarding-drawer-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    text-align: left;
+}
+
+.rt-onboarding-drawer-toggle-label > span:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.rt-onboarding-drawer-toggle-label small {
+    color: var(--rt-text-muted);
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.82;
+}
+
+.rt-onboarding-drawer-icon {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    border: 1px solid rgba(185, 164, 255, 0.42);
+    border-radius: 7px;
+    background: rgba(158, 119, 255, 0.18);
+    color: #e1d7ff;
+    font-size: 14px;
 }
 
 .rt-onboarding-drawer-chevron {
@@ -1591,6 +1723,10 @@
     padding: 8px 10px 10px;
 }
 
+.rt-onboarding-narrator-content {
+    padding: 2px 0;
+}
+
 .rt-onboarding-drawer .rt-onboarding-buttons {
     margin-top: 4px;
 }
@@ -1607,7 +1743,7 @@
     flex-shrink: 0;
 }
 
-/* Segmented toggle (choose-one, left/right) — used for Time & Date format controls */
+/* Segmented toggle (choose-one, left/right) Ã¢â‚¬â€ used for Time & Date format controls */
 .rt-seg-toggle {
     display: inline-flex;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1645,7 +1781,7 @@
     color: var(--rt-accent, #00c88c);
 }
 
-/* ── Spells ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Spells Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-spell-row {
     display: grid;
     grid-template-columns: 70px 1fr;
@@ -1943,7 +2079,7 @@
     align-self: center;
 }
 
-/* ── Status Pill Color Variants ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Status Pill Color Variants Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-pill-buff {
     background: rgba(0, 200, 100, 0.1);
     border-color: rgba(0, 200, 100, 0.3);
@@ -2008,7 +2144,7 @@
     padding-bottom: 2px;
 }
 
-/* Each cell wrapper — fixed types (pills, badges, text) take natural width */
+/* Each cell wrapper Ã¢â‚¬â€ fixed types (pills, badges, text) take natural width */
 .rt-mmc-cell {
     flex: 0 0 auto;
     min-width: 0;
@@ -2020,6 +2156,23 @@
 .rt-mmc-cell--stretch {
     flex: 1 1 auto;
     min-width: 80px;
+}
+
+/* `||` in a marker row creates equal-width tab-stop columns. */
+.rt-mmc-cell--column {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* Numeric |x tab stops use 0.1%-wide grid tracks across the marker row. */
+.rt-multi-marker-row--tab-stops {
+    display: grid;
+    grid-template-columns: repeat(1000, minmax(0, 1fr));
+    align-items: center;
+    gap: 0;
+}
+.rt-mmc-cell--tab-stop {
+    min-width: 0;
 }
 
 /* Strip per-segment borders/margins so the row wrapper is the only separator */
@@ -2127,7 +2280,119 @@
     margin-top: 0;
 }
 
-/* ── Universal Rendering Tags ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Universal Rendering Tags Ã¢â€â‚¬Ã¢â€â‚¬ */
+
+/* Rendering Tags Library — a small portal into the framework's visual toolkit. */
+.rt-tag-library-button {
+    flex: 1;
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    overflow: hidden;
+    padding: 8px 12px !important;
+    color: #e8f7ff !important;
+    text-align: left;
+    border: 1px solid rgba(112, 211, 255, 0.62) !important;
+    border-radius: 9px !important;
+    background:
+        radial-gradient(circle at 9% 120%, rgba(63, 220, 255, 0.30), transparent 40%),
+        radial-gradient(circle at 94% -20%, rgba(221, 120, 255, 0.32), transparent 42%),
+        linear-gradient(110deg, rgba(19, 68, 122, 0.94), rgba(77, 36, 125, 0.88)) !important;
+    box-shadow: 0 3px 12px rgba(37, 124, 255, 0.20), inset 0 1px rgba(255, 255, 255, 0.18);
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, filter 160ms ease;
+}
+.rt-tag-library-button::before,
+.rt-tag-library-button::after {
+    position: absolute;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+}
+.rt-tag-library-button::before {
+    inset: 1px;
+    border-radius: 7px;
+    background: linear-gradient(100deg, rgba(255,255,255,0.12), transparent 38%, rgba(255,255,255,0.08));
+}
+.rt-tag-library-button::after {
+    top: -28px;
+    right: 14%;
+    width: 56px;
+    height: 96px;
+    opacity: 0.34;
+    transform: rotate(27deg);
+    background: linear-gradient(90deg, transparent, #fff, transparent);
+    filter: blur(8px);
+    transition: transform 300ms ease;
+}
+.rt-tag-library-button:hover,
+.rt-tag-library-button:focus-visible {
+    color: #fff !important;
+    border-color: rgba(178, 236, 255, 0.95) !important;
+    filter: saturate(1.2) brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 7px 20px rgba(57, 135, 255, 0.35), 0 0 14px rgba(215, 104, 255, 0.20), inset 0 1px rgba(255, 255, 255, 0.24);
+}
+.rt-tag-library-button:hover::after,
+.rt-tag-library-button:focus-visible::after {
+    transform: translateX(-170px) rotate(27deg);
+}
+.rt-tag-library-button:active { transform: translateY(0); }
+.rt-tag-library-button > * { position: relative; z-index: 1; }
+.rt-tag-library-icon {
+    display: inline-grid;
+    flex: 0 0 31px;
+    width: 31px;
+    height: 31px;
+    place-items: center;
+    color: #d8f5ff;
+    font-size: 15px;
+    border: 1px solid rgba(212, 248, 255, 0.38);
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgba(123, 236, 255, 0.32), rgba(170, 90, 255, 0.25));
+    box-shadow: 0 0 12px rgba(94, 220, 255, 0.24), inset 0 1px rgba(255,255,255,0.25);
+}
+.rt-tag-library-copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: 0.015em;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
+}
+.rt-tag-library-copy small {
+    overflow: hidden;
+    color: rgba(218, 245, 255, 0.76);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.rt-tag-library-sparkle {
+    flex: 0 0 auto;
+    color: #fff2b6;
+    font-size: 17px;
+    line-height: 1;
+    text-shadow: 0 0 9px #fff4af, 0 0 15px rgba(134, 218, 255, 0.8);
+    animation: rt-tag-library-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes rt-tag-library-twinkle {
+    0%, 100% { opacity: 0.62; transform: scale(0.84) rotate(0deg); }
+    50% { opacity: 1; transform: scale(1.12) rotate(18deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .rt-tag-library-button,
+    .rt-tag-library-button::after { transition: none; }
+    .rt-tag-library-sparkle { animation: none; }
+}
 
 /* Objective checkboxes */
 .rt-objective {
@@ -2295,7 +2560,7 @@
     padding: 1px 0;
 }
 
-/* ── Delta Resize Handle ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Delta Resize Handle Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 .rpg-tracker-delta-resize-handle {
     height: 5px;
@@ -2384,7 +2649,7 @@
     z-index: 1;
 }
 
-/* Night footer starfield — related to header stars but offset pattern & timing */
+/* Night footer starfield Ã¢â‚¬â€ related to header stars but offset pattern & timing */
 .rt-footer-starfield {
     display: none;
     position: absolute;
@@ -2513,7 +2778,7 @@
     border-color: var(--rt-accent-dim);
 }
 
-/* Footer location — accent glow tracks day/night cycle via --rt-accent */
+/* Footer location Ã¢â‚¬â€ accent glow tracks day/night cycle via --rt-accent */
 .rt-footer-location-text {
     flex: 1;
     min-width: 0;
@@ -2548,7 +2813,7 @@
     margin-left: 4px;
 }
 
-/* Lorebook Agent footer — mirror State Tracker: nav left, status + prompt right */
+/* Lorebook Agent footer Ã¢â‚¬â€ mirror State Tracker: nav left, status + prompt right */
 #rt-agent-footer {
     justify-content: space-between;
 }
@@ -2750,7 +3015,7 @@
         max-height: 40vh;
     }
 
-    /* Resize is desktop-only — hide handles on mobile/touch */
+    /* Resize is desktop-only Ã¢â‚¬â€ hide handles on mobile/touch */
     .rpg-tracker-panel .rt-resizer-tr,
     .rpg-tracker-panel .rt-resizer-br,
     .rpg-tracker-panel .rt-resizer-bl {
@@ -2827,7 +3092,7 @@
         flex-shrink: 0 !important;
     }
 
-    /* On mobile, collapse action buttons into the ⋯ overflow menu.
+    /* On mobile, collapse action buttons into the Ã¢â€¹Â¯ overflow menu.
        Raw View stays in the header. */
     #rpg-tracker-chat-link-btn,
     #rpg-tracker-enable-btn,
@@ -2891,12 +3156,12 @@
 }
 
 
-/* ── Overflow button (hidden on desktop, shown by mobile media query above) ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Overflow button (hidden on desktop, shown by mobile media query above) Ã¢â€â‚¬Ã¢â€â‚¬ */
 #rt-overflow-btn {
     display: none;
 }
 
-/* ── Lorebook Agent cleanup dropdown (reparented to panel when open) ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Lorebook Agent cleanup dropdown (reparented to panel when open) Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-cleanup-dropdown {
     position: absolute;
     z-index: 3100;
@@ -2925,7 +3190,7 @@
     overflow: visible !important;
 }
 
-/* ── Overflow dropdown menu ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Overflow dropdown menu Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-overflow-menu {
     position: absolute;
     background: var(--rt-card-bg);
@@ -2987,7 +3252,7 @@
     margin-top: -4px;
 }
 
-/* ── Settings Module List ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Settings Module List Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-order-item {
     transition: background 0.2s, opacity 0.2s;
     user-select: none;
@@ -3069,7 +3334,7 @@
     animation: none;
 }
 
-/* ── Character Roll Trigger Button ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Character Roll Trigger Button Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-char-roll-trigger {
     background: rgba(120, 80, 220, 0.15) !important;
     border-color: rgba(120, 80, 220, 0.5) !important;
@@ -3082,7 +3347,7 @@
     color: #ddd6fe !important;
 }
 
-/* ── Character Roll Inline Panel ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Character Roll Inline Panel Ã¢â€â‚¬Ã¢â€â‚¬ */
 #rt-char-roll-panel {
     border: 1px solid rgba(120, 80, 220, 0.25);
     border-radius: 6px;
@@ -3172,7 +3437,7 @@
     flex-wrap: wrap;
 }
 
-/* System Prompt Control Room — one scroll region (section list only) */
+/* System Prompt Control Room Ã¢â‚¬â€ one scroll region (section list only) */
 .popup-content:has(.rt-cr-popup-container) {
     display: flex;
     flex-direction: column;
@@ -3308,30 +3573,34 @@ textarea.rt-cr-input {
     min-height: 48px;
 }
 
-/* ── Persona Help Icon ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Persona / CR Help Icon (tap/click on mobile; hover title on desktop) Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-cr-help-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.3);
     font-size: 0.72em;
     font-weight: bold;
-    cursor: default;
+    cursor: pointer;
     opacity: 0.65;
     flex-shrink: 0;
     line-height: 1;
     color: var(--rt-text-muted);
     transition: opacity 0.2s, border-color 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.12);
 }
-.rt-cr-help-icon:hover {
+.rt-cr-help-icon:hover,
+.rt-cr-help-icon:focus-visible {
     opacity: 1;
     border-color: rgba(255,255,255,0.6);
+    outline: none;
 }
 
-/* ── Generate Button ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Generate Button Ã¢â€â‚¬Ã¢â€â‚¬ */
 #rt-cr-generate-btn:hover:not(:disabled) {
     background: rgba(120, 80, 220, 0.35) !important;
     border-color: rgba(160, 120, 255, 0.9) !important;
@@ -3431,7 +3700,7 @@ textarea.rt-cr-input {
     color: var(--rt-accent);
 }
 
-/* ── Mobile Layout Fixes ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Mobile Layout Fixes Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-footer-toggle-btn {
     display: none; /* Hide on desktop */
 }
@@ -3571,7 +3840,7 @@ textarea.rt-cr-input {
         overflow-y: auto;
     }
 
-    /* Campaign records flow with the panel body — one shared scrollbar */
+    /* Campaign records flow with the panel body Ã¢â‚¬â€ one shared scrollbar */
     #rt-agent-campaign-section {
         flex: 0 0 auto !important;
         min-height: 0 !important;
@@ -3589,7 +3858,7 @@ textarea.rt-cr-input {
 }
 
 
-/* ── Lorebook Agent panel: single scroll region on .rpg-tracker-content.
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Lorebook Agent panel: single scroll region on .rpg-tracker-content.
    Upper drawers and Campaign Records all use natural height so one scrollbar
    reaches the true bottom (no nested flex trap at the campaign header). */
 #rpg-tracker-agent {
@@ -3624,7 +3893,18 @@ textarea.rt-cr-input {
     overflow: visible;
 }
 
-/* Location Images & Visualization ALPHA — settings drawer sections */
+/* Location Images & Visualization Ã¢â‚¬â€ settings sections */
+.rt-loc-settings-block {
+    margin-bottom: 4px;
+}
+
+.rt-loc-settings-intro {
+    font-size: 0.72em;
+    opacity: 0.55;
+    line-height: 1.35;
+    margin-bottom: 2px;
+}
+
 .rt-loc-settings-section {
     display: flex;
     flex-direction: column;
@@ -3645,40 +3925,164 @@ textarea.rt-cr-input {
     border-radius: 0 4px 4px 0;
 }
 
-.rt-loc-realtime-section {
-    margin-top: 2px;
+/* Featured Real-Time Visualization card */
+.rt-loc-realtime-feature {
+    position: relative;
+    margin-top: 10px;
+    padding: 12px 12px 10px;
+    border-radius: 10px;
+    background:
+        linear-gradient(145deg, rgba(94, 184, 212, 0.1) 0%, rgba(120, 90, 220, 0.08) 55%, rgba(0, 0, 0, 0.22) 100%);
+    border: 1px solid rgba(94, 184, 212, 0.28);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 8px 24px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
 }
 
-.rt-loc-realtime-section.rt-loc-realtime-active {
-    padding: 0 8px 8px;
-    margin: 4px -4px 0;
-    border-radius: 6px;
-    background: rgba(94, 184, 212, 0.06);
-    border: 1px solid rgba(94, 184, 212, 0.22);
+.rt-loc-realtime-feature::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(94, 184, 212, 0.08) 50%, transparent 70%);
+    pointer-events: none;
+    opacity: 0.7;
 }
 
-.rt-loc-realtime-section.rt-loc-realtime-active .rt-loc-settings-subheader {
-    margin-top: 0;
-    border-top: none;
-    border-left-color: rgba(94, 184, 212, 0.85);
-    color: #8fd4ea;
-    background: transparent;
-    padding-left: 2px;
+.rt-loc-realtime-feature.rt-loc-realtime-active {
+    border-color: rgba(94, 184, 212, 0.55);
+    background:
+        linear-gradient(145deg, rgba(94, 184, 212, 0.16) 0%, rgba(120, 90, 220, 0.12) 50%, rgba(40, 120, 160, 0.08) 100%);
+    box-shadow:
+        0 0 0 1px rgba(143, 212, 234, 0.15) inset,
+        0 0 28px rgba(94, 184, 212, 0.18),
+        0 10px 28px rgba(0, 0, 0, 0.28);
+    animation: rt-loc-realtime-glow 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes rt-loc-realtime-glow {
+    from { box-shadow: 0 0 0 1px rgba(143, 212, 234, 0.12) inset, 0 0 18px rgba(94, 184, 212, 0.12), 0 10px 28px rgba(0, 0, 0, 0.28); }
+    to   { box-shadow: 0 0 0 1px rgba(143, 212, 234, 0.22) inset, 0 0 32px rgba(94, 184, 212, 0.24), 0 10px 28px rgba(0, 0, 0, 0.28); }
+}
+
+.rt-loc-realtime-feature-header {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.rt-loc-realtime-feature-icon {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15em;
+    border-radius: 9px;
+    background: linear-gradient(135deg, rgba(94, 184, 212, 0.35), rgba(120, 90, 220, 0.35));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 4px 12px rgba(94, 184, 212, 0.2);
+}
+
+.rt-loc-realtime-feature-titles {
+    flex: 1;
+    min-width: 0;
+}
+
+.rt-loc-realtime-feature-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.rt-loc-realtime-feature-title {
+    font-size: 0.88em;
+    font-weight: bold;
+    letter-spacing: 0.02em;
+    color: #d8f4fc;
+    text-shadow: 0 1px 8px rgba(94, 184, 212, 0.35);
+}
+
+.rt-loc-realtime-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.62em;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    color: #0d2a35;
+    background: linear-gradient(90deg, #5eb8d4, #8fd4ea);
+    box-shadow: 0 0 10px rgba(94, 184, 212, 0.45);
+    animation: rt-loc-realtime-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes rt-loc-realtime-badge-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(0.97); }
+}
+
+.rt-loc-realtime-feature-tagline {
+    margin-top: 3px;
+    font-size: 0.72em;
+    line-height: 1.35;
+    opacity: 0.72;
+    color: #b8dce8;
+}
+
+.rt-loc-realtime-enable-label {
+    position: relative;
+    font-weight: 600;
+}
+
+.rt-loc-realtime-trigger-group {
+    position: relative;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(94, 184, 212, 0.28);
+}
+
+.rt-loc-realtime-trigger-label {
+    display: block;
+    font-size: 0.78em;
+    opacity: 0.8;
+    margin-bottom: 4px;
+}
+
+.rt-loc-realtime-trigger-select {
+    font-size: 0.8em;
+    max-width: 100%;
+    margin-bottom: 4px;
+}
+
+.rt-loc-realtime-every-n {
+    align-items: center;
+    font-size: 0.8em;
+    margin-bottom: 2px;
+}
+
+.rt-loc-realtime-every-n input {
+    width: 4.5em;
+    font-size: 0.95em;
 }
 
 .rt-loc-realtime-active-note {
+    position: relative;
     font-size: 0.72em;
     line-height: 1.35;
-    opacity: 0.75;
-    margin: 0 4px 6px;
-    padding: 5px 8px;
-    border-radius: 4px;
-    background: rgba(94, 184, 212, 0.1);
-    border: 1px solid rgba(94, 184, 212, 0.18);
+    margin: 0 0 8px;
+    padding: 6px 9px;
+    border-radius: 6px;
+    background: rgba(94, 184, 212, 0.12);
+    border: 1px solid rgba(94, 184, 212, 0.22);
     color: #a8e0f0;
 }
 
-/* ── Lorebook Agent view mode switch (Campaign Records / Visualization Mode) ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Lorebook Agent view mode switch (Campaign Records / Visualization Mode) Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-agent-view-mode-switch {
     display: inline-flex;
     align-items: stretch;
@@ -3779,7 +4183,7 @@ textarea.rt-cr-input {
     50% { transform: scale(1.15); opacity: 0.75; }
 }
 
-/* ── Connection Settings Panels ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Connection Settings Panels Ã¢â€â‚¬Ã¢â€â‚¬ */
 #rpg_tracker_profile_group,
 #rpg_tracker_ollama_group,
 #rpg_tracker_openai_group {
@@ -3820,7 +4224,7 @@ textarea.rt-cr-input {
     background: rgba(0, 255, 170, 0.15);
 }
 
-/* ── Bar Recoloring ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Bar Recoloring Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-hp-bar-wrap[data-recolor-id], 
 .rt-xp-bar-wrap[data-recolor-id] {
     position: relative;
@@ -3838,7 +4242,7 @@ textarea.rt-cr-input {
     transform: scale(0.98);
 }
 
-/* ── Quest Log ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Quest Log Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-quest-card {
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.08);
@@ -4037,7 +4441,7 @@ textarea.rt-cr-input {
 .rt-quest-mood-tick-neutral   { left: 33.3%; }
 .rt-quest-mood-tick-deadline  { left: 66.6%; }
 
-/* ── Context Debug Viewer ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Context Debug Viewer Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rpg-debug-viewer {
     position: fixed;
     top: 50px;
@@ -4278,7 +4682,7 @@ textarea.rt-cr-input {
     }
 }
 
-/* ── Panel Collapsed State (Immersion Mode) ─────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Panel Collapsed State (Immersion Mode) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rpg-tracker-panel.rt-panel-collapsed {
     height: auto !important;
     min-height: 0 !important;
@@ -4351,7 +4755,7 @@ textarea.rt-cr-input {
 }
 
 
-/* ─── Remove Up/Down Spinners Globally for extension number inputs ─── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Remove Up/Down Spinners Globally for extension number inputs Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rpg-tracker-panel input[type="number"]::-webkit-outer-spin-button,
 .rpg-tracker-panel input[type="number"]::-webkit-inner-spin-button,
 .rpg-tracker-settings input[type="number"]::-webkit-outer-spin-button,
@@ -4366,7 +4770,7 @@ textarea.rt-cr-input {
 
 
 
-/* ── Character Portrait System ───────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Character Portrait System Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 /* Outer wrapper: portrait on left, entity content on right */
 .rt-entity-container {
@@ -4497,11 +4901,11 @@ textarea.rt-cr-input {
     opacity: 0.92;
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   NPC CAMPAIGN RECORDS — Visual Overhaul
-   ════════════════════════════════════════════════════════════════════════════ */
+/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+   NPC CAMPAIGN RECORDS Ã¢â‚¬â€ Visual Overhaul
+   Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 
-/* ── NPC Folder Header Accent ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Folder Header Accent Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-folder-hdr {
     transition: background 0.2s ease;
 }
@@ -4514,7 +4918,7 @@ textarea.rt-cr-input {
     flex-shrink: 0;
 }
 
-/* ── NPC Card Grid ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Card Grid Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-card-grid {
     display: flex;
     flex-direction: column;
@@ -4522,7 +4926,7 @@ textarea.rt-cr-input {
     padding: 4px 0;
 }
 
-/* ── NPC Card ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Card Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-card {
     display: flex;
     flex-wrap: wrap;
@@ -4552,7 +4956,7 @@ textarea.rt-cr-input {
     background: linear-gradient(135deg, rgba(212, 169, 64, 0.08), rgba(255, 255, 255, 0.03));
 }
 
-/* ── NPC Portrait ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Portrait Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-portrait-wrap {
     width: 64px;
     height: 64px;
@@ -4598,7 +5002,7 @@ textarea.rt-cr-input {
     opacity: 1;
 }
 
-/* ── NPC Info Area ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Info Area Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-info {
     flex: 1 1 calc(100% - 72px);
     min-width: 0;
@@ -4649,7 +5053,7 @@ textarea.rt-cr-input {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* ── NPC Relationship Bars ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Relationship Bars Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-bars {
     display: flex;
     flex-direction: column;
@@ -4722,7 +5126,64 @@ textarea.rt-cr-input {
 .rt-npc-bar-value.val-affection-positive { color: #f472b6; }
 .rt-npc-bar-value.val-affection-negative { color: #a855f7; }
 
-/* ── NPC Relationship Tier Badges ── */
+/* Generic signed / centre-zero tracker bar (the ((BARREL)) rendering tag). */
+.rt-barrel-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.rt-barrel-track {
+    flex: 1;
+    min-width: 48px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+.rt-barrel-center-marker {
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.22);
+    pointer-events: none;
+}
+.rt-barrel-color-control {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    cursor: pointer;
+}
+.rt-barrel-negative-control { left: 0; }
+.rt-barrel-positive-control { right: 0; }
+.rt-barrel-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 4px;
+    transition: width 0.3s ease, left 0.3s ease, right 0.3s ease;
+}
+.rt-barrel-positive { left: 50%; }
+.rt-barrel-negative { right: 50%; }
+.rt-barrel-value {
+    flex-shrink: 0;
+    min-width: 42px;
+    text-align: right;
+    font-family: var(--rt-font-mono);
+    font-size: 0.82em;
+    font-weight: bold;
+    white-space: nowrap;
+}
+.rt-barrel-value-positive { color: #4ade80; }
+.rt-barrel-value-negative { color: #ef4444; }
+.rt-barrel-value-zero { color: var(--rt-text-muted); }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Relationship Tier Badges Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-tier-row {
     display: flex;
     gap: 5px;
@@ -4752,7 +5213,7 @@ textarea.rt-cr-input {
 .rt-npc-tier-detailed-label { font-weight: bold; margin-right: 4px; transition: color 0.25s ease; }
 .rt-npc-tier-detailed-hint { opacity: 0.7; color: var(--SmartThemeBodyColor, inherit); }
 
-/* ── NPC Card Actions ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Card Actions Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-actions {
     display: flex;
     gap: 4px;
@@ -4807,7 +5268,7 @@ textarea.rt-cr-input {
     color: #ecc050;
 }
 
-/* ── NPC Add Button ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Add Button Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-add-btn {
     background: rgba(212, 169, 64, 0.08);
     border: 1px dashed rgba(212, 169, 64, 0.3);
@@ -4830,9 +5291,9 @@ textarea.rt-cr-input {
     color: #ecc050;
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   LOCATION IMAGES — Lorebook Agent tree + detail popup
-   ════════════════════════════════════════════════════════════════════════════ */
+/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+   LOCATION IMAGES Ã¢â‚¬â€ Lorebook Agent tree + detail popup
+   Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 
 .rt-loc-folder-hdr .rt-loc-folder-icon {
     color: #5eb8d4;
@@ -4958,7 +5419,7 @@ textarea.rt-cr-input {
     margin-top: 12px;
 }
 
-/* ── Lorebook Agent immersion scene view ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Lorebook Agent immersion scene view Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-immersion-root {
     display: flex;
     flex-direction: column;
@@ -5131,7 +5592,7 @@ textarea.rt-cr-input {
     font-style: italic;
 }
 
-/* ── Character Card Picker Popup ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Character Card Picker Popup Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-charpicker-overlay {
     position: fixed;
     inset: 0;
@@ -5336,7 +5797,7 @@ textarea.rt-cr-input {
     background: rgba(255, 255, 255, 0.04);
     color: var(--rt-text, #eee);
 }
-/* ── NPC Creator Dialog Tabs ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ NPC Creator Dialog Tabs Ã¢â€â‚¬Ã¢â€â‚¬ */
 .rt-npc-creator-tabs {
     display: flex;
     border-bottom: 1px solid rgba(212, 169, 64, 0.15);
@@ -5377,7 +5838,7 @@ textarea.rt-cr-input {
 }
 
 @media screen and (max-width: 800px) {
-    /* Full-viewport modal — absolute fill avoids flex stretch / margin:auto scroll bugs */
+    /* Full-viewport modal Ã¢â‚¬â€ absolute fill avoids flex stretch / margin:auto scroll bugs */
     .rt-charpicker-overlay {
         display: block;
         padding: 0;
@@ -5645,9 +6106,9 @@ textarea.rt-cr-input {
     animation: rt-battery-flash 1s infinite;
 }
 
-/* ── Day/Night Cycle Sky Badge ──────────────────────────────────────────────
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Day/Night Cycle Sky Badge Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
    Pure-CSS sun/moon + starfield badge reflecting in-world time of day, shown
-   in the panel header when the feature is enabled. No image assets — the
+   in the panel header when the feature is enabled. No image assets Ã¢â‚¬â€ the
    celestial body is a radial-gradient disc with a box-shadow glow, and the
    starfield is a handful of fixed dots layered behind it via box-shadow. */
 .rt-daynight-badge {
@@ -5697,7 +6158,7 @@ textarea.rt-cr-input {
     50% { opacity: 0.45; }
 }
 
-/* Sun phases — warm gradient disc, glow intensity/hue shifts across the day. */
+/* Sun phases Ã¢â‚¬â€ warm gradient disc, glow intensity/hue shifts across the day. */
 .rt-sky-dawn .rt-sky-disc {
     background: radial-gradient(circle at 35% 35%, #fff2cc, #ffaa55);
     box-shadow: 0 0 6px 2px rgba(255, 170, 85, 0.55);
@@ -5719,14 +6180,14 @@ textarea.rt-cr-input {
     box-shadow: 0 0 7px 2px rgba(230, 99, 61, 0.6);
 }
 
-/* Moon phases — cool silvery disc, no glow (starfield sits behind it). */
+/* Moon phases Ã¢â‚¬â€ cool silvery disc, no glow (starfield sits behind it). */
 .rt-sky-night .rt-sky-disc,
 .rt-sky-lateNight .rt-sky-disc {
     background: radial-gradient(circle at 35% 35%, #f5f5ff, #9999ee);
     box-shadow: 0 0 4px 1px rgba(153, 153, 238, 0.5);
 }
 
-/* ── Day/Night Cycle — full-panel ambient tint ─────────────────────────────
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Day/Night Cycle Ã¢â‚¬â€ full-panel ambient tint Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
    When rt-daynight-active is set on a panel, phase classes override the theme's
    CSS variables so the entire tracker shifts hue with in-world time. @property
    registrations let the color vars crossfade smoothly between phases. */
@@ -5794,9 +6255,9 @@ textarea.rt-cr-input {
         box-shadow 2s ease;
 }
 
-/* ── Phase palettes ─────────────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Phase palettes Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
-/* Late night (12 AM – 4:59 AM): deep indigo, cool violet accent */
+/* Late night (12 AM Ã¢â‚¬â€œ 4:59 AM): deep indigo, cool violet accent */
 .rpg-tracker-panel.rt-daynight-active.rt-phase-lateNight {
     --rt-bg: rgba(8, 10, 28, 0.97);
     --rt-text: #c8c8e8;
@@ -5810,7 +6271,7 @@ textarea.rt-cr-input {
     --rt-shadow: 0 8px 32px rgba(0, 0, 20, 0.7), inset 0 0 30px rgba(40, 50, 120, 0.08);
 }
 
-/* Dawn (5 – 6:59 AM): peach horizon, rose-gold warmth */
+/* Dawn (5 Ã¢â‚¬â€œ 6:59 AM): peach horizon, rose-gold warmth */
 .rpg-tracker-panel.rt-daynight-active.rt-phase-dawn {
     --rt-bg: rgba(32, 22, 28, 0.95);
     --rt-text: #ffe8d8;
@@ -5824,7 +6285,7 @@ textarea.rt-cr-input {
     --rt-shadow: 0 8px 28px rgba(40, 20, 10, 0.55), inset 0 0 40px rgba(255, 140, 80, 0.06);
 }
 
-/* Morning (7 – 11:59 AM): fresh golden daylight */
+/* Morning (7 Ã¢â‚¬â€œ 11:59 AM): fresh golden daylight */
 .rpg-tracker-panel.rt-daynight-active.rt-phase-morning {
     --rt-bg: rgba(26, 30, 36, 0.93);
     --rt-text: #f5f0e0;
@@ -5838,7 +6299,7 @@ textarea.rt-cr-input {
     --rt-shadow: 0 8px 28px rgba(30, 25, 10, 0.45);
 }
 
-/* Midday (12 – 1:59 PM): bright high-noon, neutral warm white */
+/* Midday (12 Ã¢â‚¬â€œ 1:59 PM): bright high-noon, neutral warm white */
 .rpg-tracker-panel.rt-daynight-active.rt-phase-midday {
     --rt-bg: rgba(34, 38, 44, 0.91);
     --rt-text: #fafaf5;
@@ -5852,7 +6313,7 @@ textarea.rt-cr-input {
     --rt-shadow: 0 8px 28px rgba(20, 20, 15, 0.4), inset 0 0 20px rgba(255, 255, 200, 0.04);
 }
 
-/* Afternoon (2 – 5:59 PM): warm golden hour building */
+/* Afternoon (2 Ã¢â‚¬â€œ 5:59 PM): warm golden hour building */
 .rpg-tracker-panel.rt-daynight-active.rt-phase-afternoon {
     --rt-bg: rgba(36, 32, 26, 0.93);
     --rt-text: #f2ead8;
@@ -5866,7 +6327,7 @@ textarea.rt-cr-input {
     --rt-shadow: 0 8px 28px rgba(35, 25, 10, 0.5);
 }
 
-/* Sunset (6 – 7:59 PM): orange-crimson warmth */
+/* Sunset (6 Ã¢â‚¬â€œ 7:59 PM): orange-crimson warmth */
 .rpg-tracker-panel.rt-daynight-active.rt-phase-sunset {
     --rt-bg: rgba(38, 20, 16, 0.95);
     --rt-text: #ffd4b8;
@@ -5880,7 +6341,7 @@ textarea.rt-cr-input {
     --rt-shadow: 0 8px 32px rgba(50, 15, 5, 0.6), inset 0 0 35px rgba(255, 80, 40, 0.06);
 }
 
-/* Night (8 – 11:59 PM): cool indigo twilight */
+/* Night (8 Ã¢â‚¬â€œ 11:59 PM): cool indigo twilight */
 .rpg-tracker-panel.rt-daynight-active.rt-phase-night {
     --rt-bg: rgba(12, 16, 34, 0.96);
     --rt-text: #d0d4e8;
@@ -5894,7 +6355,79 @@ textarea.rt-cr-input {
     --rt-shadow: 0 8px 32px rgba(0, 0, 25, 0.65), inset 0 0 25px rgba(60, 70, 150, 0.07);
 }
 
-/* Settings ? help icons — tap/click friendly; hover title tooltips still work on desktop */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ User panel background image + day/night tint overlay Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+   Layer order: ::before = art, ::after = phase scrim, children = UI. */
+.rpg-tracker-panel.rt-has-bg-image {
+    --rt-bg-overlay-color: rgba(18, 18, 24, 0.72);
+    --rt-bg-overlay-strength: 0.55;
+    background-color: transparent !important;
+    background-image: none !important;
+    isolation: isolate;
+}
+
+.rpg-tracker-panel.rt-has-bg-image::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image: var(--rt-user-bg-image, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: opacity 2s ease, filter 2s ease;
+}
+
+.rpg-tracker-panel.rt-has-bg-image.rt-bg-night-phase::before {
+    background-image: var(--rt-user-bg-image-night, var(--rt-user-bg-image, none));
+}
+
+.rpg-tracker-panel.rt-has-bg-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
+    background: var(--rt-bg-overlay-color);
+    opacity: var(--rt-bg-overlay-strength);
+    transition: background 2s ease, opacity 2s ease;
+}
+
+.rpg-tracker-panel.rt-has-bg-image > .rpg-tracker-header,
+.rpg-tracker-panel.rt-has-bg-image > .rpg-tracker-content,
+.rpg-tracker-panel.rt-has-bg-image > .rpg-tracker-footer,
+.rpg-tracker-panel.rt-has-bg-image > .rpg-tracker-prompt-bar,
+.rpg-tracker-panel.rt-has-bg-image > .rpg-tracker-delta-panel,
+.rpg-tracker-panel.rt-has-bg-image > .rpg-tracker-delta-resize-handle {
+    position: relative;
+    z-index: 2;
+}
+
+.rpg-tracker-panel.rt-has-bg-image.rt-daynight-active.rt-phase-lateNight {
+    --rt-bg-overlay-color: rgba(6, 8, 26, 0.82);
+}
+.rpg-tracker-panel.rt-has-bg-image.rt-daynight-active.rt-phase-dawn {
+    --rt-bg-overlay-color: rgba(42, 22, 28, 0.72);
+}
+.rpg-tracker-panel.rt-has-bg-image.rt-daynight-active.rt-phase-morning {
+    --rt-bg-overlay-color: rgba(28, 32, 38, 0.62);
+}
+.rpg-tracker-panel.rt-has-bg-image.rt-daynight-active.rt-phase-midday {
+    --rt-bg-overlay-color: rgba(34, 38, 44, 0.52);
+}
+.rpg-tracker-panel.rt-has-bg-image.rt-daynight-active.rt-phase-afternoon {
+    --rt-bg-overlay-color: rgba(36, 32, 28, 0.58);
+}
+.rpg-tracker-panel.rt-has-bg-image.rt-daynight-active.rt-phase-sunset {
+    --rt-bg-overlay-color: rgba(48, 22, 14, 0.7);
+}
+.rpg-tracker-panel.rt-has-bg-image.rt-daynight-active.rt-phase-night {
+    --rt-bg-overlay-color: rgba(10, 14, 32, 0.78);
+}
+
+/* Settings ? help icons Ã¢â‚¬â€ tap/click friendly; hover title tooltips still work on desktop */
 .rpg-tracker-settings .fa-circle-question[title] {
     cursor: pointer;
     touch-action: manipulation;
@@ -5910,5 +6443,184 @@ textarea.rt-cr-input {
     opacity: 1 !important;
     color: var(--SmartThemeQuoteColor, #7ec8e3);
     outline: none;
+}
+
+
+
+/* Prompt Defaults Updated — primary action emphasis */
+.rt-prompt-upgrade-callout {
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 136, 68, 0.45);
+    background: linear-gradient(180deg, rgba(255, 120, 40, 0.24), rgba(255, 90, 30, 0.09));
+    box-shadow: inset 0 1px 0 rgba(255, 200, 140, 0.12);
+}
+
+.rt-prompt-cat-changed {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #ffb4a0;
+    background: rgba(255, 90, 60, 0.18);
+    border: 1px solid rgba(255, 120, 80, 0.35);
+    vertical-align: middle;
+}
+
+.popup .popup-button-ok.rt-prompt-upgrade-ok {
+    background: rgba(220, 82, 40, 0.42) !important;
+    border-color: #ff8844 !important;
+    color: #fff2e8 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 0 1px rgba(255, 136, 68, 0.28), 0 2px 14px rgba(255, 100, 40, 0.22) !important;
+}
+
+.popup .popup-button-ok.rt-prompt-upgrade-ok:hover {
+    background: rgba(240, 98, 48, 0.55) !important;
+    border-color: #ffaa66 !important;
+}
+
+#rpg_tracker_btn_upgrade_changed_prompts.rt-prompt-upgrade-pending {
+    background: rgba(220, 82, 40, 0.28) !important;
+    border-color: #ff8844 !important;
+    color: #ffe8dc !important;
+    font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(255, 136, 68, 0.2);
+}
+
+#rpg_tracker_btn_upgrade_changed_prompts.rt-prompt-upgrade-pending:hover {
+    background: rgba(240, 98, 48, 0.38) !important;
+    border-color: #ffaa66 !important;
+}
+
+/* Recovery confirms: keep background readable so user can judge if UI looks stale */
+.popup.rt-recovery-popup[open]::backdrop,
+.popup.rt-memo-recovery-popup[open]::backdrop {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: rgba(0, 0, 0, 0.28);
+}
+
+/* ── CYOA Choice Block ─────────────────────────────────────────────────────── */
+/* Chromium leaves huge gaps around unknown <choices> tags; we normalize to
+   .rt-cyoa-choices (a real div). Firefox looked fine either way. */
+
+.mes_text .rt-cyoa-choices,
+.mes_text choices {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    margin: 14px 0 4px;
+    padding: 0 0 0 8px;
+    border-left: 2px solid rgba(120, 80, 220, 0.35);
+}
+
+.mes_text .rt-cyoa-choices > p,
+.mes_text .rt-cyoa-choices > div,
+.mes_text choices > p,
+.mes_text choices > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 0 !important;
+    font-size: 0 !important;
+}
+
+.mes_text .rt-cyoa-choices > br,
+.mes_text choices > br,
+.mes_text .rt-cyoa-choices > p > br,
+.mes_text choices > p > br {
+    display: none !important;
+}
+
+.mes_text .rt-cyoa-choices > button,
+.mes_text choices > button,
+.mes_text .rt-cyoa-choices button,
+.mes_text choices button {
+    margin: 0 !important;
+    font-size: 0.9rem !important;
+    line-height: 1.4 !important;
+}
+
+.mes_text button:not([class]):empty,
+.mes_text button[data-cyoa-bound]:empty,
+.mes_text button.rt-cyoa-incomplete {
+    display: none !important;
+}
+
+/* Even before JS flatten runs: kill paragraph spacing around lone choice buttons. */
+
+/* ST puts every CYOA button in one <p> separated by <br> — Chromium adds huge gaps. */
+.mes_text p:has(> button:nth-of-type(2)) {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    margin: 14px 0 4px !important;
+    padding: 0 0 0 8px !important;
+    border-left: 2px solid rgba(120, 80, 220, 0.35);
+    line-height: 0 !important;
+    font-size: 0 !important;
+}
+
+.mes_text p:has(> button:nth-of-type(2)) > br {
+    display: none !important;
+}
+
+.mes_text p:has(> button:nth-of-type(2)) > button {
+    margin: 0 !important;
+    font-size: 0.9rem !important;
+    line-height: 1.4 !important;
+}
+
+.mes_text p:has(> button:only-child) {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 0 !important;
+}
+
+.mes_text p:has(> button:only-child) > button {
+    margin: 0 0 5px 0 !important;
+    line-height: 1.4 !important;
+}
+
+.mes_text p:empty {
+    display: none !important;
+}
+
+/* CYOA choice button: bracketed mechanics */
+.mes_text button[data-cyoa-bound] .rt-cyoa-mech,
+.mes_text .rt-cyoa-choices button .rt-cyoa-mech {
+    color: #ffc966;
+    background: rgba(255, 180, 60, 0.14);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: var(--rt-font-mono, ui-monospace, monospace);
+    font-size: 0.92em;
+    white-space: nowrap;
+}
+
+.mes_text button[data-cyoa-bound] .rt-cyoa-dc,
+.mes_text .rt-cyoa-choices button .rt-cyoa-dc {
+    color: #ff9f6b;
+    font-weight: 600;
+}
+
+.mes_text button[data-cyoa-bound] .rt-cyoa-mod,
+.mes_text .rt-cyoa-choices button .rt-cyoa-mod {
+    color: #9fd4ff;
+}
+
+.mes_text button[data-cyoa-bound] .rt-cyoa-tag,
+.mes_text .rt-cyoa-choices button .rt-cyoa-tag {
+    color: #c9b0ff;
+    font-weight: 600;
+}
+
+.mes_text button[data-cyoa-bound]:has(.rt-cyoa-mech),
+.mes_text .rt-cyoa-choices button:has(.rt-cyoa-mech) {
+    border-left: 3px solid rgba(255, 180, 60, 0.45);
 }
 

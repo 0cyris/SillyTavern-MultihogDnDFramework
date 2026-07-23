@@ -68,6 +68,72 @@
                             <span>Day/Night Cycle</span>
                             <i class="fa-solid fa-circle-question interactable" title="Shifts the tracker panel colors and header sky badge to match the current in-world time from [TIME] (requires an HH:MM clock). Seven phases: late night, dawn, morning, midday, afternoon, sunset, and night. Purely decorative — no effect on prompts or memo."></i>
                         </label>
+                        <div id="rpg_tracker_panel_bg_block" style="margin-top: 6px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px; background: rgba(255,255,255,0.03);">
+                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                                <b style="font-size: 0.85em;">State Tracker Background</b>
+                                <i class="fa-solid fa-circle-question interactable" title="Optional scenario art behind the State Tracker panel. A tint overlay keeps text readable; with Day/Night Cycle enabled it also shifts with in-world time. Optional night image swaps in during night / late night phases from [TIME], even when Day/Night Cycle is off."></i>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap;">
+                                <div id="rpg_tracker_panel_bg_preview" title="Day / default background" style="width: 72px; height: 48px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.35) center/cover no-repeat; flex-shrink: 0;"></div>
+                                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px;">
+                                    <div class="flex-container gap-1">
+                                        <button type="button" id="rpg_tracker_panel_bg_upload" class="menu_button interactable" style="font-size: 11px;"><i class="fa-solid fa-upload"></i> Upload</button>
+                                        <button type="button" id="rpg_tracker_panel_bg_clear" class="menu_button interactable" style="font-size: 11px;">Clear</button>
+                                    </div>
+                                    <input id="rpg_tracker_panel_bg_file" type="file" accept="image/*" style="display: none;" />
+                                    <input id="rpg_tracker_panel_bg_url" type="text" class="text_pole" placeholder="Or paste image URL…" style="font-size: 11px; width: 100%; box-sizing: border-box;" />
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-top: 8px;">
+                                <div id="rpg_tracker_panel_bg_night_preview" title="Night / late night background (optional)" style="width: 72px; height: 48px; border-radius: 6px; border: 1px dashed rgba(136,153,255,0.35); background: rgba(8,10,28,0.5) center/cover no-repeat; flex-shrink: 0;"></div>
+                                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px;">
+                                    <span style="font-size: 0.78em; opacity: 0.7;">Night image <span style="opacity: 0.55;">(optional)</span></span>
+                                    <div class="flex-container gap-1">
+                                        <button type="button" id="rpg_tracker_panel_bg_night_upload" class="menu_button interactable" style="font-size: 11px;"><i class="fa-solid fa-moon"></i> Upload</button>
+                                        <button type="button" id="rpg_tracker_panel_bg_night_clear" class="menu_button interactable" style="font-size: 11px;">Clear</button>
+                                    </div>
+                                    <input id="rpg_tracker_panel_bg_night_file" type="file" accept="image/*" style="display: none;" />
+                                </div>
+                            </div>
+                            <div class="flex-container alignitemscenter" style="width: 100%; margin-top: 8px;">
+                                <span style="font-size: 0.85em;">Overlay Strength</span>
+                                <span id="rpg_tracker_panel_bg_overlay_val" style="margin-left: auto; font-weight: bold; opacity: 0.8;">55%</span>
+                            </div>
+                            <input id="rpg_tracker_panel_bg_overlay" type="range" class="text_pole" style="width: 100%; cursor: pointer;" min="0" max="100" value="55" title="Higher = stronger day/night (or neutral) tint over the image" />
+                        </div>
+                        <div id="rpg_agent_panel_bg_block" style="margin-top: 6px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px; background: rgba(255,255,255,0.03);">
+                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                                <b style="font-size: 0.85em;">Lorebook Agent Background <span style="font-weight: normal; opacity: 0.55;">(detached)</span></b>
+                                <i class="fa-solid fa-circle-question interactable" title="Separate backdrop for the detached Lorebook Agent window. When integrated in the State Tracker panel, only the tracker background above is used. Night image swaps from [TIME] during night / late night, even without Day/Night Cycle."></i>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap;">
+                                <div id="rpg_agent_panel_bg_preview" title="Day / default background" style="width: 72px; height: 48px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.35) center/cover no-repeat; flex-shrink: 0;"></div>
+                                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px;">
+                                    <div class="flex-container gap-1">
+                                        <button type="button" id="rpg_agent_panel_bg_upload" class="menu_button interactable" style="font-size: 11px;"><i class="fa-solid fa-upload"></i> Upload</button>
+                                        <button type="button" id="rpg_agent_panel_bg_clear" class="menu_button interactable" style="font-size: 11px;">Clear</button>
+                                    </div>
+                                    <input id="rpg_agent_panel_bg_file" type="file" accept="image/*" style="display: none;" />
+                                    <input id="rpg_agent_panel_bg_url" type="text" class="text_pole" placeholder="Or paste image URL…" style="font-size: 11px; width: 100%; box-sizing: border-box;" />
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-top: 8px;">
+                                <div id="rpg_agent_panel_bg_night_preview" title="Night / late night background (optional)" style="width: 72px; height: 48px; border-radius: 6px; border: 1px dashed rgba(136,153,255,0.35); background: rgba(8,10,28,0.5) center/cover no-repeat; flex-shrink: 0;"></div>
+                                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px;">
+                                    <span style="font-size: 0.78em; opacity: 0.7;">Night image <span style="opacity: 0.55;">(optional)</span></span>
+                                    <div class="flex-container gap-1">
+                                        <button type="button" id="rpg_agent_panel_bg_night_upload" class="menu_button interactable" style="font-size: 11px;"><i class="fa-solid fa-moon"></i> Upload</button>
+                                        <button type="button" id="rpg_agent_panel_bg_night_clear" class="menu_button interactable" style="font-size: 11px;">Clear</button>
+                                    </div>
+                                    <input id="rpg_agent_panel_bg_night_file" type="file" accept="image/*" style="display: none;" />
+                                </div>
+                            </div>
+                            <div class="flex-container alignitemscenter" style="width: 100%; margin-top: 8px;">
+                                <span style="font-size: 0.85em;">Overlay Strength</span>
+                                <span id="rpg_agent_panel_bg_overlay_val" style="margin-left: auto; font-weight: bold; opacity: 0.8;">55%</span>
+                            </div>
+                            <input id="rpg_agent_panel_bg_overlay" type="range" class="text_pole" style="width: 100%; cursor: pointer;" min="0" max="100" value="55" title="Higher = stronger day/night (or neutral) tint over the image" />
+                        </div>
                         <div class="flex-container flexFlowColumn gap-1" style="margin-top: 4px;">
                             <div class="flex-container alignitemscenter" style="width: 100%;">
                                 <span style="font-size: 0.85em;">Tracker Font Size</span>
@@ -145,6 +211,13 @@
                                     title="When enabled, clicking 'AI Generate' will instantly generate and apply the portrait in the background without opening the confirmation/prompt editor dialog first."></i>
                             </label>
 
+                            <label class="checkbox_label" style="padding-left: 4px;">
+                                <input id="rpg_tracker_hide_image_gen_toasts" type="checkbox" />
+                                <span>Hide Image Generation Toasts</span>
+                                <i class="fa-solid fa-circle-question interactable"
+                                    title="Suppress progress and success notifications from portrait and location AI auto-generation. Errors and warnings still appear."></i>
+                            </label>
+
                             <small style="display: block; padding-left: 4px; font-size: 0.78em; opacity: 0.6; margin-top: 2px;">Auto-generate for:</small>
                             <label class="checkbox_label" style="padding-left: 4px;">
                                 <input id="rpg_tracker_portrait_auto_player" type="checkbox" />
@@ -171,49 +244,64 @@
                                     title="When enabled, portraits will be automatically generated in the background for new NPCs created or updated in the lorebook if they don't already have one."></i>
                             </label>
 
-                            <div class="inline-drawer" style="margin-top: 6px; margin-bottom: 2px;">
-                                <div class="inline-drawer-toggle inline-drawer-header" style="font-size: 0.82em; padding: 3px 6px;">
-                                    <b>Location Images &amp; Visualization ALPHA</b>
-                                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                            <small style="display: block; padding-left: 4px; font-size: 0.78em; opacity: 0.6; margin-top: 10px;">Location Images &amp; Visualization</small>
+                            <div id="rpg_loc_images_settings_block" class="rt-loc-settings-block flex-container flexFlowColumn gap-1" style="padding-left: 4px;">
+                                <div class="rt-loc-settings-intro">
+                                    Scene art in the Lorebook Agent — location tree thumbnails, wide detail images, and Visualization Mode. Off by default.
                                 </div>
-                                <div class="inline-drawer-content" style="padding: 6px 4px 0 4px;">
-                                    <div class="flex-container flexFlowColumn gap-1">
-                                        <div style="font-size: 0.72em; opacity: 0.55; line-height: 1.35; margin-bottom: 4px;">
-                                            Alpha location scene art in the Lorebook Agent — hierarchical location tree, wide scene images, and Visualization Mode. Off by default.
-                                        </div>
-                                        <div id="rpg_loc_images_standard_group" class="rt-loc-settings-section">
-                                            <div id="rpg_loc_images_standard_core">
-                                                <label class="checkbox_label" style="padding-left: 4px;">
-                                                    <input id="rpg_tracker_location_images" type="checkbox" />
-                                                    <span>Show Location Images</span>
-                                                    <i class="fa-solid fa-circle-question interactable"
-                                                        title="Master toggle for location scene art in the Lorebook Agent — thumbnails on the Locations tree, detail view with wide scene art, drag &amp; drop upload, and Visualization Mode in the agent panel. Also enabled automatically with Real-Time Visualization Mode or Auto-Generate Locations."></i>
-                                                </label>
-                                                <label class="checkbox_label" style="padding-left: 4px;">
-                                                    <input id="rpg_tracker_portrait_auto_locations" type="checkbox" />
-                                                    <span>Auto-Generate Locations</span>
-                                                    <i class="fa-solid fa-circle-question interactable"
-                                                        title="When enabled (and Real-Time Visualization Mode is off), scene images are auto-generated in the background for new location entries that do not already have an image. Also turns on Show Location Images. Disabled while Real-Time Visualization Mode is on — arrival-based art replaces this path."></i>
-                                                </label>
-                                                <label class="checkbox_label" style="padding-left: 4px;">
-                                                    <input id="rpg_portrait_location_include_present_npcs" type="checkbox" />
-                                                    <span>Include Present NPCs in Location Scene Prompts</span>
-                                                    <i class="fa-solid fa-circle-question interactable"
-                                                        title="When enabled, active Lorebook Agent NPC keys are injected verbatim into location image prompts so the LLM can place those characters in the scene. The linked Player Character is always included in Present Now and in the prompt. The Location Scene Prompt also instructs the model to include minor characters from recent narrator output even when they are not in that block. Active keys are refreshed when the agent runs (including on location changes). Locked on while Real-Time Visualization Mode is active."></i>
-                                                </label>
+                                <div id="rpg_loc_images_standard_group" class="rt-loc-settings-section">
+                                    <div id="rpg_loc_images_standard_core">
+                                        <label class="checkbox_label">
+                                            <input id="rpg_tracker_location_images" type="checkbox" />
+                                            <span>Show Location Images</span>
+                                            <i class="fa-solid fa-circle-question interactable"
+                                                title="Master toggle for location scene art in the Lorebook Agent — thumbnails on the Locations tree, detail view with wide scene art, drag &amp; drop upload, and Visualization Mode in the agent panel. Also enabled automatically with Real-Time Visualization Mode or Auto-Generate Locations."></i>
+                                        </label>
+                                        <label class="checkbox_label">
+                                            <input id="rpg_tracker_portrait_auto_locations" type="checkbox" />
+                                            <span>Auto-Generate Locations</span>
+                                            <i class="fa-solid fa-circle-question interactable"
+                                                title="When enabled (and Real-Time Visualization Mode is off), scene images are auto-generated in the background for new location entries that do not already have an image. Also turns on Show Location Images. Disabled while Real-Time Visualization Mode is on."></i>
+                                        </label>
+                                        <label class="checkbox_label">
+                                            <input id="rpg_portrait_location_include_present_npcs" type="checkbox" />
+                                            <span>Include Present NPCs in Location Scene Prompts</span>
+                                            <i class="fa-solid fa-circle-question interactable"
+                                                title="When enabled, NPCs whose names appear in the most recent narrator output (Present-Now name scanner — first/last name only, not Lorebook Agent keys) are injected into location image prompts. The linked Player Character is always included. The Location Scene Prompt also instructs the model to include minor characters from recent narrator output even when they are not in that block. Locked on while Real-Time Visualization Mode is active."></i>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div id="rpg_loc_images_realtime_group" class="rt-loc-settings-section rt-loc-realtime-feature">
+                                    <div class="rt-loc-realtime-feature-header">
+                                        <div class="rt-loc-realtime-feature-icon" aria-hidden="true">✨</div>
+                                        <div class="rt-loc-realtime-feature-titles">
+                                            <div class="rt-loc-realtime-feature-title-row">
+                                                <span class="rt-loc-realtime-feature-title">Real-Time Visualization Mode</span>
+                                                <span id="rpg_loc_realtime_badge" class="rt-loc-realtime-badge" style="display: none;">LIVE</span>
                                             </div>
+                                            <div class="rt-loc-realtime-feature-tagline">Dynamic scene art that follows your story as you play</div>
                                         </div>
-                                        <div id="rpg_loc_images_realtime_group" class="rt-loc-settings-section rt-loc-realtime-section">
-                                            <div class="rt-loc-settings-subheader">Real-Time Visualization Mode</div>
-                                            <div id="rpg_loc_realtime_active_note" class="rt-loc-realtime-active-note" style="display: none;">
-                                                Arrival-based generation is active — standard location options above are bypassed. Use Visualization Mode in the Lorebook Agent to view scene art on arrival.
-                                            </div>
-                                            <label class="checkbox_label" style="padding-left: 4px;">
-                                                <input id="rpg_tracker_portrait_auto_scene_view" type="checkbox" />
-                                                <span>Enable Real-Time Visualization Mode</span>
-                                                <i class="fa-solid fa-circle-question interactable"
-                                                    title="When on, location images are created only when you arrive at a place in Scene View — using current chat context and characters present. Each arrival generates a fresh image (including revisits). Also turns on Show Location Images (locked on until this is off). Auto-Generate Locations is disabled."></i>
-                                            </label>
+                                    </div>
+                                    <div id="rpg_loc_realtime_active_note" class="rt-loc-realtime-active-note" style="display: none;"></div>
+                                    <label class="checkbox_label rt-loc-realtime-enable-label">
+                                        <input id="rpg_tracker_portrait_auto_scene_view" type="checkbox" />
+                                        <span>Enable Real-Time Visualization Mode</span>
+                                        <i class="fa-solid fa-circle-question interactable"
+                                            title="When on, location scene art is generated from Visualization Mode using current chat context and characters present. Choose a trigger below: on location enter, on location change, or every N outputs (still regenerates on location change). Also turns on Show Location Images (locked on until this is off). Auto-Generate Locations is disabled."></i>
+                                    </label>
+                                    <div id="rpg_loc_realtime_trigger_group" class="rt-loc-realtime-trigger-group" style="display: none;">
+                                        <label class="rt-loc-realtime-trigger-label">Generate scene art</label>
+                                        <select id="rpg_tracker_portrait_realtime_trigger" class="text_pole rt-loc-realtime-trigger-select">
+                                            <option value="location_enter">On location enter (once per place)</option>
+                                            <option value="location_change">On location change (including revisits)</option>
+                                            <option value="every_n_outputs">Every N outputs (+ on location change)</option>
+                                        </select>
+                                        <div id="rpg_loc_realtime_every_n_wrap" class="rt-loc-realtime-every-n flex-container gap-1" style="display: none;">
+                                            <span>Every</span>
+                                            <input id="rpg_tracker_portrait_realtime_every_n" type="number" class="text_pole" min="1" step="1" value="1" />
+                                            <span>chat output(s)</span>
+                                            <i class="fa-solid fa-circle-question interactable"
+                                                title="While this mode is on, scene art still regenerates whenever the location changes. Separately, a fresh image is also generated every N assistant/chat outputs — set to 1 to regenerate after every output."></i>
                                         </div>
                                     </div>
                                 </div>
@@ -333,6 +421,19 @@
                                     <span>Auto-Update Prompts on Upgrade</span>
                                     <i class="fa-solid fa-circle-question interactable" title="When enabled, bundled default prompts are automatically reset on load whenever the shipped prompt defaults change — not on every version bump. No dialog is shown."></i>
                                 </label>
+                                <button id="rpg_tracker_btn_force_checkpoint" class="menu_button interactable"
+                                    style="width: 100%; margin-top: 6px; background: rgba(0, 180, 120, 0.18); border-color: #00b478;"
+                                    title="Force-writes SillyTavern settings.json to disk RIGHT NOW (awaits the save while this page stays open). Also refreshes the local memo recovery backup. Use this after important changes so the next F5/settings rollback lands on this known-good state instead of an older snapshot.">
+                                    <i class="fa-solid fa-floppy-disk"></i> Force Disk Checkpoint
+                                </button>
+                                <small style="display: block; margin-top: 4px; opacity: 0.65; font-size: 0.78em; line-height: 1.25;">
+                                    Keeps the tab open until the toast confirms — that write becomes the rollback baseline if a later reload aborts a save.
+                                </small>
+                                <button id="rpg_tracker_btn_upgrade_changed_prompts" class="menu_button interactable rt-prompt-upgrade-pending"
+                                    style="display:none; width: 100%; margin-top: 6px;"
+                                    title="Shipped default prompts changed since you last acknowledged an update. Re-opens the update dialog.">
+                                    <i class="fa-solid fa-arrow-up-from-bracket"></i> Update Changed Prompts
+                                </button>
                                 <button id="rpg_tracker_btn_reset_and_apply_sysprompt" class="menu_button interactable"
                                     style="width: 100%; margin-top: 6px; background: rgba(80, 140, 255, 0.18); border-color: #5588ff;"
                                     title="Resets ALL prompts (Core, Stock Modules, Block Order) and writes the current system prompt template to Quick Prompt Main box.">
@@ -358,13 +459,22 @@
                         <div id="rpg_narrator_config_block" style="border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;">
                             <small style="display: block; margin-bottom: 6px; font-weight: bold; opacity: 0.9;">Narrator Configuration</small>
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+                                <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">Pacing</span>
+                                <button class="rt-narrative-pacing-help" style="background: none; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: inherit; font-size: 0.72em; opacity: 0.7; padding: 1px 7px; cursor: pointer;">What are these?</button>
+                            </div>
+                            <div class="flex-container flexFlowColumn gap-1" style="margin-bottom: 8px; padding-left: 5px;">
+                                <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="normal" id="rpg_narrative_pacing_normal" /><span>Normal</span></label>
+                                <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="high_agency" id="rpg_narrative_pacing_high_agency" /><span>High-Agency Mode</span></label>
+                                <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="downtime" id="rpg_narrative_pacing_downtime" /><span>Downtime/Slice of Life Mode</span></label>
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
                                 <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">RNG</span>
                                 <button class="rt-rng-help-icon" style="background: none; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: inherit; font-size: 0.72em; opacity: 0.7; padding: 1px 7px; cursor: pointer;">What are these?</button>
                             </div>
                             <div class="flex-container flexFlowColumn gap-1" style="margin-bottom: 8px; padding-left: 5px;">
-                                <label class="checkbox_label"><input type="radio" name="rpg_sysprompt_rng_mode" value="hybrid" id="rpg_rng_hybrid" /><span>Pre-Seeded + Tool Calls</span></label>
-                                <label class="checkbox_label"><input type="radio" name="rpg_sysprompt_rng_mode" value="legacy" id="rpg_rng_legacy" /><span>Pre-Seeded Only</span></label>
-                                <label class="checkbox_label"><input type="radio" name="rpg_sysprompt_rng_mode" value="none" id="rpg_rng_none" /><span>No RNG (LLM makes up numbers)</span></label>
+                                <label class="checkbox_label"><input type="radio" name="rpg_sysprompt_rng_mode" value="hybrid" id="rpg_rng_hybrid" /><span>Pre-Seeded + Tool Calls (Recommended without CYOA Mode)</span></label>
+                                <label class="checkbox_label"><input type="radio" name="rpg_sysprompt_rng_mode" value="legacy" id="rpg_rng_legacy" /><span>Pre-Seeded Only (Recommended with CYOA Mode)</span></label>
+                                <label class="checkbox_label"><input type="radio" name="rpg_sysprompt_rng_mode" value="none" id="rpg_rng_none" /><span>No RNG (LLM makes up numbers, not recommended)</span></label>
                             </div>
 
                             <details style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px; padding-left: 5px;">
@@ -425,7 +535,6 @@
                                     <div id="rpg_quests_frustration_wrap" style="padding-left: 20px; display: none;">
                                         <label class="checkbox_label"><input type="checkbox" id="rpg_quests_frustration" /><span style="opacity: 0.9;">↳ Frustration (Experimental)</span></label>
                                     </div>
-                                    <label class="checkbox_label"><input type="checkbox" id="rpg_quests_difficulty" /><span>Difficulty</span></label>
                                     <label class="checkbox_label"><input type="checkbox" id="rpg_quests_show_archive" checked /><span>Show completed/failed quests</span></label>
                                 </div>
                             </div>
@@ -439,7 +548,10 @@
                                 <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_random_events" /><span>🌍 Events</span></label>
                                 <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_resting" /><span>💤 Resting</span></label>
                                 <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_party_bench" /><span>🏕️ Benched Party</span></label>
-                                <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_cyoa_mode" /><span>🧭 CYOA Mode</span></label>
+                                <div style="display:flex;align-items:center;gap:4px;">
+                                <label class="checkbox_label" style="flex:1;"><input type="checkbox" id="rpg_sysprompt_mod_cyoa_mode" /><span>🧭 CYOA Mode</span></label>
+                                <button id="rpg_cyoa_settings_btn" class="menu_button interactable" style="padding:1px 7px;font-size:11px;flex-shrink:0;" title="CYOA Settings"><i class="fa-solid fa-gear"></i></button>
+                                </div>
                                 <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_npc_rel_bars" /><span>💞 Relationship System</span></label>
                             </div>
                             <button id="rpg_tracker_btn_update_sysprompt_general" class="menu_button interactable"
@@ -451,7 +563,7 @@
 
                         <div style="font-weight: bold; font-size: 0.85em; opacity: 0.8; margin-bottom: 4px; margin-top: 4px;">Game System Wizard</div>
                         <div style="font-size: 0.78em; opacity: 0.6; line-height: 1.4; margin-bottom: 6px;">
-                            Describe a mechanic (e.g. "radiation zones", "a reputation system") and the wizard drafts a matching GM sysprompt section and, if needed, a linked tracker module — both editable together as one bundle.
+                            Describe a mechanic (e.g. "radiation zones", "farming sim", "construction skill", "faction reputation") and the wizard drafts a matching GM sysprompt section and, if needed, a linked tracker module — both editable together as one bundle.
                         </div>
 
                         <!-- SUB-DRAWER: WIZARD CONNECTION SETTINGS -->
@@ -624,7 +736,7 @@
                                     <input id="rpg_tracker_combat_profile_auto_switch" type="checkbox" />
                                     <span>Auto-Switch Main Profile During Combat</span>
                                     <i class="fa-solid fa-circle-question interactable"
-                                        title="When [COMBAT] is active in the State Tracker, automatically switch SillyTavern's main Connection Profile to the one selected below. Restores your previous profile when combat ends ([COMBAT]END_COMBAT[/COMBAT] or block removed). Requires the Connection Manager extension."></i>
+                                        title="When [COMBAT] is active in the State Tracker, automatically switch SillyTavern's main Connection Profile to the one selected below. Restores your previous profile when combat ends ([COMBAT]END_COMBAT[/COMBAT] or block removed)."></i>
                                 </label>
                                 <div id="rpg_combat_profile_group" style="padding-left: 4px; display: none;">
                                     <label style="font-size: 0.82em; opacity: 0.75; display: block; margin-bottom: 3px;">Combat Connection Profile</label>
@@ -653,8 +765,12 @@
                         <button id="rpg_tracker_add_custom_field" class="menu_button interactable" style="flex: 1;"><i class="fa-solid fa-plus"></i> Add Custom (Manual)</button>
                         <button id="rpg_tracker_add_custom_field_ai" class="menu_button interactable" style="flex: 1; background: rgba(180, 100, 255, 0.15); border-color: rgba(180, 100, 255, 0.4);"><i class="fa-solid fa-wand-magic-sparkles"></i> Add Custom (AI)</button>
                     </div>
-                    <div class="flex-container gap-1" style="margin-top: 4px;">
-                        <button id="rt_btn_tag_library" class="menu_button interactable" style="flex: 1; background: rgba(50, 150, 255, 0.15); border-color: rgba(50, 150, 255, 0.4);"><i class="fa-solid fa-swatchbook"></i> Rendering Tags Library</button>
+                    <div class="flex-container gap-1" style="margin-top: 6px;">
+                        <button id="rt_btn_tag_library" class="menu_button interactable rt-tag-library-button" aria-label="Open Rendering Tags Library">
+                            <span class="rt-tag-library-icon" aria-hidden="true"><i class="fa-solid fa-swatchbook"></i></span>
+                            <span class="rt-tag-library-copy"><span>Rendering Tags Library</span><small>Live previews · color alchemy</small></span>
+                            <span class="rt-tag-library-sparkle" aria-hidden="true">✦</span>
+                        </button>
                     </div>
                     <div class="flex-container gap-1" style="margin-top: 4px;">
                         <button id="rpg_tracker_export_all_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Export</button>
@@ -867,8 +983,8 @@
 
                                     <label class="checkbox_label">
                                         <input id="rpg_tracker_npc_rel_bars" type="checkbox" />
-                                         <span>Relationship System (BETA)</span>
-                                        <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Shows Friendship/Affection tracking bars on NPC cards and popups. Also adds relationship fields to the AI instruction."></i>
+                                         <span>Relationship System (tracks each NPC's friendship and affection toward you)</span>
+                                        <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Tracks each NPC's friendship and affection toward you, displays the values on NPC cards and popups, and gives the narrator guidance for relationship changes."></i>
                                     </label>
 
                                     <label class="checkbox_label">

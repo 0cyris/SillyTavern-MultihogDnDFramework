@@ -13,7 +13,7 @@
  */
 
 import { getSettings, hydrateWorldProgressionFromChatState, persistWorldProgressionTimer, persistRouterLastRunWatermark, getNpcRelationshipMax, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, applyRelTierBadgeElement, saveChatState, getActiveChatId } from './state-manager.js';
-import { syncCombatProfile } from './llm-client.js';
+import { syncCombatProfile, isCombatActive } from './llm-client.js';
 import { parseQuestsFromMemo, extractCurrentTimeStr, cleanMessageContent, formatInWorldTime, memoForGmContext } from './memo-processor.js';
 import { runRouterPass, saveSceneToLorebook, scanAssistantOutputForKeywords, parseInWorldMinutes, runWorldProgressionPass, updateLorebookEntry, getLorebookManifest, rollbackRouterPass, isRouterRunning } from './router.js';
 import { logTransaction } from './debug-viewer.js';
@@ -28,6 +28,98 @@ function substituteLoreMacros(content) {
     } catch (_) {
         return content;
     }
+}
+
+/**
+ * Resolve Control Room / unlocked state for `<end_of_output_footer>`.
+ * @param {object} settings
+ * @returns {{ enabled: boolean, inner: string }}
+ */
+function resolveEndOfOutputFooterSection(settings) {
+    const library = settings.customSyspromptLibrary || [];
+    const override = library.find(p => p.origin === 'unlocked_base' && p.baseTag === 'end_of_output_footer');
+    if (override) {
+        const raw = String(override.content || '').trim();
+        const innerMatch = raw.match(/<end_of_output_footer>([\s\S]*?)<\/end_of_output_footer>/i);
+        return { enabled: !!override.enabled, inner: (innerMatch ? innerMatch[1] : raw).trim() };
+    }
+
+    const enabled = settings.syspromptModules?.end_of_output_footer !== false;
+    if (!enabled) return { enabled: false, inner: '' };
+
+    // Prefer the live Main prompt (already Control-Room-assembled + time-format transforms).
+    const mainTa = /** @type {HTMLTextAreaElement|null} */ (document.getElementById('main_prompt_quick_edit_textarea'));
+    const mainVal = mainTa?.value || '';
+    const liveMatch = mainVal.match(/<end_of_output_footer>([\s\S]*?)<\/end_of_output_footer>/i);
+    if (liveMatch) return { enabled: true, inner: liveMatch[1].trim() };
+
+    // Fallback: shipped default body with the same time/date transforms as transformBaseSectionContent.
+    let inner = `ALWAYS end every output (even after tool chains) with:
+*(Status: [HP]) | (XP: [current]/[next level]) | (Location: [Main, Sub, Sub-sub, etc])*
+*Level [X] | [HH:MM AM/PM], Day [X]*
+Footer shows ONLY {{user}}'s HP/XP/level/location — never party/NPC status or names.`;
+    if (settings.use24hTime) {
+        inner = inner.replace(/\[HH:MM AM\/PM\]/g, '[HH:MM] (24-hour clock, NO AM/PM)');
+    }
+    if (settings.useDdMmYyFormat) {
+        inner = inner.replace(/Day\s+\[X\]/g, '[DD/MM/YYYY]');
+    }
+    return { enabled: true, inner };
+}
+
+/**
+ * Take only the footer format that follows the first "with" in the section body.
+ * @param {string} inner
+ * @returns {string}
+ */
+function extractFooterFormatAfterWith(inner) {
+    if (!inner) return '';
+    const m = String(inner).match(/\bwith\b\s*:?\s*([\s\S]*)/i);
+    return (m ? m[1] : '').trim();
+}
+
+/**
+ * Stealth end-of-output footer reminder for the first user turn of a chat.
+ * Honors System Prompt Control Room enable/disable and uses the live section's
+ * format (the part after "with") instead of a hardcoded template.
+ * @param {object} settings
+ * @returns {string} empty when footer section is disabled or has no format
+ */
+function buildEndOfOutputFooterReminder(settings) {
+    const { enabled, inner } = resolveEndOfOutputFooterSection(settings);
+    if (!enabled) return '';
+
+    const afterWith = extractFooterFormatAfterWith(inner);
+    if (!afterWith) return '';
+
+    const block = `<end_of_output_footer>
+ALWAYS end every output (even after tool chains) with:
+${afterWith}
+</end_of_output_footer>
+
+`;
+    return substituteLoreMacros(block);
+}
+
+/** @param {any[]} chat */
+function countUserMessagesInChat(chat) {
+    if (!Array.isArray(chat)) return 0;
+    let n = 0;
+    for (const m of chat) {
+        if (m?.is_user) {
+            n++;
+            continue;
+        }
+        const role = String(m?.role || m?.Role || '').toLowerCase().trim();
+        if (role === 'user') n++;
+    }
+    return n;
+}
+
+/** True when this generation is the chat's first user turn (inject footer once). */
+function shouldInjectEndOfOutputFooterReminder(chat, content) {
+    if (content && content.includes('<end_of_output_footer>')) return false;
+    return countUserMessagesInChat(chat) <= 1;
 }
 
 // ── Dice naming helpers ────────────────────────────────────────────────────────
@@ -397,6 +489,29 @@ export function registerDiceFunctionTool() {
     }
 }
 
+/**
+ * Keeps function-tool visibility aligned with managed hybrid RNG context.
+ * During combat the queue is the only mechanic, so remove the dice schemas;
+ * outside combat restore the user's configured dice tools.
+ */
+export function syncDiceFunctionToolForRngContext(memo, manageHybrid = false) {
+    if (!manageHybrid || !isCombatActive(memo)) {
+        registerDiceFunctionTool();
+        return;
+    }
+
+    try {
+        const { unregisterFunctionTool } = SillyTavern.getContext();
+        if (!unregisterFunctionTool) return;
+        unregisterFunctionTool('RollTheDice');
+        unregisterFunctionTool('RollTheDiceD100');
+        unregisterFunctionTool('FatbodyRollTheDice');
+        unregisterFunctionTool('MultihogRollTheDice');
+    } catch (e) {
+        console.warn('[RPG Tracker] Failed to unregister combat-disabled dice tools:', e);
+    }
+}
+
 export function registerDiceSlashCommand() {
     const { SlashCommand, SlashCommandParser, ARGUMENT_TYPE, SlashCommandArgument, SlashCommandNamedArgument } = SillyTavern.getContext();
     if (!SlashCommand || !SlashCommandParser) return;
@@ -570,15 +685,15 @@ async function buildNpcRelationsBlock(settings) {
 }
 
 export function installInterceptor() {
+    // The former Prompt Manager injection path was removed. Clear any flag left
+    // behind by a hot-reloaded older build so this interceptor remains the one
+    // authoritative source of tracker and player-character prompt injection.
+    delete globalThis._rpgPromptManagerInterceptorActive;
     globalThis.rpgTrackerInterceptor = async function (chat, contextSize, abort, type) {
         const settings = getSettings();
 
-        // When addPromptManagerInterceptor (Path 1) is active, we do NOT inject anything
-        // into the user message — that would break prefix-cache protection.
-        // However, we MUST still run the keyword pre-scan so that newly triggered entries
-        // are added to activeRouterKeys before Path 1 reads it to build the API payload.
-        // Path 1 fires after this interceptor in the ST pipeline, so a scan here = same-turn lore.
-        const skipInjection = !!globalThis._rpgPromptManagerInterceptorActive;
+        // The manifest interceptor is the sole injection path.
+        const skipInjection = false;
 
         // ── Swipe rollback: memo, then relationships, then lorebook agent ─────────────
         const _rbCtx = SillyTavern.getContext();
@@ -703,7 +818,12 @@ export function installInterceptor() {
             const relBlock = await buildNpcRelationsBlock(settings);
             if (relBlock) injections += relBlock;
 
-            if (settings.rngEnabled) {
+            // Hybrid mode uses live tool calls outside combat and the queue only
+            // while [COMBAT] is active. Queue-only mode continues to inject it for
+            // every response, preserving its existing behavior.
+            const injectRngQueue = settings.rngEnabled
+                && (!settings.diceFunctionTool || isCombatActive(settings.currentMemo));
+            if (injectRngQueue) {
                 if (settings.rngQueueD20 && !content.includes(RNG_QUEUE_TAG_D20)) {
                     const queue = makeRngQueue(RNG_QUEUE_LEN, false);
                     injections += buildRngBlock(queue, false);
@@ -735,6 +855,19 @@ export function installInterceptor() {
                     const freshQuests = parseQuestsFromMemo(settings.currentMemo);
                     const questText = renderQuestsAsPlainText(freshQuests, currentTime);
                     if (questText) injections += questText;
+                }
+            }
+
+            // Once per chat: reinforce the status footer on the first user turn only
+            // (near the bottom of early context — system prompt alone is often ignored).
+            // Honors Control Room: disabled <end_of_output_footer> → no reminder.
+            if (shouldInjectEndOfOutputFooterReminder(chat, content)) {
+                const footerReminder = buildEndOfOutputFooterReminder(settings);
+                if (footerReminder) {
+                    injections += footerReminder;
+                    if (settings.debugMode) console.log('[RPG Tracker] End-of-output footer reminder injected (first user turn).');
+                } else if (settings.debugMode) {
+                    console.log('[RPG Tracker] End-of-output footer reminder skipped (disabled or empty format).');
                 }
             }
         }
@@ -1794,6 +1927,14 @@ export async function onGenerationEnded() {
         return;
     }
 
+    // Real-Time Visualization: scene art every-N / location-change (independent of router throttle).
+    // Defer one tick so the new assistant message is in chat before we count outputs.
+    setTimeout(() => {
+        if (typeof globalThis._rpgCheckRealtimeSceneArt === 'function') {
+            void globalThis._rpgCheckRealtimeSceneArt();
+        }
+    }, 0);
+
     if (settings.debugMode) console.log("[RPG Tracker] Assistant generation ended. Running keyword scanner...");
 
     // Step 1: Scan assistant output for entry keywords and activate matches immediately.
@@ -1850,6 +1991,17 @@ export async function onGenerationEnded() {
             await syncCombatProfile(getSettings().currentMemo, settings);
         } catch (e) {
             console.warn('[RPG Tracker] Combat profile sync failed:', e);
+        }
+
+        try {
+            await globalThis._rpgSyncDynamicRngPrompt?.(getSettings().currentMemo, settings);
+        } catch (e) {
+            console.warn('[RPG Tracker] Dynamic RNG prompt sync failed:', e);
+        }
+
+        // Re-check scene art after State Tracker may have updated location in memo.
+        if (typeof globalThis._rpgCheckRealtimeSceneArt === 'function') {
+            void globalThis._rpgCheckRealtimeSceneArt();
         }
     }
 

@@ -12,11 +12,11 @@
 //                              intact.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { getSettings, getNpcRelationshipMax, buildRelationshipTrackingSysprompt } from './state-manager.js';
+import { getSettings, getNpcRelationshipMax, buildRelationshipTrackingSysprompt, recordDeletedCustomTags, clearDeletedCustomTagTombstones } from './state-manager.js';
 import { sendStateRequest, restoreUserMacro } from './llm-client.js';
 import { escapeHtml } from './memo-processor.js';
 import { refreshOrderList } from './ui-editors.js';
-import { QUESTS_NARRATOR, DEFAULT_STOCK_PROMPTS, resolveTimePromptKey } from './constants.js';
+import { QUESTS_NARRATOR, DEFAULT_STOCK_PROMPTS, resolveTimePromptKey, buildCyoaPrompt } from './constants.js';
 import { getSortableDelay } from '../../../utils.js';
 import { POPUP_RESULT } from '../../../popup.js';
 import { openManageGameCartridges } from './game-cartridges.js';
@@ -26,7 +26,7 @@ import {
     refreshRenderedView,
     autoApplySysprompt,
     fetchBaseSyspromptRaw,
-} from './index.js';
+} from './src/app/runtime-bridge.js';
 
 /** @typedef {{ deferPersistence?: boolean }} SyspromptPersistOptions */
 
@@ -395,8 +395,29 @@ export function transformBaseSectionContent(tag, innerContent, settings) {
     const mods = settings.syspromptModules || {};
     const d100Mode = !!settings.diceD100Mode;
 
+    if (tag === 'narrative') {
+        const shared = `- Simulate realistic time passage; world events progress independent of {{user}}; multiple skill checks per output are fine.
+- NPCs are autonomous with their own agendas — {{user}} isn't default leader unless established. High-competence/alpha NPCs (e.g. Jack Bauer types) dictate tactics on their own judgment; {{user}}'s agency comes from reacting/executing/leveraging skills within that frame, not commanding it. NPCs can express opinions or leave over serious value conflicts. NPCs only know what they'd realistically know.`;
+        const pacing = settings.narrativePacing;
+        const modeLine = pacing === 'high_agency'
+            ? '- Emphasize player-agency. Keep outputs short- to moderate-length to maintain high player agency/room for input.'
+            : pacing === 'downtime'
+                ? '- Keep the pacing relaxed; don\'t enforce action or "save the world" plots. This is a "slice of life" type of roleplay.'
+                : '- Voice: may paraphrase {{user}}\'s dialogue/actions consistent with their character, lightly expanding as needed.';
+        return `<narrative>\n${shared}\n${modeLine}\n</narrative>`;
+    }
+
+    if (tag === 'CYOA_mode') {
+        const cfg = settings.cyoaConfig || {};
+        // Builder is source of truth unless the user explicitly opted into a custom CYOA prompt.
+        // (Older builds always wrote customPromptText on save, which blocked shipped CYOA refreshes.)
+        const promptText = (cfg.useCustomPrompt && cfg.customPromptText?.trim())
+            ? cfg.customPromptText.trim()
+            : buildCyoaPrompt(cfg);
+        return `<CYOA_mode>\n${promptText}\n</CYOA_mode>`;
+    }
     if (tag === 'random_events' && !(settings.rngEnabled && settings.diceFunctionTool)) {
-        innerContent = innerContent.replace(/\n- Issue both RollTheDice calls in one parallel batch[^\n]+/g, '');
+        innerContent = innerContent.replace(/\s*Batch both RollTheDice calls together;[^.]*\./g, '');
     }
 
     if (tag === 'relationship_tracking') {
@@ -408,11 +429,11 @@ export function transformBaseSectionContent(tag, innerContent, settings) {
         const dieWord = d100Mode ? 'd100' : 'd20';
         let fallbackText = `To resolve actions, simulate a fair ${dieWord} roll internally and maintain all ROLL FORMAT rules.\n\n`;
         let matchedFormat = false;
-        if (innerContent.includes('[ROLL FORMAT]')) {
-            const rollFormatMatch = innerContent.match(/(\[ROLL FORMAT\][\s\S]*?)(?=\n\n\[FALLBACK\]|$)/i);
+        if (innerContent.includes('ROLL FORMAT')) {
+            const rollFormatMatch = innerContent.match(/(ROLL FORMAT[\s\S]*?)(?=\n\[FALLBACK\]|$)/i);
             if (rollFormatMatch) { fallbackText += rollFormatMatch[1].trim(); matchedFormat = true; }
         } else {
-            const l4 = innerContent.match(/4\.\s*(Output[\s\S]*?)(?=\n\n\[FALLBACK\]|$)/i);
+            const l4 = innerContent.match(/4\.\s*(Output[\s\S]*?)(?=\n\[FALLBACK\]|$)/i);
             if (l4) { fallbackText += l4[1].replace(/5\.\s*/g, '').trim(); matchedFormat = true; }
         }
         if (!matchedFormat) {
@@ -421,15 +442,27 @@ export function transformBaseSectionContent(tag, innerContent, settings) {
         return `<rng_system>\n${fallbackText.trim()}\n</rng_system>`;
     }
 
+    // Hybrid RNG is context-switched by index.js after the State Tracker updates
+    // [COMBAT]. Keep only the active mechanic in the narrator's prompt: live tool
+    // rolls outside combat, then the pre-seeded queue during combat.
+    if (tag === 'rng_system' && settings.rngEnabled && settings.diceFunctionTool) {
+        const combatMatch = (settings.currentMemo || '').match(/\[COMBAT\]([\s\S]*?)\[\/COMBAT\]/i);
+        const combatBody = combatMatch?.[1]?.trim() || '';
+        const inCombat = !!combatBody && !/^END_COMBAT$/i.test(combatBody);
+        const dieWord = d100Mode ? 'd100' : 'd20';
+        const toolName = d100Mode ? 'RollTheDiceD100' : 'RollTheDice';
+        if (!inCombat) {
+            return `<rng_system>\nFor each roll, call ${toolName} with the DC included in the tool parameters; set the DC before seeing the result. Output the DC, roll, and success/failure in parentheses. In combat, prefer batching multiple rolls into a single tool call for efficiency.\n</rng_system>`;
+        }
+
+        const queueName = d100Mode ? '[RNG_QUEUE_d100 v7.0]' : '[RNG_QUEUE v7.0]';
+        return `<rng_system>\n${queueName} is the sole RNG mechanic — internal physics, never revealed or explained.\n<rng_queue_instructions>\nPop lines in order (1, 2, 3...). Each line has labeled dice (${dieWord}=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps on exhaustion.\n- ${dieWord} = attacks/checks. Damage dice = matching label on the same line.\n- Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.\n</rng_queue_instructions>\n\nROLL FORMAT (strict):\n- Attack: *(Attack: 12 [Roll] + 1 [Mod] = 13 vs AC 14)*\n- Save / effect: *(Dexterity Save: 12 [Roll] + 3 [Mod] = 15 vs DC 14)*\n- Damage: *(Damage: d10 + 3 → 8 piercing)*\n\nDC SCALE: Trivial 8 | Easy 14 | Moderate 18 | Hard 23 | Severe 28 | Near-impossible 33+\n\nUnknown skill bonuses: judge from background/archetype + situational mods.\n[FALLBACK]: No queue provided → simulate a fair ${dieWord} internally, same ROLL FORMAT.\n</rng_system>`;
+    }
+
     if (tag === 'quests') {
         let instruction = QUESTS_NARRATOR;
         if (!mods.questsFrustration) {
-            instruction = instruction.replace(/\n- The MOOD field[^\n]*questgiver NPC speaks and acts\./g, '');
-            instruction = instruction.replace(/\n- When a new quest is accepted or becomes emergent, assign FRUSTRATION_COEFF[^\n]*/g, '');
-        }
-        if (!mods.questsDifficulty) {
-            instruction = instruction.replace(/the difficulty \(Very Easy to Very Hard\), /g, '');
-            instruction = instruction.replace(/Assign an appropriate difficulty \(Very Easy to Very Hard\) based on the narrative stakes\. /g, '');
+            instruction = instruction.replace(/ Quest MOOD \(in STATE MEMO, from time pressure \+ FRUSTRATION_COEFF\) should guide questgiver tone for NPC-given quests only\./g, '');
         }
         let result = `<quests>\n${instruction.trim()}\n</quests>`;
         if (!mods.questsDeadlines) {
@@ -946,7 +979,7 @@ export async function runManualSectionBuilder(options = {}) {
 
 function buildWizardSystemPrompt() {
     const renderingHints = RENDERING_TAGS_LIBRARY.join('\n  - ');
-    return `You are a game-system architect for a D&D-style tabletop RPG framework. The user will describe ONE mechanic/system in plain language (e.g. "radiation zones", "a faction reputation system", "hunger and thirst"). You must design BOTH halves of it and return ONLY the tags below — no explanation, no markdown fences, no other text.
+    return `You are a game-system architect for a D&D-style tabletop RPG framework. The user will describe ONE mechanic/system in plain language (e.g. "radiation zones", "a faction reputation system", "hunger and thirst", "a farming sim with crop growth", "a construction skill with build projects"). You must design BOTH halves of it and return ONLY the tags below — no explanation, no markdown fences, no other text.
 
 ═══════════════════════════════════════════════════════════════════════════
 COMPOUND VS. SINGLE METERS
@@ -1851,11 +1884,13 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
             };
             settings.customFields.push(field);
             customFieldTag = finalTag;
+            clearDeletedCustomTagTombstones(finalTag);
         }
     } else if (customFieldTag) {
         // User unchecked the tracker half during edit — drop the linked field + its blockOrder slot.
         settings.customFields = settings.customFields.filter(f => f.tag.toUpperCase() !== customFieldTag);
         if (settings.blockOrder) settings.blockOrder = settings.blockOrder.filter(t => t.toUpperCase() !== customFieldTag);
+        recordDeletedCustomTags(customFieldTag);
         customFieldTag = null;
     }
 
@@ -1895,6 +1930,68 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
     return true;
 }
 
+/** Example mechanic descriptions shown as clickable chips in the wizard prompt UI. */
+const WIZARD_EXAMPLE_SYSTEMS = [
+    {
+        label: '🌾 Farming',
+        text: 'A farming sim: crop plots with growth stages over in-world time, soil quality, watering/fertilizer needs, harvest yields, and seasonal planting windows.',
+    },
+    {
+        label: '🔨 Construction',
+        text: 'A construction skill: track proficiency and project progress for building/repairing structures — XP from practice, material costs, build stages, and quality of finished work.',
+    },
+    {
+        label: '☢ Radiation',
+        text: 'Irradiated zones where the player accumulates RADS the longer they stay, with escalating debuffs at higher exposure.',
+    },
+    {
+        label: '🏛 Reputation',
+        text: 'A faction reputation system where standing with each major faction shifts based on visible deeds, quests completed for them, and public betrayals.',
+    },
+    {
+        label: '🍖 Hunger & Thirst',
+        text: 'Hunger and thirst as separate meters that drain over time; eating and drinking restore them with rough portion-based recovery.',
+    },
+    {
+        label: '🛠 Crafting',
+        text: 'A crafting skill tree: recipe unlocks, material quality tiers, success chance by skill level, and durable crafted gear with rarity.',
+    },
+    {
+        label: '⛽ Vehicle Fuel',
+        text: 'Vehicle fuel that drains with travel time/distance, refuels at stations or jerry cans, and strands the vehicle when empty.',
+    },
+    {
+        label: '🧠 Sanity',
+        text: 'A sanity/stress meter that drops from horror, isolation, or trauma; recovers with rest, safety, or companionship — with escalating mental-break tiers.',
+    },
+];
+
+function buildWizardExampleChipsHtml() {
+    const chips = WIZARD_EXAMPLE_SYSTEMS.map((ex, i) =>
+        `<button type="button" class="rt-gs-wizard-example" data-example-idx="${i}" ` +
+        `style="font-size:10px; padding:3px 8px; border-radius:12px; border:1px solid rgba(255,255,255,0.18); ` +
+        `background:rgba(255,255,255,0.06); color:inherit; cursor:pointer; opacity:0.85; white-space:nowrap;" ` +
+        `title="${escapeHtml(ex.text)}">${escapeHtml(ex.label)}</button>`
+    ).join('');
+    return `
+            <div style="font-size:10px; opacity:0.55; margin-top:2px;">Try an example:</div>
+            <div id="rt_gs_wizard_examples" style="display:flex; flex-wrap:wrap; gap:5px;">${chips}</div>`;
+}
+
+function bindWizardExampleChips(textarea) {
+    if (!textarea) return;
+    document.querySelectorAll('.rt-gs-wizard-example').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.getAttribute('data-example-idx') || '-1', 10);
+            const ex = WIZARD_EXAMPLE_SYSTEMS[idx];
+            if (!ex) return;
+            textarea.value = ex.text;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            textarea.focus();
+        });
+    });
+}
+
 /** @returns {Promise<{description: string, systemPrompt: string}|null>} User's mechanic description + wizard system prompt, or null if cancelled. */
 async function promptGameSystemWizardDescription(initialDescription = '') {
     const { Popup } = SillyTavern.getContext();
@@ -1911,6 +2008,7 @@ async function promptGameSystemWizardDescription(initialDescription = '') {
             <textarea id="rt_gs_wizard_desc" rows="4" class="text_pole"
                 style="font-size:12px; resize:vertical; width:100%;"
                 placeholder="Example: Irradiated zones where the player accumulates RADS the longer they stay, with escalating debuffs at higher exposure.">${escapeHtml(initialDescription)}</textarea>
+            ${buildWizardExampleChipsHtml()}
             ${buildWizardPromptEditorHtml('rt_gs_wizard_system_prompt', getEffectiveWizardSystemPrompt(settings))}
         </div>
     `;
@@ -1919,6 +2017,7 @@ async function promptGameSystemWizardDescription(initialDescription = '') {
         bindWizardPromptEditor(settings, 'rt_gs_wizard_system_prompt');
         const ta = document.getElementById('rt_gs_wizard_desc');
         const promptTa = document.getElementById('rt_gs_wizard_system_prompt');
+        bindWizardExampleChips(ta);
         if (ta) {
             if (!description) description = ta.value.trim();
             ta.addEventListener('input', () => { description = ta.value.trim(); });
@@ -2147,6 +2246,7 @@ export async function deleteGameSystemWithConfirm(gs, options = {}) {
     if (gs.customFieldTag) {
         settings.customFields = (settings.customFields || []).filter(f => f.tag.toUpperCase() !== gs.customFieldTag);
         if (settings.blockOrder) settings.blockOrder = settings.blockOrder.filter(t => t.toUpperCase() !== gs.customFieldTag);
+        recordDeletedCustomTags(gs.customFieldTag);
     }
     settings.gameSystems = (settings.gameSystems || []).filter(g => g.id !== gs.id);
     if (deferPersistence) return true;

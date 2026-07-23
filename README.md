@@ -9,7 +9,7 @@ In addition to fantasy, the system works just as well for casual "slice of life"
 ---
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/7532df29-363b-4db9-9b79-31c4c9ea43a8" width="60%" alt="A basic character sheet" />
+  <img src="https://github.com/user-attachments/assets/878e437c-e7b4-4140-94b9-f9a14aab1002" width="60%" alt="A basic character sheet" />
   <br>
   <em>A basic character sheet</em>
 </p>
@@ -39,7 +39,6 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 - **Automatic spell slot tracking** via 🔵 pips in the UI; never worry about remembering how many you have left.
 - **Buff/debuff temporal decay** via [TIME] delta tracking; statuses expire automatically over time based on time elapsed.
 - **Dynamic enemy scaling** — enemies adapt to quest difficulty and player level contextually.
-- **Snapshot history + delta log** - easy rollback, and see at a glance what was changed in the state.
 - **Auto model-switching** so that you can use a different model for tracking the state.
 - **Full-context audit mode** with automatic chunking for massive chat histories.
 - **Custom fields, themes, reorderable sections**; track whatever you want beyond the stock fields and customize the visuals to your liking.
@@ -57,17 +56,18 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 - **Life/dating sim-style friendship/affection component.**
 - **Export your entire setup as a "Game Cartridge."**
 - **d100 (percentage-based rolls) support.**
+- **Real-Time Visualization Mode** — Lorebook Agent can be turned into a visual viewer that generates images of the current scene (with adjustable frequency) and displays the portraits of the currently present entities.
+- **Instant Action** — Get started by simply pressing one button.
   
 ---
 
-<div align="center">
-  <figure>
-    <img width="1918" height="982" alt="Screenshot 2026-06-18 195917" src="https://github.com/user-attachments/assets/a9778adb-8bdf-485e-ac96-973613321407" />
-  </figure>
-</div>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/8e615285-1eed-4312-98c6-6cb47febaed5" width="100%" alt="Combat in progress" />
+  <br>
+  <em>Some combat in progress</em>
+</p>
 
 ---
-
 
 ## Installation
 
@@ -95,17 +95,21 @@ You can scrap the entire system prompt and all the default fields and track your
 ## What Model to Use?
 Your primary narrator model must support **Tool Calling** for the Hybrid RNG system to work properly, though this is only relevant if you're using tool calls. The extension also works without them (selectable in the settings.)
 
-<img width="920" height="246" alt="image" src="https://github.com/user-attachments/assets/f663cb1e-554a-40a2-a25e-f7af62c1a032" />
+**MiMo 2.5 Pro** or **DeepSeek 4 Pro**: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.
 
-For the State Tracker and Lorebook Agent, use Gemini 3.1 Flash. It's good enough and costs peanuts. For the GM/Narrator, MiMo 2.5 Pro in my opinion has the best quality-price ratio. Experiment.
+For the State Tracker and Lorebook Agent, I use **Gemini 3.1 Flash-Lite**. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job.
+
+If your model thinks too long in combat, enable **Combat API Override** in State Tracker settings — it auto-switches when the `[COMBAT]` tag is active in the tracker and switches back when combat ends. **Gemini 3.5 Flash** is a great choice for this; set thinking to **Medium** so it still thinks a little.
+
+These are recommendations, not rules — experiment. Different models shine for different styles of play.
 
 ---
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/bf22e852-f31f-42d4-8ca9-fc63e8625c60" width="100%" alt="Combat in progress" />
-  <br>
-  <em>Some combat in progress</em>
-</p>
+<div align="center">
+  <figure>
+    <img width="1918" height="982" alt="Screenshot 2026-06-18 195917" src="https://github.com/user-attachments/assets/a9778adb-8bdf-485e-ac96-973613321407" />
+  </figure>
+</div>
 
 ---
 
@@ -118,4 +122,4 @@ For the State Tracker and Lorebook Agent, use Gemini 3.1 Flash. It's good enough
 ---
 
 ## Got a Question or Ideas?
-You can find me in the SillyTavern Discord extensions forum: https://discord.com/channels/1100685673633153084/1494170113279131678
+You can find me in the SillyTavern Discord extensions forum. Join the Discord and then head to the sub-forum there: https://discord.gg/sillytavern

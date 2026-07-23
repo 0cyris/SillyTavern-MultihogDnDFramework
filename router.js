@@ -1675,9 +1675,15 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
         const [bookName, uid] = rn.id.split('::');
         const book = await ctx.loadWorldInfo(bookName);
         if (book?.entries?.[uid]) {
+            const oldLabel = book.entries[uid].comment || '';
             if (rn.label !== undefined) book.entries[uid].comment = rn.label;
             if (rn.keys  !== undefined) book.entries[uid].key = cleanKeys(rn.keys);
             await ctx.saveWorldInfo(bookName, book);
+            if (rn.label !== undefined && oldLabel && rn.label !== oldLabel) {
+                // Dynamic import avoids a static cycle (index → router → portraits → index).
+                const { renamePortraitEntity } = await import('./portraits.js');
+                await renamePortraitEntity(oldLabel, rn.label);
+            }
             renameIds.push(rn.id);
             changed = true;
         } else {
@@ -2212,7 +2218,15 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
                 if (!otherHeaders.includes(nm)) otherHeaders.push(nm);
             }
         }
-        const otherHeadersRegexStr = otherHeaders.map(h => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        // Escape headers; prevent short aliases from matching inside longer ones
+        // (e.g. "Background" inside "Brief Background", "Behaviors" inside "Habits/Behaviors").
+        const otherHeadersRegexStr = otherHeaders.map(h => {
+            const esc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (h === 'Background') return '(?<!Brief\\s)Background';
+            if (h === 'Behaviors') return '(?<!Habits\\/)(?<!Habits & )(?<!Habits and )Behaviors';
+            if (h === 'Appearance') return '(?<!/)Appearance(?!\\/Species)';
+            return esc;
+        }).join('|');
 
         // Match from the target field's colon to the next core field header or the end of the string
         const targetFieldRegex = new RegExp(`(?:(${escapedPatterns.join('|')})\\s*:)([\\s\\S]*?)(?=(?:${otherHeadersRegexStr})\\s*:|$)`, 'i');
@@ -3028,6 +3042,171 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
     }
 
     return newlyTriggered;
+}
+
+/** @param {string} bookName */
+function isNpcBookName(bookName) {
+    const lower = (bookName || '').toLowerCase();
+    return lower.endsWith('_npcs') || lower.endsWith('_npc') || lower === 'npcs' || lower === 'npc';
+}
+
+/**
+ * NPC entry IDs newly recorded (not updated) on the latest Lorebook Agent pass.
+ * Used to tighten Present-Now matching so agent-created entries need a full-name hit.
+ * @param {object} [settings]
+ * @returns {Set<string>}
+ */
+function getRecentlyRecordedNpcIds(settings) {
+    const log = (settings || getSettings()).routerLog?.[0];
+    if (!log?.record?.length) return new Set();
+    const ids = new Set();
+    for (const item of log.record) {
+        const raw = String(item || '').trim();
+        if (!raw || /\(updated\)/i.test(raw)) continue;
+        const id = raw.replace(/\s*\(.*\)\s*$/g, '').trim();
+        if (!id.includes('::')) continue;
+        const bookName = id.split('::')[0];
+        if (isNpcBookName(bookName)) ids.add(id);
+    }
+    return ids;
+}
+
+/**
+ * Most recent single assistant/narrator message only (not the whole multi-message turn block).
+ * @param {boolean} [includeHidden]
+ * @returns {string}
+ */
+function getMostRecentNarrativeText(includeHidden = false) {
+    const { chat } = SillyTavern.getContext();
+    if (!chat?.length) return '';
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const msg = chat[i];
+        if (msg.is_user) break;
+        if (msg.is_system) continue;
+        if (!includeHidden && /** @type {any} */ (msg).is_hidden) continue;
+        if (msg.extra?.['summary'] || msg.extra?.['is_summary'] || msg.extra?.['summary_data']) continue;
+        const mes = cleanMessageContent(msg);
+        if (!mes) continue;
+        if (mes.startsWith('[Summary') || mes.startsWith('(Summary') || mes.includes('Summary of past events:')) continue;
+        return mes;
+    }
+    return '';
+}
+
+/**
+ * Present-Now name scanner — separate from the Lorebook Agent keyword scanner.
+ * Scans ONLY the latest single narrator message for NPC names (entry comment/label).
+ * First/last name tokens are enough for established NPCs; NPCs the agent just
+ * recorded this pass require a full-name match so loose tokens/keys do not
+ * instantly populate Present Now. Lorebook key[] arrays are never scanned.
+ *
+ * Call immediately before location scene image generation (and when building Present Now UI).
+ *
+ * @param {string} [narrativeText] Defaults to the latest assistant output.
+ * @returns {Promise<Array<{ id: string, label: string, content: string }>>}
+ */
+export async function scanRecentOutputForPresentNpcs(narrativeText) {
+    const settings = getSettings();
+    const text = (narrativeText != null && narrativeText !== '')
+        ? String(narrativeText)
+        : getMostRecentNarrativeText(!!settings.routerIncludeHidden);
+    if (!text.trim()) return [];
+
+    const ctx = SillyTavern.getContext();
+    const prefix = getLivePrefix();
+    if (!prefix) return [];
+
+    const chatId = typeof globalThis._rpgCurrentChatId === 'function' ? globalThis._rpgCurrentChatId() : null;
+    const knownBooks = chatId ? (settings.chatStates?.[chatId]?.campaignBooks || []) : [];
+
+    let booksToScan;
+    if (knownBooks.length > 0) {
+        booksToScan = knownBooks.filter(n => isNpcBookName(n) && !isSkeletonBookName(n));
+    } else {
+        const allNames = await getWorldInfoNamesSafe({ fullProbe: false });
+        booksToScan = allNames.filter(n =>
+            bookBelongsToPrefix(n, prefix) && isNpcBookName(n) && !isSkeletonBookName(n),
+        );
+    }
+    if (!booksToScan.length) return [];
+
+    const recentlyRecordedNpcIds = getRecentlyRecordedNpcIds(settings);
+
+    /** @type {Array<{ id: string, label: string, content: string }>} */
+    const matched = [];
+    const seenLabels = new Set();
+
+    for (const bookName of booksToScan) {
+        let book;
+        try {
+            book = await ctx.loadWorldInfo(bookName);
+        } catch {
+            continue;
+        }
+        if (!book?.entries) continue;
+
+        for (const [uid, entry] of Object.entries(book.entries)) {
+            const fullId = `${bookName}::${uid}`;
+            // Name-only: use the entry label (comment), never lorebook key[] keywords.
+            const label = (entry.comment || '').replace(/^\[.*?\]\s*/i, '').trim();
+            if (!label) continue;
+
+            const requireFullName = recentlyRecordedNpcIds.has(fullId);
+            if (!narrativeMentionsNpcName(text, label, { requireFullName })) continue;
+
+            const labelKey = label.replace(/\s*\(.*?\)/g, '').trim().toLowerCase();
+            if (seenLabels.has(labelKey)) continue;
+            seenLabels.add(labelKey);
+
+            matched.push({
+                id: `${bookName}::${uid}`,
+                label,
+                content: (entry.content || '').trim(),
+            });
+        }
+    }
+
+    if (settings.debugMode) {
+        console.log('[RPG Tracker] Present-Now name scan (latest output only):', matched.map(m => m.label));
+    }
+    return matched;
+}
+
+/**
+ * True if narrative text mentions the NPC's full name, or any first/last name token.
+ * Case-sensitive word-boundary match; ignores parenthetical suffixes and very short tokens.
+ * @param {string} narrativeText
+ * @param {string} npcLabel
+ * @param {{ requireFullName?: boolean }} [opts] When true, only a full-name match counts (no first/last token).
+ * @returns {boolean}
+ */
+function narrativeMentionsNpcName(narrativeText, npcLabel, opts = {}) {
+    const text = String(narrativeText || '');
+    const cleaned = String(npcLabel || '')
+        .replace(/\s*\(.*?\)/g, '')
+        .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!cleaned || text.length === 0) return false;
+
+    const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wordBoundaryRe = (phrase) => new RegExp(
+        `(?:^|[^\\p{L}\\p{N}])${phrase}(?:[^\\p{L}\\p{N}]|$)`,
+        'u',
+    );
+
+    if (cleaned.length >= 2) {
+        const fullPattern = escapeRe(cleaned).replace(/\s+/g, '\\s+');
+        if (wordBoundaryRe(fullPattern).test(text)) return true;
+    }
+
+    if (opts.requireFullName) return false;
+
+    const tokens = cleaned.split(/\s+/).filter(t => t.length >= 2);
+    for (const token of tokens) {
+        if (wordBoundaryRe(escapeRe(token)).test(text)) return true;
+    }
+    return false;
 }
 
 

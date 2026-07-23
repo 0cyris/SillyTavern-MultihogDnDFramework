@@ -1,4 +1,4 @@
-import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS } from './state-manager.js';
+import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, recordDeletedCustomTags, clearDeletedCustomTagTombstones } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
 import { BLOCK_ICONS, BLOCK_ORDER, DEFAULT_STOCK_PROMPTS, PAGE_SIZE, resolveTimePromptKey, resolveTimePromptDisplayTag } from './constants.js';
 import { escapeHtml } from './memo-processor.js';
@@ -16,9 +16,9 @@ import {
     refreshQuestPrompt,
     syncMemoView,
     bindRenderedCardEvents,
-    _sectionPages,
+    sectionPages as _sectionPages,
     rebuildNpcInstructionIfNeeded
-} from './index.js';
+} from './src/app/runtime-bridge.js';
 import { renderMemoAsCards, MARKER_TYPE_MAP, getMarkerLibraryKeys } from './renderer.js';
 
 export function handleCategorySettings(tag, targetEl) {
@@ -635,11 +635,13 @@ export function openCustomFieldEditor(index) {
 
     document.getElementById('rt_cfe_delete').onclick = () => {
         if (confirm(`Delete the custom module "${field.label || field.tag}"? This cannot be undone.`)) {
+            const deletedTag = field.tag;
             s.customFields.splice(index, 1);
             if (s.blockOrder) {
-                s.blockOrder = s.blockOrder.filter(t => t.toUpperCase() !== field.tag.toUpperCase());
+                s.blockOrder = s.blockOrder.filter(t => t.toUpperCase() !== deletedTag.toUpperCase());
             }
-            saveSettings();
+            recordDeletedCustomTags(deletedTag);
+            saveSettings(true);
             refreshOrderList();
             refreshRenderedView();
             toastr['info'](`Module "${field.label}" deleted.`);
@@ -748,7 +750,8 @@ export function openPromptEditor(blockTag, title, currentText, defaultText, onSa
         if (!isNaN(ps) && ps >= 1) {
             s.modulePageSizes[blockTag.toUpperCase()] = ps;
         }
-        saveSettings();
+        // Apply text first, then persist — never saveSettings() before onSave, or a
+        // raced ST disk write can capture the pre-edit stockPrompts and "undo" the save.
         onSave(textEl.value);
         close();
     };
@@ -961,6 +964,7 @@ export async function importModulesFromJson(jsonString) {
             s.customFields.push(newField);
             if (!s.blockOrder.includes(m.tag)) s.blockOrder.push(m.tag);
         }
+        clearDeletedCustomTagTombstones(m.tag);
         importedCount++;
     }
 
@@ -996,8 +1000,6 @@ export function syncSettingsAndUI(updateFn) {
     if (frustrationCb) frustrationCb.checked = !!fresh.syspromptModules?.questsFrustration;
     const frustrationWrapEl = /** @type {HTMLElement|null} */ (document.getElementById('rpg_quests_frustration_wrap'));
     if (frustrationWrapEl) frustrationWrapEl.style.display = !!fresh.syspromptModules?.questsDeadlines ? '' : 'none';
-    const difficultyCb = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_quests_difficulty'));
-    if (difficultyCb) difficultyCb.checked = !!fresh.syspromptModules?.questsDifficulty;
     const showArchiveCb = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_quests_show_archive'));
     if (showArchiveCb) showArchiveCb.checked = fresh.syspromptModules?.questsShowArchive !== false;
 
@@ -1678,4 +1680,3 @@ function openSectionEditor(targetType) {
     render();
     overlay.showModal();
 }
-
