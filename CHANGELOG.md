@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.1.50] - 2026-07-24
+
+### Fixed
+- **Adventure Companion Chat Link isolation**: entering an unseen SillyTavern chat no longer copies the previous chat's Companion conversation. New ChatIDs now begin with the default Companion message, while existing per-chat sessions remain intact.
+
 ## [6.1.1] - 2026-07-24
 
 ### Added
