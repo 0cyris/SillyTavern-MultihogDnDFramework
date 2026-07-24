@@ -45,7 +45,7 @@ These are recommendations, not rules.
 | State Tracker + Lorebook Agent | Gemini 3.1 Flash-Lite (or Flash / 3.5 Flash) | Cheap and reliable for extraction / lore passes. |
 | Combat narrator (optional) | Gemini 3.5 Flash with thinking Medium | Use **Combat API Override** so combat uses a faster model while `[COMBAT]` is active. |
 
-## More About models
+### More About Models
 
 MiMo 2.5 Pro or DeepSeek 4 Pro: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.
 
