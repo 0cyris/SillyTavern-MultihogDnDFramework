@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.11] - 2026-07-24
+
+### Fixed
+- **CHAT composer focus**: after sending a message, the input is re-focused when the reply finishes so you don’t have to click it again.
+
 ## [6.2.10] - 2026-07-24
 
 ### Added

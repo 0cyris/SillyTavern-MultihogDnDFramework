@@ -756,6 +756,12 @@ function setBusy(busy) {
     modeBtns?.forEach((btn) => {
         if (btn instanceof HTMLButtonElement) btn.disabled = busy;
     });
+    // Re-focus after re-enable: disabling the textarea drops the caret.
+    if (!busy && _chatOpen && input instanceof HTMLTextAreaElement) {
+        requestAnimationFrame(() => {
+            if (!_busy && _chatOpen) input.focus();
+        });
+    }
 }
 
 /**
