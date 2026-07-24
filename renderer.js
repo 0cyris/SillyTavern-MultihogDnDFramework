@@ -2202,6 +2202,11 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div class="rt-onboarding-divider"><span>How It Works</span></div>
 
+                <div class="rt-onboarding-chat-tip" role="note">
+                    <div class="rt-onboarding-chat-tip-title">Need help? Open <b>CHAT</b> in the State Tracker header</div>
+                    <div class="rt-onboarding-chat-tip-body">Talk to the <b>Tutorial Bot</b> — it knows mostly everything about Multihog (setup, modules, RNG, Lorebook Agent, World Progression, quests, and more). Same button also has Adventure Companion mode for story brainstorming.</div>
+                </div>
+
                 <div style="font-size: 13px; opacity: 0.9; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; line-height: 1.4;">
                     <div><b style="color: var(--rt-accent);">Auto-Tracking:</b> As you roleplay, the extension intelligently parses assistant responses using natural language. It detects losses of HP, new loot, or combat triggers, running background passes to update the state.</div>
 

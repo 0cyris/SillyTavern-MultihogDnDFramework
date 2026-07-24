@@ -62,9 +62,9 @@ function restoreControlRoomSettings(settings, snapshot) {
 
 /** Popup sizing for content-heavy Game Systems dialogs (90% screen, scrollable). */
 const GS_POPUP_LARGE = { wide: true, large: true, allowVerticalScrolling: true };
-const GS_TEXTAREA_TALL_STYLE = 'width:100%; font-size:11px; font-family:monospace; resize:vertical; min-height:280px;';
-const GS_TEXTAREA_EXPORT_STYLE = 'width:100%; font-size:11px; font-family:monospace; resize:vertical; min-height:360px;';
-const GS_WIZARD_PROMPT_TEXTAREA_STYLE = 'width:100%; font-size:11px; font-family:monospace; resize:vertical; min-height:180px; max-height:min(40vh, 420px);';
+const GS_TEXTAREA_TALL_STYLE = 'width:100%; max-width:100%; box-sizing:border-box; font-size:11px; font-family:monospace; resize:vertical; min-height:280px; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;';
+const GS_TEXTAREA_EXPORT_STYLE = 'width:100%; max-width:100%; box-sizing:border-box; font-size:11px; font-family:monospace; resize:vertical; min-height:360px; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;';
+const GS_WIZARD_PROMPT_TEXTAREA_STYLE = 'width:100%; max-width:100%; box-sizing:border-box; font-size:11px; font-family:monospace; resize:vertical; min-height:180px; max-height:min(40vh, 420px); white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;';
 
 /** @returns {string} Factory default Game System Wizard system prompt. */
 export function buildDefaultWizardSystemPrompt() {
@@ -704,7 +704,7 @@ export async function showSectionEditor({ mode = 'manual', tag = '', description
             <div>
                 <div style="font-size:11px; opacity:0.7; margin-bottom:4px;">XML Content — paste or edit freely (outer XML tag is managed automatically)</div>
                 <textarea id="rt-se-content" class="text_pole" rows="18"
-                    style="width:100%; font-size:11px; font-family:monospace; resize:vertical; white-space:pre; min-height:280px;"
+                    style="width:100%; max-width:100%; box-sizing:border-box; font-size:11px; font-family:monospace; resize:vertical; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; min-height:280px;"
                     placeholder="  Rules go here...\n  - Rule 1\n  - Rule 2"
                     >${escapeHtml(content)}</textarea>
             </div>

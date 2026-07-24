@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.10] - 2026-07-24
+
+### Added
+- **Startup “How It Works”**: noticeable tip to open **CHAT** in the State Tracker header and ask the Tutorial Bot (knows most of the framework).
+
+### Changed
+- **Tutorial docs**: updates to `docs/multihogDnDdoc.md` (Tutorial Bot knowledge base).
+- **System Prompt Control Room**: section/content editors wrap long lines instead of forcing horizontal scroll.
+
 ## [6.2.1] - 2026-07-24
 
 ### Changed

@@ -1831,6 +1831,39 @@
     white-space: nowrap;
 }
 
+.rt-onboarding-chat-tip {
+    flex-shrink: 0;
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(80, 200, 160, 0.55);
+    background: linear-gradient(135deg, rgba(40, 160, 120, 0.22), rgba(60, 120, 200, 0.14));
+    box-shadow: 0 0 14px rgba(40, 180, 140, 0.18);
+    line-height: 1.4;
+}
+
+.rt-onboarding-chat-tip-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #b8f5d8;
+    margin-bottom: 4px;
+    letter-spacing: 0.01em;
+}
+
+.rt-onboarding-chat-tip-title b {
+    color: #fff;
+    background: rgba(80, 200, 160, 0.35);
+    padding: 1px 7px;
+    border-radius: 4px;
+    border: 1px solid rgba(120, 230, 180, 0.45);
+}
+
+.rt-onboarding-chat-tip-body {
+    font-size: 13px;
+    opacity: 0.95;
+    color: var(--rt-text, #eee);
+}
+
 .rt-onboarding-hero {
     width: 100%;
     flex-shrink: 0;
