@@ -1435,6 +1435,9 @@ function resetUnseenChatState(s) {
     applyChatTimeFormatSettings(null);
     applyChatNpcRelMaxSettings(null);
     runtimeState.historyViewIndex = -1;
+    if (typeof globalThis._rpgApplyAdventureCompanionSnapshot === 'function') {
+        globalThis._rpgApplyAdventureCompanionSnapshot(null, { resetIfMissing: true });
+    }
 
     refreshOrderList();
     scheduleAutoApply();
@@ -1603,6 +1606,12 @@ function onChatChanged(newChatId) {
         return;
     }
 
+    // Flush Adventure Companion under the departing chat BEFORE flipping currentChatId /
+    // loading the arriving partition (history is per-chat, including when Chat Link is off).
+    if (typeof globalThis._rpgFlushAdventureCompanionForChat === 'function' && oldChatId) {
+        globalThis._rpgFlushAdventureCompanionForChat(oldChatId);
+    }
+
     runtimeState.currentChatId = resolvedId;
 
     // Snapshot the departing chat's state BEFORE resetRouterTick mutates shared pools.
@@ -1634,6 +1643,10 @@ function onChatChanged(newChatId) {
     // Init BOOTSTRAP may have just finished activation for this chat — skip duplicate /world pass.
     if (resolvedId === _sessionBootstrapChatId) {
         _sessionBootstrapChatId = null;
+        // Still swap Adventure Companion — flush already ran for the departing chat.
+        if (typeof globalThis._rpgLoadAdventureCompanionForChat === 'function') {
+            globalThis._rpgLoadAdventureCompanionForChat(resolvedId);
+        }
         updateChatLinkUI();
         return;
     }
@@ -1729,6 +1742,9 @@ function onChatChanged(newChatId) {
         s.worldProgressionSkeletonAtmosphereSummary = '';
         s.activeWorldKeys = [];
         s.quests = [];
+        if (typeof globalThis._rpgLoadAdventureCompanionForChat === 'function') {
+            globalThis._rpgLoadAdventureCompanionForChat(resolvedId);
+        }
         refreshRenderedView();
         updateChatLinkUI();
         return;
@@ -1737,7 +1753,12 @@ function onChatChanged(newChatId) {
     // saveChatState(oldChatId) already called above, before resetRouterTick.
 
     const found = loadChatState(resolvedId);
-    if (!found && !s.chatStates?.[resolvedId]) resetUnseenChatState(s);
+    if (!found && !s.chatStates?.[resolvedId]) {
+        resetUnseenChatState(s);
+    } else if (!found && typeof globalThis._rpgLoadAdventureCompanionForChat === 'function') {
+        // Partition missing but chatStates entry may exist empty — still hydrate companion map
+        globalThis._rpgLoadAdventureCompanionForChat(resolvedId);
+    }
 
     scheduleAgentManifestRefresh();
     updateChatLinkUI();

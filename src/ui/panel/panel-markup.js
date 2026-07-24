@@ -14,7 +14,7 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
                 </div>
                 <div class="rpg-tracker-header-center" id="rpg-tracker-pause-banner"></div>
                 <div class="rpg-tracker-header-right">
-                    <button class="rpg-tracker-icon-btn rt-tutorial-help-btn" id="rpg-tracker-help-btn" title="Tutorial Bot (HELP)">HELP</button>
+                    <button class="rpg-tracker-icon-btn rt-tutorial-help-btn" id="rpg-tracker-help-btn" title="CHAT">CHAT</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-view-btn" title="Toggle rendered view">⊞</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-enable-btn" title="${settings.enabled ? 'Disable State Tracker' : 'Enable State Tracker'}" style="${settings.enabled ? '' : 'opacity:0.4;'}" >⏻</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-update-btn" title="Update State Now">🔄</button>
@@ -73,7 +73,7 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
                 <div class="rt-panel-mode-pane" id="rt-panel-tracker-pane">
                 <textarea class="rpg-tracker-memo-area" id="rpg-tracker-memo">${settings.currentMemo}</textarea>
                 <div class="rpg-tracker-render-view" id="rpg-tracker-render" style="display:none;"></div>
-                <div class="rt-tutorial-view" id="rt-tutorial-view" style="display:none;" aria-label="Tutorial Bot chat"></div>
+                <div class="rt-tutorial-view" id="rt-tutorial-view" style="display:none;" aria-label="CHAT"></div>
                 </div>
                 <div class="rt-panel-mode-pane" id="rt-panel-agent-pane" style="display:none;">
             <div class="rpg-tracker-panel rpg-tracker-agent-panel rt-agent-integrated ${agentPanelCollapsedClass}${settings.trackerTheme || 'rt-theme-native'}" id="rpg-tracker-agent">

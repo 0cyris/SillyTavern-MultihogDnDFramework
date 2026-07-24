@@ -268,6 +268,14 @@ export function createChatStateLoader({
 
     hydrateImmersionSceneArtPath(chatId);
 
+    // Adventure Companion session is per-chat when Chat Link is on.
+    // Legacy partitions without the field fall back to the local per-chat map (do not wipe).
+    if (saved.adventureCompanion != null && typeof globalThis._rpgApplyAdventureCompanionSnapshot === 'function') {
+        globalThis._rpgApplyAdventureCompanionSnapshot(saved.adventureCompanion);
+    } else if (typeof globalThis._rpgLoadAdventureCompanionForChat === 'function') {
+        globalThis._rpgLoadAdventureCompanionForChat(chatId);
+    }
+
     return true;
 
     };

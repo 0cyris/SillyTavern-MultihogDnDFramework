@@ -823,13 +823,18 @@
     flex-wrap: wrap;
 }
 
+.rt-chat-mode-switch {
+    flex-shrink: 0;
+    font-size: 0.78em;
+}
+
 .rt-tutorial-title {
     flex: 1;
     font-size: 0.85em;
     font-weight: 700;
     opacity: 0.85;
     letter-spacing: 0.02em;
-    min-width: 0;
+    min-width: 4em;
 }
 
 .rt-tutorial-lookback {
@@ -853,7 +858,7 @@
     font-weight: 600;
 }
 
-.rt-tutorial-lookback input {
+.rt-tutorial-lookback input[type="text"] {
     width: 36px;
     height: 22px;
     font-size: 0.95em;
@@ -866,9 +871,77 @@
     box-sizing: border-box;
 }
 
+.rt-tutorial-lookback input[type="text"]:disabled,
+.rt-tutorial-lookback-disabled {
+    opacity: 0.45;
+    background: rgba(80, 80, 80, 0.35) !important;
+    color: rgba(255, 255, 255, 0.45) !important;
+    cursor: not-allowed;
+}
+
 .rt-tutorial-lookback-unit {
     opacity: 0.55;
     white-space: nowrap;
+}
+
+.rt-tutorial-lookback-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 0 2px;
+    cursor: pointer;
+    opacity: 0.9;
+    font-weight: 600;
+}
+
+.rt-tutorial-lookback-all input {
+    margin: 0;
+    accent-color: var(--rt-accent, #8ab4ff);
+    cursor: pointer;
+}
+
+.rt-chat-gear-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.rt-chat-gear-btn {
+    font-size: 0.85em !important;
+    padding: 4px 6px !important;
+}
+
+.rt-chat-gear-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 40;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(18, 18, 28, 0.98);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.rt-chat-gear-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    font-size: 0.78em;
+    line-height: 1.35;
+    cursor: pointer;
+    opacity: 0.92;
+}
+
+.rt-chat-gear-item input {
+    margin: 2px 0 0;
+    flex-shrink: 0;
+    accent-color: var(--rt-accent, #8ab4ff);
+    cursor: pointer;
 }
 
 .rt-tutorial-composer {

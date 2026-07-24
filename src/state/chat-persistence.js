@@ -373,6 +373,18 @@ export function saveChatState(chatId, opts = {}) {
 
         // Preserve Player Character pseudo-persona which is injected into the chat state
         playerCharacter: existing.playerCharacter,
+
+        // Adventure Companion (CHAT mode) — per-chat brainstorming history.
+        // Only overwrite from the live session when saving the *active* chat; otherwise
+        // keep the partition value (e.g. flush-before-switch already wrote the departing chat).
+        adventureCompanion: (() => {
+            const liveSnap = typeof globalThis._rpgGetAdventureCompanionSnapshot === 'function'
+                ? globalThis._rpgGetAdventureCompanionSnapshot()
+                : null;
+            const activeId = getActiveChatId();
+            if (chatId === activeId && liveSnap) return liveSnap;
+            return existing.adventureCompanion || liveSnap || null;
+        })(),
     };
 
     // Sync WAL before the async disk write — survives F5 if /api/settings/save is cancelled.
