@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.0] - 2026-07-24
+
+### Changed
+- **Lorebook Agent / State Tracker auto-runs**: only fire when the latest assistant speaker is the active `{{char}}`. Other speakers (e.g. `/sendas` announcement names like “System Notifications”) no longer tick run-every or start auto passes. Manual `/lorebookagent` and `/statetracker` are unchanged. When a message has an explicit speaker name, that name wins over avatar matching.
+
 ## [6.1.50] - 2026-07-24
 
 ### Fixed

@@ -2039,6 +2039,61 @@ let _lastGenerationType = null;
 export let _rpgIsGenerating = false;
 
 /**
+ * Latest non-user chat message that could count as an assistant turn.
+ * @param {any[]} chat
+ * @returns {any|null}
+ */
+function getLatestAssistantCandidate(chat) {
+    if (!Array.isArray(chat)) return null;
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i];
+        if (!m || m.is_user) continue;
+        if (!String(m.mes || '').trim()) continue;
+        return m;
+    }
+    return null;
+}
+
+/**
+ * True when the latest assistant-side message is from the active {{char}}.
+ * Used to skip auto State Tracker / Lorebook Agent runs for other speakers
+ * (e.g. /sendas "System Notifications" announcements that somehow end a generation).
+ * Manual /lorebookagent and /statetracker are unaffected.
+ * @param {any[]} chat
+ * @param {any} ctx SillyTavern.getContext()
+ * @returns {boolean}
+ */
+export function isLatestAssistantFromActiveChar(chat, ctx) {
+    const charId = ctx?.characterId ?? ctx?.this_chid;
+    const charData = (charId != null && Array.isArray(ctx?.characters))
+        ? ctx.characters[charId]
+        : null;
+    const activeName = String(ctx?.name2 || charData?.name || '').trim();
+    const activeAvatar = charData?.avatar ? String(charData.avatar) : '';
+
+    // No resolvable {{char}} — do not block (fail open).
+    if (!activeName && !activeAvatar) return true;
+
+    const msg = getLatestAssistantCandidate(chat);
+    if (!msg) return false;
+
+    const extraType = String(msg.extra?.type || '').toLowerCase();
+    if (msg.is_system || extraType === 'narrator') return false;
+
+    const msgName = String(msg.name || '').trim();
+    if (activeName && msgName) {
+        // Explicit speaker name wins: a renamed /sendas announcement must not
+        // ride through just because it reused {{char}}'s avatar.
+        return msgName.toLowerCase() === activeName.toLowerCase();
+    }
+
+    const msgAvatar = msg.original_avatar ? String(msg.original_avatar) : '';
+    if (activeAvatar && msgAvatar && msgAvatar === activeAvatar) return true;
+
+    return false;
+}
+
+/**
  * Fires on GENERATION_STARTED. Stores the type of generation.
  * @param {string} type
  */
@@ -2174,7 +2229,25 @@ export async function onGenerationEnded() {
         return;
     }
 
-    const { chat } = SillyTavern.getContext();
+    const ctx = SillyTavern.getContext();
+    const { chat } = ctx;
+
+    // Only auto-run State Tracker / Lorebook Agent when the latest assistant speaker is {{char}}.
+    // Fake announcement speakers (e.g. "System Notifications") must not tick run-every or fire passes.
+    if (!isLatestAssistantFromActiveChar(chat, ctx)) {
+        if (settings.debugMode) {
+            const last = getLatestAssistantCandidate(chat);
+            console.log('[RPG Tracker] Skipping auto ST/LA — latest speaker is not {{char}}:', last?.name || '(none)');
+        }
+        recordSchedulerEvent('generation_ended_aborted', {
+            reason: 'non_char_speaker',
+            generationType: currentType ?? null,
+            speaker: getLatestAssistantCandidate(chat)?.name || null,
+            activeChar: ctx?.name2 || null,
+        });
+        return;
+    }
+
     const combinedNarrative = getNarrativeBlocks(chat, -1, !!settings.routerIncludeHidden);
     if (!combinedNarrative) {
         recordSchedulerEvent('generation_ended_aborted', { reason: 'no_narrative', generationType: currentType ?? null });

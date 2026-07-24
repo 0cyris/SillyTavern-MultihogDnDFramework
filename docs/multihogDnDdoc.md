@@ -106,7 +106,7 @@ So the GM always sees the last known mechanical truth **before** it writes the n
 
 ### After the narrator replies
 
-On generation end (skipped for quiet/impersonate and while a pass is already running), roughly:
+On generation end (skipped for quiet/impersonate, while a pass is already running, or when the latest assistant speaker is not `{{char}}`), roughly:
 
 1. Keyword scan of the assistant output (when Lorebook Agent keyword systems are active).
 2. **State Tracker** pass (throttled by “run every N”; default every turn) — parses the new narrative and updates the memo.
@@ -117,7 +117,9 @@ On generation end (skipped for quiet/impersonate and while a pass is already run
 
 Important: the State Tracker runs **after** the reply. The memo injected on the *next* turn is what was updated from the *previous* reply.
 
-`/sendas` does **not** auto-trigger Lorebook Agent; use `/lorebookagent` manually if needed.
+Auto State Tracker / Lorebook Agent passes only run when the **latest assistant message is from `{{char}}`** (the active character card). Other speakers — e.g. a `/sendas` announcement character like “System Notifications” — do not tick run-every or fire auto passes.
+
+`/sendas` itself does **not** emit `GENERATION_ENDED`, so it normally does not auto-trigger Lorebook Agent; use `/lorebookagent` manually after announcement-only turns (or after any non-`{{char}}` beat you still want chronicled).
 
 ---
 
@@ -521,7 +523,8 @@ The framework’s backbone is still **time + memo + optional lore/world layers**
 | Dice always favor the player | Enable Pre-Seeded and/or Hybrid tool-call RNG; ensure model supports tools for Hybrid. |
 | Combat tools still firing / queue missing | Hybrid switches at `[COMBAT]` boundary; confirm combat block present/ended correctly (`END_COMBAT`). |
 | World Reports never appear | WP + Lorebook Agent must be on; `[TIME]` must advance in-world past the interval; first TIME parse only baselines. |
-| Lorebook Agent “missed” a `/sendas` scene | Expected — run `/lorebookagent` manually. |
+| Lorebook Agent “missed” a `/sendas` scene | Expected — `/sendas` does not auto-trigger, and non-`{{char}}` speakers are skipped; run `/lorebookagent` manually. |
+| Lorebook Agent ran on a roll-announcement `/sendas` | Auto-runs require the latest assistant speaker to be `{{char}}`; announcements under another name should not fire. If it still fires, check the script isn’t also generating or calling `/la`. |
 | Wrong campaign data in a new chat | Chat-Linked Mode should isolate chats; if links were removed or disabled, memo restore behavior differs — check Chat-Linked settings. |
 | Tracker formatting broken after paste | Use 💬 Direct Prompt: “Reformat this sheet to stock module layout.” |
 
