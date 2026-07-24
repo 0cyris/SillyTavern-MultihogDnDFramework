@@ -31,14 +31,6 @@ Together they address the four classic LLM-tabletop failures: forgotten inventor
 
 ---
 
-## Installation
-
-Packaged releases may lag. Prefer installing from the repo:
-
-1. Open SillyTavern’s extension menu.
-2. Choose **Install extension**.
-3. Paste this repository’s URL.
-
 Suggested companion: **[Summaryception](https://github.com/Lodactio/Extension-Summaryception)** — context compression that pairs well with Lorebook Agent (rough arc from the summarizer; microscopic records from the agent). Without a summarizing extension, the context will balloon out of control. I really recommend grabbing something like Summaryception that creates summaries and hides the full messages from the chat.
 
 ---
@@ -52,6 +44,14 @@ These are recommendations, not rules.
 | Narrator / GM | MiMo 2.5 Pro or DeepSeek 4 Pro (e.g. via OpenRouter) | Needs **tool calling** if you use Hybrid RNG (tool-call mode). |
 | State Tracker + Lorebook Agent | Gemini 3.1 Flash-Lite (or Flash / 3.5 Flash) | Cheap and reliable for extraction / lore passes. |
 | Combat narrator (optional) | Gemini 3.5 Flash with thinking Medium | Use **Combat API Override** so combat uses a faster model while `[COMBAT]` is active. |
+
+## More About models
+
+MiMo 2.5 Pro or DeepSeek 4 Pro: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.
+
+For the State Tracker and Lorebook Agent, I use Gemini 3.1 Flash-Lite. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job. The tracker and Lorebook Agent do not need powerful models generally.
+
+If your model thinks too long in combat, enable Combat API Override in State Tracker settings — it auto-switches when the [COMBAT] tag is active in the tracker and switches back when combat ends. Gemini 3.5 Flash is a great choice for this; set thinking to Medium so it still thinks a little.
 
 ---
 
@@ -533,13 +533,5 @@ The framework’s backbone is still **time + memo + optional lore/world layers**
 ## Mental Model (one paragraph)
 
 The **System Prompt** teaches the narrator how to simulate. **Hybrid RNG** supplies unbiased randomness. The **State Tracker** audits each reply into a memo that is re-injected next turn. The **Lorebook Agent** keeps long-horizon people/places/events available despite summarization. **World Progression** advances the off-screen world on the in-world clock. Everything else — quests, CYOA, portraits, cartridges, themes — is optional depth on that spine.
-
-## Stuff About models
-
-MiMo 2.5 Pro or DeepSeek 4 Pro: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.
-
-For the State Tracker and Lorebook Agent, I use Gemini 3.1 Flash-Lite. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job. The tracker and Lorebook Agent do not need powerful models generally.
-
-If your model thinks too long in combat, enable Combat API Override in State Tracker settings — it auto-switches when the [COMBAT] tag is active in the tracker and switches back when combat ends. Gemini 3.5 Flash is a great choice for this; set thinking to Medium so it still thinks a little.
 
 These are recommendations, not rules — experiment. Different models shine for different styles of play.
