@@ -294,11 +294,11 @@ function loadCompanionForChat(chatId) {
         _prefs.companion = mergeModePrefs(defaultCompanionPrefs(), map[chatId]);
         return;
     }
-    // One-time seed: legacy global companion history becomes this chat's session
-    if (_prefs.companion?.history?.length) {
-        persistCompanionSnapshot(_prefs.companion);
-        return;
-    }
+    // An unseen chat must always begin clean. At this point `_prefs.companion`
+    // still holds the departing chat's live session, so using it as a "legacy"
+    // seed here would copy that conversation into every newly visited ChatID.
+    // The only legacy migration is handled by loadPrefs(), before any per-chat
+    // Companion session has been loaded.
     _prefs.companion = {
         ...defaultCompanionPrefs(),
         lookback: _prefs.companion?.lookback ?? 5,

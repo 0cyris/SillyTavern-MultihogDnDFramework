@@ -4,7 +4,7 @@ import { wireAgentWorldProgression } from './panel-world-progression.js';
 import { wireAgentActivity } from './panel-agent-activity.js';
 import { buildPanelMarkup } from './panel-markup.js';
 import { createSceneViewController } from './panel-scene-view.js';
-import { bindTutorialBot } from '../../../tutorial-bot.js';
+import { bindTutorialBot, exitTutorialMode } from '../../../tutorial-bot.js';
 
 /** Builds and wires the tracker panel. Dependencies stay explicit to avoid entry-module cycles. */
 export function createPanel(dependencies) {
@@ -5029,6 +5029,12 @@ Rules:
     applyViewState();
 
     _viewBtn.addEventListener('click', () => {
+        // CHAT morph owns the tracker body — leave it so Raw/Rendered can show again.
+        if (panel.classList.contains('rt-tutorial-active')) {
+            exitTutorialMode();
+            applyViewState();
+            return;
+        }
         if (typeof flushRawMemoChanges === 'function') flushRawMemoChanges();
         runtimeState.renderedViewActive = !runtimeState.renderedViewActive;
         settings.renderedViewActive = runtimeState.renderedViewActive;

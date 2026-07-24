@@ -6,6 +6,17 @@ This document is written so a tutorial bot (or a new player) can explain **what 
 
 The D&D setup is the default plug-and-play cartridge. You can scrap the stock system prompt and modules and track whatever you want — fantasy, slice-of-life, modern, sci-fi, or pure homebrew.
 
+## Designer Note from Multihog (the guy.)
+This system is neither a full version of 5e nor 3.5e. It's rather a hybrid system that streamlines in places. For example, attacks per round are reduced to decrease the GM's cognitive load, ensuring reliability is high. This kind of "cut the corners where it makes sense" design is employed all over the system. For example, combat uses BAB, which is based on 3.5e/Pathfinder, but the LLM may use 5e spells and such. A lot of the system rides on LLMs' vast inherent knowledge about D&D, which enables Multihog to keep the system lean and not define every rule. A big part of the system prompt focuses on constraints, what NOT to allow the player to do, which is a crucial part of keeping the simulation feeling authentic. This is stuff such as resting limits (only every 9 hours by default) and forbidding the player from using items they don't have, etc.
+
+### What This System is
+Multihog D&D Framework is "simulation autism"-focused platform. It seeks to give you an experience where choices matter, consequence is real, and failure is entirely possible. It seeks to give weight to your choices and actions.
+
+### What This System NOT
+It isn't a 1:1 D&D-faithful virtual tabletop engine. In fact, I don't even care about D&D in particular. D&D is just a means to an end, a convenient set of constraints because it's baked into every single LLM to an extreme degree, almost making it deterministically reliable. Models can also adapt the system dynamically to all sorts of homebrew. Do not expect a 1:1 D&D replica. This is more akin to the Infinity Engine games such as Icewind Dale an Baldur's Gate 1 and 2, where they took all sorts of liberties to adapt the system to a Real-Time With Pause engine. I am taking similar liberties, except the substrate is roleplaying with AI/LLMs.
+
+**The medium must be respected if one is to build a robust system that doesn't fall apart.**
+
 ---
 
 ## The Core Components
@@ -141,10 +152,6 @@ The prompt is modular XML-style sections, including among others:
 `<combat_start>` — Declare previously-unknown NPC stats (AC, saves, HP, combat line, resistances, etc.), then roll initiative. Caster enemies list spells by level + slots at introduction (e.g. `Cantrips: Fire Bolt; Level 1 (2/2): Magic Missile, Shield`) — never a flat comma list.
 
 `<combat_flow>` — Simulate every NPC each round. Use pre-calculated totals from STATE MEMO (`[CHARACTER]` / `[PARTY]` / `[COMBAT]`) — never re-derive bonuses mid-fight. Martials use Combat line Melee/Ranged values; casters use listed Spell Atk / Spell DC. Slash-separated values (`+X/+Y`) mean one roll per value. State remaining HP after every damage/heal. Buffs/debuffs expire on schedule; state initial duration (e.g. Mage Armor 8h, Heroism 10 turns).
-
-### A note about the stock D&D rules
-This system is neither a full version of 5e nor 3.5e. It's rather a hybrid system that streamlines in places. For example, attacks per round are reduced to decrease the GM's cognitive load, ensuring reliability is high. This kind of "cut the corners where it makes sense" design is employed all over the system. For example, combat uses BAB, which is based on 3.5e/Pathfinder, but the LLM may use 5e spells and such. A lot of the system rides on LLMs' vast inherent knowledge about D&D, which enables Multihog to keep the system lean and not define every rule. A big part of the system prompt focuses on constraints, what NOT to allow the player to do, which is a crucial part of keeping the simulation feeling authentic. This is stuff such as resting limits (only every 9 hours by default) and forbidding the player from using items they don't have, etc.
-
 
 ---
 
@@ -445,6 +452,9 @@ Describe a mechanic in plain language (e.g. “reputation system”). The wizard
 2. A **State Tracker module**
 
 Review both in the forge (edit, regenerate either/both, iterate with feedback, set effect owner), then save as a Game System bundle. No tool-calling required for this flow — it is tag/prompt based.
+
+## Why is the Game Systems Wizard Good?
+It's good because you don't actually need to understand how the extension works. The Wizard has an excellent understanding of the system, so it can reliably make solid Game Systems even if you don't know anything about the extension. It's recommended to use a relatively strong model for this such as Claude Sonnet 5, or GPT-5.6 Terra or something of that caliber at least. Weaker models can also make good systems but not with such a high reliability and complexity.
 
 ### Game Cartridges
 
