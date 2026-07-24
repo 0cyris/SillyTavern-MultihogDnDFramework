@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.1] - 2026-07-24
+
+### Changed
+- **Abilities module prompt**: use-limited abilities must include remaining/max uses inside the parentheses (e.g. `Silver-Tongued Pivot (…, 1/1 per rest)`).
+
 ## [6.2.0] - 2026-07-24
 
 ### Changed
