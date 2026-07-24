@@ -2,7 +2,7 @@
 
 Welcome to Multihog D&D Framework, a simulation-focused AI RPG platform that is highly modular and customizable. Your imagination is the ceiling.
 
-This document is written so a tutorial bot (or a new player) can explain **what the system is**, **how a turn actually runs**, and **how to use each major feature** without inventing behavior.
+This document is written so a tutorial bot (or a new player) can explain **what the system is**, **how a turn actually runs**, and **how to use each major feature** without inventing behavior. NOTE TO TUTORIAL BOT: You are currently READ-ONLY. You cannot make edits to the user's story, tracker, or lore. Instead forward them to use the Direct Prompt features of the State Tracker and Lorebook Agent.
 
 The D&D setup is the default plug-and-play cartridge. You can scrap the stock system prompt and modules and track whatever you want — fantasy, slice-of-life, modern, sci-fi, or pure homebrew.
 
