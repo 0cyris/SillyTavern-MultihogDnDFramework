@@ -772,6 +772,13 @@ function renderTranscript() {
     box.scrollTop = box.scrollHeight;
 }
 
+/** Mobile keyboards obscure most of the CHAT panel, so only autofocus on desktop. */
+function shouldAutoFocusChatInput() {
+    return !(typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(max-width: 600px) and (hover: none) and (pointer: coarse)').matches);
+}
+
 function setBusy(busy) {
     _busy = busy;
     const send = _panel?.querySelector('#rt-tutorial-send');
@@ -787,7 +794,7 @@ function setBusy(busy) {
         if (btn instanceof HTMLButtonElement) btn.disabled = busy;
     });
     // Re-focus after re-enable: disabling the textarea drops the caret.
-    if (!busy && _chatOpen && input instanceof HTMLTextAreaElement) {
+    if (!busy && _chatOpen && input instanceof HTMLTextAreaElement && shouldAutoFocusChatInput()) {
         requestAnimationFrame(() => {
             if (!_busy && _chatOpen) input.focus();
         });
@@ -905,7 +912,7 @@ export function enterTutorialMode() {
     renderTranscript();
     if (_prefs.mode === 'tutorial') void loadDocumentation();
     const input = _panel.querySelector('#rt-tutorial-input');
-    if (input instanceof HTMLTextAreaElement) {
+    if (input instanceof HTMLTextAreaElement && shouldAutoFocusChatInput()) {
         setTimeout(() => input.focus(), 50);
     }
 }
