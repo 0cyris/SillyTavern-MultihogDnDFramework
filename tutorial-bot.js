@@ -28,7 +28,7 @@ const COMPANION_BY_CHAT_KEY = 'rpg_tracker_companion_by_chat_v1';
 const LEGACY_HISTORY_KEY = 'rpg_tracker_tutorial_chat';
 const LEGACY_LOOKBACK_KEY = 'rpg_tracker_tutorial_lookback';
 
-const SHELL_VERSION = '4';
+const SHELL_VERSION = '6';
 
 const TUTORIAL_PERSONA = `You are the Multihog D&D Framework Tutorial Bot — a concise in-app instructor for SillyTavern users.
 
@@ -58,12 +58,12 @@ Rules:
 
 /** @returns {ModePrefs} */
 function defaultTutorialPrefs() {
-    return { lookback: 0, lookbackAll: false, history: [] };
+    return { lookback: 0, lookbackAll: true, history: [] };
 }
 
 /** @returns {ModePrefs} */
 function defaultCompanionPrefs() {
-    return { lookback: 5, lookbackAll: false, history: [] };
+    return { lookback: 5, lookbackAll: true, history: [] };
 }
 
 /** @returns {ChatPrefs} */
@@ -613,15 +613,48 @@ function syncModeToggleUi() {
     compBtn?.classList.toggle('rt-agent-view-mode-btn-active', isCompanion);
     tutBtn?.setAttribute('aria-selected', String(!isCompanion));
     compBtn?.setAttribute('aria-selected', String(isCompanion));
-
-    const title = _panel.querySelector('#rt-tutorial-title');
-    if (title) title.textContent = botLabel();
+    syncPanelModeTabsForChat();
 
     const input = _panel.querySelector('#rt-tutorial-input');
     if (input instanceof HTMLTextAreaElement) {
         input.placeholder = isCompanion
             ? 'Brainstorm, joke, or talk about the adventure… (Enter to send)'
             : 'Ask about Multihog… (Enter to send, Shift+Enter for newline)';
+    }
+}
+
+/** Make the panel's primary mode tabs control CHAT while CHAT is open. */
+function syncPanelModeTabsForChat() {
+    if (!_panel || !_chatOpen) return;
+    const tutorialTab = _panel.querySelector('#rt-panel-mode-tracker');
+    const companionTab = _panel.querySelector('#rt-panel-mode-agent');
+    const isCompanion = _prefs.mode === 'companion';
+    if (tutorialTab instanceof HTMLElement) {
+        tutorialTab.textContent = 'Tutorial Bot';
+        tutorialTab.classList.toggle('rt-agent-view-mode-btn-active', !isCompanion);
+        tutorialTab.setAttribute('aria-selected', String(!isCompanion));
+    }
+    if (companionTab instanceof HTMLElement) {
+        companionTab.textContent = 'Adventure Companion';
+        companionTab.classList.toggle('rt-agent-view-mode-btn-active', isCompanion);
+        companionTab.setAttribute('aria-selected', String(isCompanion));
+    }
+}
+
+/** Restore the normal State Tracker / Lorebook Agent tabs after leaving CHAT. */
+function restorePanelModeTabs() {
+    if (!_panel) return;
+    const trackerTab = _panel.querySelector('#rt-panel-mode-tracker');
+    const agentTab = _panel.querySelector('#rt-panel-mode-agent');
+    if (trackerTab instanceof HTMLElement) {
+        trackerTab.textContent = 'State Tracker';
+        trackerTab.classList.add('rt-agent-view-mode-btn-active');
+        trackerTab.setAttribute('aria-selected', 'true');
+    }
+    if (agentTab instanceof HTMLElement) {
+        agentTab.textContent = 'Lorebook Agent';
+        agentTab.classList.remove('rt-agent-view-mode-btn-active');
+        agentTab.setAttribute('aria-selected', 'false');
     }
 }
 
@@ -664,23 +697,20 @@ function ensureChatShell(panel) {
     host.innerHTML = `
         <div class="rt-tutorial-header">
             <button type="button" class="rpg-tracker-nav-btn rt-tutorial-back" id="rt-tutorial-back" title="Back to State Tracker">← Back</button>
-            <div class="rt-chat-mode-switch rt-agent-view-mode-switch" id="rt-chat-mode-switch" role="tablist" aria-label="Chat mode">
-                <button type="button" id="rt-chat-mode-tutorial" class="rt-agent-view-mode-btn${_prefs.mode !== 'companion' ? ' rt-agent-view-mode-btn-active' : ''}" role="tab" aria-selected="${_prefs.mode !== 'companion'}">Tutorial Bot</button>
-                <button type="button" id="rt-chat-mode-companion" class="rt-agent-view-mode-btn${_prefs.mode === 'companion' ? ' rt-agent-view-mode-btn-active' : ''}" role="tab" aria-selected="${_prefs.mode === 'companion'}">Adventure Companion</button>
-            </div>
-            <span class="rt-tutorial-title" id="rt-tutorial-title">${escapeHtml(botLabel())}</span>
-            <div class="rt-tutorial-lookback" title="Include SillyTavern chat messages as story context. Tutorial Bot defaults off; Adventure Companion links to chat by default.">
-                <span class="rt-tutorial-lookback-label">Story lookback</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" id="rt-tutorial-lookback" value="${mp.lookback}" min="0" max="100" aria-label="Story lookback message count">
-                <span class="rt-tutorial-lookback-unit">msgs</span>
-                <label class="rt-tutorial-lookback-all" title="Include the entire chat history">
-                    <input type="checkbox" id="rt-tutorial-lookback-all" ${mp.lookbackAll ? 'checked' : ''}>
-                    <span>all</span>
-                </label>
-            </div>
             <div class="rt-chat-gear-wrap">
-                <button type="button" class="rpg-tracker-icon-btn rt-chat-gear-btn" id="rt-chat-gear-btn" title="Context injection options" aria-haspopup="true" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
+                <button type="button" class="rpg-tracker-icon-btn rt-chat-gear-btn" id="rt-chat-gear-btn" title="CHAT options" aria-haspopup="true" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
                 <div class="rt-chat-gear-menu" id="rt-chat-gear-menu" style="display:none;" role="menu">
+                    <div class="rt-chat-gear-section">
+                        <span class="rt-chat-gear-section-label">Story lookback</span>
+                        <div class="rt-tutorial-lookback" title="Include SillyTavern chat messages as story context.">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" id="rt-tutorial-lookback" value="${mp.lookback}" min="0" max="100" aria-label="Story lookback message count">
+                            <span class="rt-tutorial-lookback-unit">msgs</span>
+                            <label class="rt-tutorial-lookback-all" title="Include the entire chat history">
+                                <input type="checkbox" id="rt-tutorial-lookback-all" ${mp.lookbackAll ? 'checked' : ''}>
+                                <span>all</span>
+                            </label>
+                        </div>
+                    </div>
                     <label class="rt-chat-gear-item" role="menuitemcheckbox">
                         <input type="checkbox" id="rt-chat-inject-lore" ${_prefs.injectLore ? 'checked' : ''}>
                         <span>Inject Lorebook Agent lore</span>
@@ -713,13 +743,13 @@ function welcomeHtml() {
         return `
             <div class="rt-tutorial-msg rt-tutorial-msg-bot rt-tutorial-welcome">
                 <div class="rt-tutorial-msg-label">Adventure Companion</div>
-                <div class="rt-tutorial-msg-body">I'm here to brainstorm, joke, and talk about your adventure. <b>Story lookback</b> links me to the chat by default — use <b>all</b> for the full history. Open the gear for optional State Tracker / Lorebook injections.</div>
+                <div class="rt-tutorial-msg-body">I'm here to brainstorm, joke, and talk about your adventure. I use the full chat history by default. Open the gear to change Story lookback or add State Tracker / Lorebook context.</div>
             </div>`;
     }
     return `
         <div class="rt-tutorial-msg rt-tutorial-msg-bot rt-tutorial-welcome">
             <div class="rt-tutorial-msg-label">Tutorial Bot</div>
-            <div class="rt-tutorial-msg-body">Ask me anything about Multihog — setup, modules, RNG, Lorebook Agent, World Progression, quests, CYOA, cartridges, or troubleshooting. I use the docs as source of truth and do <b>not</b> link story chat unless you enable <b>Story lookback</b>.</div>
+            <div class="rt-tutorial-msg-body">Ask me anything about Multihog — setup, modules, RNG, Lorebook Agent, World Progression, quests, CYOA, cartridges, or troubleshooting. I use the docs as source of truth and include the full story chat by default; adjust this in the gear menu.</div>
         </div>`;
 }
 
@@ -752,7 +782,7 @@ function setBusy(busy) {
     }
     if (input instanceof HTMLTextAreaElement) input.disabled = busy;
     syncLookbackUi();
-    const modeBtns = _panel?.querySelectorAll('#rt-chat-mode-tutorial, #rt-chat-mode-companion');
+    const modeBtns = _panel?.querySelectorAll('#rt-panel-mode-tracker, #rt-panel-mode-agent');
     modeBtns?.forEach((btn) => {
         if (btn instanceof HTMLButtonElement) btn.disabled = busy;
     });
@@ -799,11 +829,13 @@ function applyMorph(on) {
         trackerPane?.classList.add('rt-tutorial-mode');
         _panel.classList.add('rt-tutorial-active');
         syncChatButton(true);
+        syncPanelModeTabsForChat();
     } else {
         if (tutorial instanceof HTMLElement) tutorial.style.display = 'none';
         trackerPane?.classList.remove('rt-tutorial-mode');
         _panel.classList.remove('rt-tutorial-active');
         syncChatButton(false);
+        restorePanelModeTabs();
         closeGearMenu();
         const wantRender = !!runtimeState.renderedViewActive;
         if (memo instanceof HTMLElement) memo.style.display = wantRender ? 'none' : '';
@@ -1075,23 +1107,23 @@ function bindTutorialBotControls(panel) {
         allChk.addEventListener('change', () => readLookbackFromUi());
     }
 
-    const tutModeBtn = panel.querySelector('#rt-chat-mode-tutorial');
-    if (tutModeBtn && !tutModeBtn.dataset.rtTutorialBound) {
-        tutModeBtn.dataset.rtTutorialBound = '1';
-        tutModeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            switchChatMode('tutorial');
-        });
-    }
-
-    const compModeBtn = panel.querySelector('#rt-chat-mode-companion');
-    if (compModeBtn && !compModeBtn.dataset.rtTutorialBound) {
-        compModeBtn.dataset.rtTutorialBound = '1';
-        compModeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            switchChatMode('companion');
-        });
-    }
+    // While CHAT is open, the panel's primary tabs become Tutorial Bot and
+    // Adventure Companion. Capture the click before the panel's normal
+    // State Tracker / Lorebook Agent handler can switch panes.
+    [
+        ['#rt-panel-mode-tracker', 'tutorial'],
+        ['#rt-panel-mode-agent', 'companion'],
+    ].forEach(([selector, mode]) => {
+        const tab = panel.querySelector(selector);
+        if (!(tab instanceof HTMLElement) || tab.dataset.rtChatModeBound) return;
+        tab.dataset.rtChatModeBound = '1';
+        tab.addEventListener('click', (e) => {
+            if (!_chatOpen) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            switchChatMode(/** @type {ChatBotMode} */ (mode));
+        }, true);
+    });
 
     const gearBtn = panel.querySelector('#rt-chat-gear-btn');
     const gearMenu = panel.querySelector('#rt-chat-gear-menu');
@@ -1133,11 +1165,4 @@ function bindTutorialBotControls(panel) {
         });
     }
 
-    const agentTab = panel.querySelector('#rt-panel-mode-agent');
-    if (agentTab && !agentTab.dataset.rtTutorialBound) {
-        agentTab.dataset.rtTutorialBound = '1';
-        agentTab.addEventListener('click', () => {
-            if (_chatOpen) exitTutorialMode();
-        }, true);
-    }
 }

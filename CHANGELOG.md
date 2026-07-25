@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.12] - 2026-07-25
+
+### Changed
+- **CHAT mobile layout**: Tutorial Bot and Adventure Companion now use the primary panel tabs while CHAT is open; Back, options, and Clear share one compact row.
+- **CHAT context controls**: moved Story lookback into the options menu and defaulted new CHAT sessions to the full chat history.
+
 ## [6.2.11] - 2026-07-24
 
 ### Fixed

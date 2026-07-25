@@ -24,7 +24,7 @@ describe('Adventure Companion chat partitions', () => {
         runtimeState.currentChatId = 'alpha';
         companion.applyAdventureCompanionSnapshot({
             lookback: 5,
-            lookbackAll: false,
+            lookbackAll: true,
             history: [{ role: 'user', content: 'Alpha-only conversation' }],
         });
 
@@ -34,7 +34,7 @@ describe('Adventure Companion chat partitions', () => {
 
         expect(companion.getAdventureCompanionSnapshot()).toEqual({
             lookback: 5,
-            lookbackAll: false,
+            lookbackAll: true,
             history: [],
         });
     });
