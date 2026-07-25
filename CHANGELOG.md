@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.20] - 2026-07-25
+
+### Changed
+- **Character creation prompts**: do not invent quests or emit a `[QUESTS]` block unless the player explicitly asks (Character Creator, Other Ways to Begin, Quick Start, and PC Import). `QUESTS` is excluded from onboarding active blocks the same way `PARTY` already was.
+
 ## [6.2.12] - 2026-07-25
 
 ### Changed

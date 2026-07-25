@@ -161,7 +161,7 @@ export function buildCharacterGenerationPrompt(opts) {
 
     const activeBlocks = buildOnboardingActiveBlocks(s);
     const closingTagExamples = activeBlocks.map(b => `[/${b}]`).join(', ');
-    const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.`;
+    const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.\nCRITICAL QUESTS RULE: Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.`;
 
     const blockListStr = activeBlocks.join(', ');
     const spellsClause = hasSpells ? " Only include [SPELLS] if the class genuinely uses magic." : '';
@@ -201,6 +201,7 @@ ${cardSnippet ? `\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : ''}
 • The name must be original and fitting. NEVER write "User" or any variation.
 • Output every currently active state-memo field (enabled stock modules and custom fields): ${blockListStr}.${spellsClause}
 • Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.
+• Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.
 • ${isOther || isStoryFitting ? 'Invent the most fitting class for the setting and context.' : `Use the chosen class "${classRaw}" exactly as given — do not rename or substitute it.`}
 • If the setting is non-fantasy and no class was specified, create a class that feels natural to the world — not a fantasy D&D class name.
 • All stats, gear, and saves${hasXp ? ', and XP' : ''} must be consistent with Level ${level}.${magicGearHint}
@@ -1171,6 +1172,7 @@ RULES:
 - Only adjust specific terminology that would be a hard logical impossibility in the current setting (e.g. "smartphone" in a medieval world).
 - Output every currently active state-memo field (enabled stock modules and custom fields): ${importBlockList}.
 - Do NOT invent stats or equipment not present on the card.
+- Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.
 - Use the existing system prompt's block format.
 
 ${worldCtx}`;
@@ -1181,6 +1183,7 @@ RULES:
 - Fit the character's class, gear, backstory, and abilities naturally into the current world.
 - Rename anachronistic equipment or references to setting-appropriate equivalents.
 - Output every currently active state-memo field (enabled stock modules and custom fields): ${importBlockList}.
+- Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.
 - Use the existing system prompt's block format.
 - CRITICAL: Never output template macro strings such as {{char}}, {{user}}, or any other {{...}} placeholders. Always replace them with the actual character's name or a fitting proper name.
 ${gearHint}
