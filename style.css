@@ -487,6 +487,13 @@
 .rpg-tracker-panel.is-disabled .rpg-tracker-footer {
     pointer-events: none;
 }
+/* Mode switch + Lorebook Agent pane must stay clickable while the tracker is off
+   (symmetric with agent-disabled: tracker tab remains reachable). Agent's own
+   is-agent-disabled rules still gate agent body interaction. */
+.rpg-tracker-panel.is-disabled .rt-panel-mode-switch-wrap,
+.rpg-tracker-panel.is-disabled #rt-panel-agent-pane {
+    pointer-events: auto;
+}
 /* Ensure floating menus (appended to the panel root) stay interactive */
 .rpg-tracker-panel.is-disabled .rt-overflow-menu,
 .rpg-tracker-panel.is-disabled .rt-update-menu {
