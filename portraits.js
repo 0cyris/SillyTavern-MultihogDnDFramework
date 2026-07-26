@@ -1942,6 +1942,15 @@ export async function generateLocationImagePrompt(locationPath, locContent) {
 }
 
 const activeLocationGenerations = new Set();
+let realtimeLocationGenerationFailed = false;
+
+/**
+ * Allow Real-Time Mode to try again only after the user explicitly enables it.
+ * A failed endpoint must otherwise remain terminal for the current enable cycle.
+ */
+export function resetRealtimeLocationGenerationFailure() {
+    realtimeLocationGenerationFailed = false;
+}
 
 /** @param {string} locationPath */
 export function isLocationImageGenerating(locationPath) {
@@ -1957,8 +1966,12 @@ export function isLocationImageGenerating(locationPath) {
  */
 export function triggerBackgroundLocationGeneration(locationPath, refresh, locContent = '', opts = {}) {
     const s = getSettings();
+    const isRealtimeArrival = !!opts.realtimeArrival;
     // Real-Time Mode: only Scene View arrival may auto-generate; block Lorebook Agent paths.
-    if (s.portraitAutoGenerateSceneView && !opts.realtimeArrival) return;
+    if (s.portraitAutoGenerateSceneView && !isRealtimeArrival) return;
+    // Respect a mode switch made while a previous request was queued, and never
+    // retry Real-Time generation after the first failure in this enable cycle.
+    if (isRealtimeArrival && (!s.portraitAutoGenerateSceneView || realtimeLocationGenerationFailed)) return;
 
     const normPath = normalizeLocationPath(locationPath);
     if (!normPath) return;
@@ -1968,7 +1981,6 @@ export function triggerBackgroundLocationGeneration(locationPath, refresh, locCo
 
     activeLocationGenerations.add(normPath);
     const leaf = normPath.split(' :: ').pop() || normPath;
-    const isRealtimeArrival = !!opts.realtimeArrival;
     if (!isRealtimeArrival) {
         const queuePos = _imageGenQueue.length + (_imageGenQueueRunning ? 1 : 0);
         if (queuePos <= 0) {
@@ -1982,29 +1994,39 @@ export function triggerBackgroundLocationGeneration(locationPath, refresh, locCo
 
     enqueueImageGen(async () => {
         try {
+            // The user may have disabled Real-Time Mode while this job waited in
+            // the shared queue. Abandon it before touching either endpoint.
+            if (isRealtimeArrival && (!getSettings().portraitAutoGenerateSceneView || realtimeLocationGenerationFailed)) {
+                return;
+            }
             // generateLocationImagePrompt runs the Present-Now keyword scanner (latest
             // output only) before building the image prompt — must stay ahead of generatePortraitDirect.
             const prompt = await generateLocationImagePrompt(normPath, locContent);
             if (!prompt) {
-                if (isRealtimeArrival && typeof refresh === 'function') refresh();
+                if (isRealtimeArrival) realtimeLocationGenerationFailed = true;
                 return;
             }
+            if (isRealtimeArrival && !getSettings().portraitAutoGenerateSceneView) return;
             const dataUrl = await generatePortraitDirect(prompt, normPath);
             const scaled = await scaleImageToLandscape(dataUrl);
             await applyLocationImageData(normPath, scaled);
             if (!isRealtimeArrival) {
                 imageGenToast('success', `${forceReplace ? 'Location image regenerated' : 'Location image auto-generated'} for ${leaf}!`, 'RPG Tracker');
             }
-            if (typeof refresh === 'function') refresh();
+            if (!isRealtimeArrival && typeof refresh === 'function') refresh();
         } catch (err) {
             console.error(`[RPG Tracker] Background location image generation failed for ${normPath}:`, err);
             const errMsg = String(err.message || err);
-            if (!isRealtimeArrival) {
+            if (isRealtimeArrival) {
+                realtimeLocationGenerationFailed = true;
+            } else {
                 toastr['error'](`Location image generation failed for "${leaf}": ${errMsg.substring(0, 120)}`, 'RPG Tracker');
             }
-            if (isRealtimeArrival && typeof refresh === 'function') refresh();
         } finally {
             activeLocationGenerations.delete(normPath);
+            // Refresh only after clearing the active marker. The failure latch
+            // makes this final UI refresh incapable of scheduling a retry.
+            if (isRealtimeArrival && typeof refresh === 'function') refresh();
         }
     });
 }
