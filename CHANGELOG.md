@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.21] - 2026-07-26
+
+### Fixed
+- **CYOA on ST welcome screen**: no longer wraps or binds SillyTavern’s API Connections / Character Management / Extensions drawer buttons as CYOA choices.
+
 ## [6.2.20] - 2026-07-25
 
 ### Changed

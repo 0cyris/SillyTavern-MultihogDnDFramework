@@ -7380,6 +7380,80 @@ RULES:
         }
 
         /**
+         * ST welcome screen (no active chat). Hosts welcomePanel + welcome_prompt
+         * system messages with drawer-opener chrome buttons — never CYOA.
+         * @see public/scripts/welcome-screen.js openWelcomeScreen
+         */
+        function isSillyTavernWelcomeScreen() {
+            try {
+                const ctx = SillyTavern.getContext?.();
+                return ctx?.chatId === undefined || ctx?.chatId === null || ctx?.chatId === '';
+            } catch (_) {
+                return false;
+            }
+        }
+
+        /**
+         * Message DOM from ST welcome / system-UI templates (type attr from mes.extra.type).
+         * @param {Element|null} el
+         */
+        function isSillyTavernWelcomeMesBlock(el) {
+            const mes = el?.closest?.('.mes');
+            if (!(mes instanceof HTMLElement)) return false;
+            const type = mes.getAttribute('type') || '';
+            return type === 'welcome_prompt' || type === 'welcome' || !!mes.querySelector('.welcomePanel');
+        }
+
+        /**
+         * ST chrome buttons (API Connections / Character Management / Extensions, etc.).
+         * Never treat as CYOA choices — they open drawers via data-target.
+         * @param {Element|null} btn
+         */
+        function isSillyTavernChromeButton(btn) {
+            if (!(btn instanceof HTMLElement) || btn.tagName !== 'BUTTON') return false;
+            return btn.classList.contains('drawer-opener')
+                || btn.classList.contains('menu_button')
+                || btn.hasAttribute('data-target')
+                || !!btn.closest('.welcomePanel, .welcomeShortcuts');
+        }
+
+        /** @param {HTMLButtonElement[]} buttons */
+        function areAllSillyTavernChromeButtons(buttons) {
+            return buttons.length > 0 && buttons.every(isSillyTavernChromeButton);
+        }
+
+        /**
+         * Undo a mistaken CYOA wrap of ST welcome chrome (clone strips our click handlers).
+         * @param {ParentNode} root
+         */
+        function repairHijackedSillyTavernChromeButtons(root) {
+            root.querySelectorAll('div.rt-cyoa-choices').forEach((wrap) => {
+                const buttons = Array.from(wrap.querySelectorAll(':scope > button'));
+                if (!areAllSillyTavernChromeButtons(buttons)) return;
+                const restore = document.createElement('div');
+                restore.className = 'flex-container';
+                buttons.forEach((btn) => {
+                    const clean = /** @type {HTMLButtonElement} */ (btn.cloneNode(true));
+                    clean.removeAttribute('data-cyoa-bound');
+                    delete clean.dataset.cyoaRaw;
+                    delete clean.dataset.cyoaDecorated;
+                    clean.classList.remove('rt-cyoa-incomplete');
+                    restore.appendChild(clean);
+                });
+                wrap.replaceWith(restore);
+            });
+            root.querySelectorAll('button[data-cyoa-bound="true"]').forEach((btn) => {
+                if (!isSillyTavernChromeButton(btn)) return;
+                const clean = /** @type {HTMLButtonElement} */ (btn.cloneNode(true));
+                clean.removeAttribute('data-cyoa-bound');
+                delete clean.dataset.cyoaRaw;
+                delete clean.dataset.cyoaDecorated;
+                clean.classList.remove('rt-cyoa-incomplete');
+                btn.replaceWith(clean);
+            });
+        }
+
+        /**
          * Chromium treats non-hyphenated tags like <choices> as HTMLUnknownElement and
          * often leaves huge block/inline gaps between nested <button>s (Firefox does not).
          * Normalize every choice group into a real <div class="rt-cyoa-choices"> with
@@ -7405,6 +7479,7 @@ RULES:
          * @param {HTMLButtonElement[]} buttons
          */
         function replaceWithFlatCyoaWrap(source, buttons) {
+            if (areAllSillyTavernChromeButtons(buttons)) return null;
             const wrap = createCyoaChoicesWrap();
             source.parentNode?.insertBefore(wrap, source);
             buttons.forEach((btn) => wrap.appendChild(btn));
@@ -7426,7 +7501,7 @@ RULES:
 
             // 1) Convert any <choices>…</choices> into <div class="rt-cyoa-choices">.
             root.querySelectorAll('choices').forEach((choicesEl) => {
-                const buttons = Array.from(choicesEl.querySelectorAll('button'));
+                const buttons = Array.from(choicesEl.querySelectorAll('button')).filter((b) => !isSillyTavernChromeButton(b));
                 if (!buttons.length) {
                     choicesEl.remove();
                     return;
@@ -7438,8 +7513,10 @@ RULES:
             root.querySelectorAll('p, div').forEach((host) => {
                 if (host.closest('.rt-cyoa-choices, choices')) return;
                 if (host.classList?.contains('rt-cyoa-choices')) return;
+                if (host.classList?.contains('flex-container') && host.querySelector(':scope > button.drawer-opener, :scope > button.menu_button')) return;
                 const buttons = Array.from(host.querySelectorAll(':scope > button'));
                 if (buttons.length < 2) return;
+                if (areAllSillyTavernChromeButtons(buttons)) return;
                 const isChoiceBlock = Array.from(host.childNodes).every((n) => {
                     if (n.nodeType === Node.TEXT_NODE) return !String(n.textContent || '').trim();
                     if (n.nodeType !== Node.ELEMENT_NODE) return false;
@@ -7454,6 +7531,7 @@ RULES:
             root.querySelectorAll('div.rt-cyoa-choices').forEach((choicesEl) => {
                 const buttons = Array.from(choicesEl.querySelectorAll('button'));
                 if (!buttons.length) return;
+                if (areAllSillyTavernChromeButtons(buttons)) return;
                 const alreadyFlat = buttons.every((btn) => btn.parentElement === choicesEl)
                     && Array.from(choicesEl.childNodes).every((n) =>
                         n.nodeType === Node.ELEMENT_NODE && /** @type {Element} */ (n).tagName === 'BUTTON');
@@ -7475,6 +7553,7 @@ RULES:
                     else buttons.push(.../** @type {NodeListOf<HTMLButtonElement>} */ (el.querySelectorAll('button')));
                 }
                 if (buttons.length < 2) { run = []; return; }
+                if (areAllSillyTavernChromeButtons(buttons)) { run = []; return; }
                 if (buttons.every((b) => b.closest('.rt-cyoa-choices, choices'))) { run = []; return; }
                 const wrap = createCyoaChoicesWrap();
                 const first = run[0];
@@ -7493,10 +7572,11 @@ RULES:
                 if (node.nodeType !== Node.ELEMENT_NODE) return false;
                 const el = /** @type {HTMLElement} */ (node);
                 if (isCyoaChoicesWrap(el)) return false;
-                if (el.tagName === 'BUTTON') return true;
+                if (el.tagName === 'BUTTON') return !isSillyTavernChromeButton(el);
                 if (el.tagName === 'P' || el.tagName === 'DIV') {
                     const buttons = el.querySelectorAll(':scope > button');
-                    return buttons.length === 1 && el.childElementCount === 1;
+                    if (buttons.length !== 1 || el.childElementCount !== 1) return false;
+                    return !isSillyTavernChromeButton(buttons[0]);
                 }
                 return false;
             };
@@ -7550,11 +7630,23 @@ RULES:
             const s = getSettings();
             if (!s.cyoaConfig?.useButtonTags) return;
             if (!s.syspromptModules?.CYOA_mode) return;
+            // Welcome screen (no chat) + welcome_prompt/welcome system messages host ST
+            // drawer chrome — never flatten/bind those as CYOA choices.
+            if (isSillyTavernWelcomeScreen()) {
+                document.querySelectorAll('#chat .mes_text').forEach(repairHijackedSillyTavernChromeButtons);
+                return;
+            }
             document.querySelectorAll('#chat .mes_text').forEach(block => {
+                if (isSillyTavernWelcomeMesBlock(block)) {
+                    repairHijackedSillyTavernChromeButtons(block);
+                    return;
+                }
+                repairHijackedSillyTavernChromeButtons(block);
                 // Flattening mid-stream fights ST's live HTML updates and leaves empty shells.
                 if (allowFlatten && !_cyoaGenerating) flattenCyoaChoiceBlocks(block);
                 syncCyoaStreamingPlaceholders(block);
                 block.querySelectorAll('button').forEach(btn => {
+                    if (isSillyTavernChromeButton(btn)) return;
                     const text = (btn.textContent || '').trim();
                     if (!text) return; // still streaming / empty shell
                     // Don't rewrite button HTML or bind clicks until the stream finishes —
