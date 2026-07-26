@@ -15,6 +15,10 @@ import {
     PORTRAIT_LOCATION_SYSTEM_PROMPT_WITH_NPCS_V1,
 } from './portrait-prompts.js';
 import { bindGetSettings } from './settings-ref.js';
+import {
+    enforceRealtimeVisualizationDisabled,
+    setRealtimeVisualizationDisabled,
+} from './realtime-visualization-guard.js';
 
 // Re-entrancy guard: some migration blocks below call buildNpcInstruction()/
 // buildLocInstruction()/buildFacInstruction(), which themselves call
@@ -626,7 +630,17 @@ function getSettingsInternal(extensionSettings) {
     }
 
     // ── MIGRATION: Auto-fix legacy corrupted PC Core Section colors ────────────────
-    if (s.pcCoreSections && Array.isArray(s.pcCoreSections) && s.pcCoreSections.length === 6) {
+    // 5.5.15: Fail closed after the Real-Time Visualization retry-loop bug.
+    // Upgraded browsers must explicitly opt back in once; the local latch then
+    // prevents stale whole-settings saves from resurrecting the mode after F5.
+    if (isOlderThan(s.settingsVersion, '5.5.15')) {
+        s.portraitAutoGenerateSceneView = false;
+        s.portraitRegenerateVisitedLocations = false;
+        setRealtimeVisualizationDisabled(true);
+        s.settingsVersion = '5.5.15';
+    }
+
+    if (s.pcCoreSections && Array.isArray(s.pcCoreSections) && s.pcCoreSections.length === 6) {
         // We check by ID rather than name, because the legacy version might have had "Appearance" instead of "Appearance/Species"
         const idsMatch = s.pcCoreSections.every((sec, idx) => sec.id === DEFAULT_PC_SECTIONS[idx].id);
         const colorsMatch = s.pcCoreSections.every((sec, idx) => sec.color === DEFAULT_PC_SECTIONS[idx].color);
@@ -637,7 +651,9 @@ function getSettingsInternal(extensionSettings) {
         }
     }
 
-    return extensionSettings[MODULE_NAME];
+    enforceRealtimeVisualizationDisabled(s);
+
+    return extensionSettings[MODULE_NAME];
 }
 
 // ── Bar color resolver ─────────────────────────────────────────────────────────

@@ -611,7 +611,7 @@ Rules:
 }
 
 /** Latest settings migration version — factory reset skips legacy upgrade paths at or below this. */
-export const FACTORY_SETTINGS_VERSION = '5.5.13';
+export const FACTORY_SETTINGS_VERSION = '5.5.15';
 
 /** Remove extension UI keys from localStorage so a factory reset does not rehydrate stale panel state. */
 export function clearExtensionLocalStorageUiState() {

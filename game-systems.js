@@ -27,6 +27,9 @@ import {
     autoApplySysprompt,
     fetchBaseSyspromptRaw,
 } from './src/app/runtime-bridge.js';
+import { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
+
+export { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 
 /** @typedef {{ deferPersistence?: boolean }} SyspromptPersistOptions */
 
@@ -343,14 +346,6 @@ export function isSectionUnlocked(settings, tag) {
     return (settings.customSyspromptLibrary || []).some(p => p.origin === 'unlocked_base' && p.baseTag === tag);
 }
 
-/** Whether a built-in (non-unlocked) base section is currently enabled. */
-export function isBaseSectionEnabled(tag, settings) {
-    if (tag === 'relationship_tracking') return !!settings.npcRelationshipBars;
-    const mods = settings.syspromptModules || {};
-    if (tag === 'CYOA_mode') return mods.CYOA_mode === true;
-    return mods[tag] !== false;
-}
-
 /** Enables/disables a built-in base section and keeps the Narrator Configuration UI in sync. */
 export function setBaseSectionEnabled(tag, enabled, settings) {
     if (tag === 'relationship_tracking') {
@@ -369,7 +364,7 @@ function syncNarratorToggleUi(tag, settings) {
     const el = /** @type {HTMLInputElement} */ (document.getElementById(id));
     if (!el) return;
     const unlocked = isSectionUnlocked(settings, tag);
-    el.checked = isBaseSectionEnabled(tag, settings);
+    el.checked = isEffectiveSectionEnabled(tag, settings);
     el.disabled = unlocked;
     const label = el.closest('label');
     if (label) label.title = unlocked ? 'Managed in Game Systems (unlocked) — edit it there instead.' : '';

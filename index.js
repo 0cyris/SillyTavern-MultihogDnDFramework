@@ -10,7 +10,7 @@ import { initializeDebugViewer, toggleDebugViewer } from './debug-viewer.js';
 import { installSwipeSchedulerDebug } from './swipe-scheduler-debug.js';
 import { runRouterPass, rollbackRouterPass, reapplyRouterPass, getLorebookManifest, deleteLorebookEntry, updateLorebookEntry, disableManagedEntries, isRouterRunning, stopRouterPass, purgeWorldHistoryForChat } from './router.js';
 import { getRequestHeaders } from '../../../../script.js';
-import { fileToDataUrl, scaleImageTo512Square, scaleImageToLandscape, applyPortraitData, applyLocationImageData, renamePortraitEntity, reconcileMemoPortraitRenames, generatePortraitPrompt, generateNpcPortraitPrompt, generateLocationImagePrompt, showPortraitPromptPopup, generatePortraitDirect, autoGeneratePartyPortraits, removeAllPortraits, checkAndTriggerAutoGenerations, autoGenerateEnemyPortraits, forceCheckAutoGenerations, resetAutoGenerationTracking, resetRealtimeLocationGenerationFailure, resolveLocationImageWithMeta, normalizeLocationPath, buildLocationPath, getLinkedPlayerCharacter, resolvePortraitSrcForPlayerCharacter, imageGenToast } from './portraits.js';
+import { fileToDataUrl, scaleImageTo512Square, scaleImageToLandscape, applyPortraitData, applyLocationImageData, renamePortraitEntity, reconcileMemoPortraitRenames, generatePortraitPrompt, generateNpcPortraitPrompt, generateLocationImagePrompt, showPortraitPromptPopup, generatePortraitDirect, autoGeneratePartyPortraits, removeAllPortraits, checkAndTriggerAutoGenerations, autoGenerateEnemyPortraits, forceCheckAutoGenerations, resetAutoGenerationTracking, resetRealtimeLocationGenerationFailure, stopRealtimeLocationGeneration, resolveLocationImageWithMeta, normalizeLocationPath, buildLocationPath, getLinkedPlayerCharacter, resolvePortraitSrcForPlayerCharacter, imageGenToast } from './portraits.js';
 import { buildImmersionSceneState, renderImmersionViewHtml, getCurrentLocationText, loadLocationEntryByPath, loadNpcEntryByKey, maybeAutoGenerateImmersionSceneArt, runRealtimeSceneArtCheck, resetImmersionSceneArtTracking, hydrateImmersionSceneArtPath } from './immersion.js';
 import { migrateAllEmbeddedPortraits, countEmbeddedPortraitDataUrls, purgeAllPortraitData, resolvePortraitDisplaySrc, lookupCustomPortraitSrc, collectAllPortraitRefs, isManagedPortraitPath, isPortraitMigrationLocked, setPortraitMigrationLocked, PORTRAIT_STORAGE_FOLDER } from './portrait-storage.js';
 import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, makeResizableBR, makeResizableBL, setupResizeObserver, setupDeltaResize, canResizePanels, jqueryToggleSlide } from './ui-geometry.js';
@@ -19,7 +19,7 @@ import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenera
 import { bindQuickStartEvents } from './quickstart.js';
 import { bindTutorialBot, openTutorialBot } from './tutorial-bot.js';
 import { handleCategorySettings, openCustomFieldEditor, openPromptEditor, refreshOrderList, exportModules, importModulesFromJson, openNpcSectionEditor, openPcSectionEditor } from './ui-editors.js';
-import { openGameSystemWizard, openManageGameSystems, openSystemPromptControlRoom, syncAllNarratorTogglesForUnlockState, extractTopLevelSections, normalizeSectionOrder, getSectionRowDescriptor, transformBaseSectionContent, isBlankSectionContent, isSectionUnlocked } from './game-systems.js';
+import { openGameSystemWizard, openManageGameSystems, openSystemPromptControlRoom, syncAllNarratorTogglesForUnlockState, extractTopLevelSections, normalizeSectionOrder, getSectionRowDescriptor, transformBaseSectionContent, isBlankSectionContent, isSectionUnlocked, isEffectiveSectionEnabled } from './game-systems.js';
 import { openManageGameCartridges, promptAndSaveCurrentAsCartridge } from './game-cartridges.js';
 import { RENDERING_TAGS_LIBRARY, sectionPages, configureRuntimeActions } from './src/app/runtime-bridge.js';
 import { bindRenderedCardEvents } from './src/ui/panel/card-events.js';
@@ -30,6 +30,7 @@ import { runtimeState } from './src/app/runtime-state.js';
 import { createPanel as buildPanel } from './src/ui/panel/panel-builder.js';
 import { createChatStateLoader } from './src/features/chat/chat-state-loader.js';
 import { restoreEscapedCyoaChoiceMarkup } from './src/ui/panel/cyoa-markup.js';
+import { isRealtimeVisualizationDisabled } from './src/state/realtime-visualization-guard.js';
 
 export { RENDERING_TAGS_LIBRARY };
 export { bindRenderedCardEvents };
@@ -745,7 +746,9 @@ export function syncLocationImageDependentUi(settings) {
     // Auto-gen locations requires Show Location Images; RT mode is always toggleable (enables location images when turned on).
     syncCheckbox('rpg_tracker_portrait_auto_locations', lorebookAutoOn, !imagesEnabled || realTimeOn);
     syncCheckbox('rpg_tracker_portrait_auto_scene_view', realTimeOn, false);
-    syncCheckbox('rpg_tracker_location_images', imagesEnabled, realTimeOn);
+    // Keep this available as an emergency kill switch. Turning location images
+    // off also stops and disables any active Real-Time generation.
+    syncCheckbox('rpg_tracker_location_images', imagesEnabled, false);
     syncCheckbox('rpg_portrait_location_include_present_npcs', realTimeOn || !!settings.portraitLocationIncludePresentNpcs, !imagesEnabled || realTimeOn);
 
     const triggerMode = settings.portraitRealtimeTriggerMode || 'location_change';
@@ -785,6 +788,13 @@ export function syncLocationImageDependentUi(settings) {
         globalThis._rpgSyncAgentImmersionUi();
     }
 }
+
+// portraits.js owns the asynchronous generation failure path and cannot import
+// this controller without creating a circular dependency. Give it the same UI
+// refresh used by manual toggle changes.
+globalThis._rpgSyncLocationImageDependentUi = () => {
+    syncLocationImageDependentUi(getSettings());
+};
 
 /** Push the Location Scene Prompt textarea to match settings (if present in DOM). */
 function setPortraitLocationPromptTextarea(text) {
@@ -5313,11 +5323,12 @@ async function runPortraitMigrationIfNeeded() {
             }
         });
 
-        $('#rpg_tracker_portrait_auto_scene_view').prop('checked', !!settings.portraitAutoGenerateSceneView).on('change', function () {
+        $('#rpg_tracker_portrait_auto_scene_view').prop('checked', !!settings.portraitAutoGenerateSceneView).on('change', async function () {
             const enabled = !!$(this).prop('checked');
             if (enabled) resetRealtimeLocationGenerationFailure();
+            else stopRealtimeLocationGeneration();
             applyLocationImageAutoMode(settings, { realTimeMode: enabled });
-            saveSettings();
+            await saveSettings(true);
             void refreshLorebookAgentViewsNow({ forceLayoutRefresh: true });
         });
 
@@ -5592,7 +5603,7 @@ async function runPortraitMigrationIfNeeded() {
         // Baseline WAL after boot so the next cancelled save still has a sync snapshot.
         writeModuleSchemaBackup(bootChatId);
         // If we healed from WAL/tombstones, push the repaired schema to disk so settings.js catches up.
-        if ((strippedTombstones || healedFromBackup || strippedGlobalUi)) {
+        if (strippedTombstones || healedFromBackup || strippedGlobalUi || isRealtimeVisualizationDisabled()) {
             void saveSettings(true);
         }
 
@@ -7631,7 +7642,7 @@ RULES:
         function cyoaBindChoiceButtons({ allowFlatten = true } = {}) {
             const s = getSettings();
             if (!s.cyoaConfig?.useButtonTags) return;
-            if (!s.syspromptModules?.CYOA_mode) return;
+            if (!isEffectiveSectionEnabled('CYOA_mode', s)) return;
             // Welcome screen (no chat) + welcome_prompt/welcome system messages host ST
             // drawer chrome — never flatten/bind those as CYOA choices.
             if (isSillyTavernWelcomeScreen()) {
@@ -8887,12 +8898,10 @@ RULES:
         });
         $(document).on('change.rpgPortraitDisplay', '#rpg_tracker_location_images', async function () {
             const s = getSettings();
-            if (s.portraitAutoGenerateSceneView && !$(this).prop('checked')) {
-                syncLocationImageDependentUi(s);
-                return;
-            }
-            applyLocationImageSetting(s, !!$(this).prop('checked'));
-            saveSettings();
+            const enabled = !!$(this).prop('checked');
+            if (!enabled) stopRealtimeLocationGeneration();
+            applyLocationImageSetting(s, enabled);
+            await saveSettings(true);
             await refreshLorebookAgentViewsNow({ forceLayoutRefresh: true });
         });
         $('#rpg_tracker_npc_portraits').prop('checked', settings.npcPortraits !== false);
