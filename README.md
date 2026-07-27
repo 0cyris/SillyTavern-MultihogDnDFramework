@@ -58,7 +58,7 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 - **d100 (percentage-based rolls) support.**
 - **Real-Time Visualization Mode** — Lorebook Agent can be turned into a visual viewer that generates images of the current scene (with adjustable frequency) and displays the portraits of the currently present entities.
 - **Instant Action** — Get started by simply pressing one button.
--  **Tutorial and companion bots** — Get help from an integrated Tutorial Bot or just discuss your adventure with the Adventure Companion as you go.
+-  **Adventure Companion** — Learn the framework with optional Tutorial Mode, discuss your adventure, update campaign state or lore, and even ask it to take your next turn.
   
 ---
 

@@ -2,9 +2,27 @@
 
 Welcome to Multihog D&D Framework, a simulation-focused AI RPG platform that is highly modular and customizable. Your imagination is the ceiling.
 
-This document is written so a tutorial bot (or a new player) can explain **what the system is**, **how a turn actually runs**, and **how to use each major feature** without inventing behavior. 
+This document is written so the Adventure Companion (or a new player) can explain **what the system is**, **how a turn actually runs**, and **how to use each major feature** without inventing behavior.
 
-## NOTE TO TUTORIAL BOT AND ADVENTURE COMPANION: You are currently READ-ONLY. You cannot make edits to the user's story, tracker, or lore. Instead forward them to use the Direct Prompt features of the State Tracker and Lorebook Agent.
+## NOTE TO ADVENTURE COMPANION
+
+When **Tutorial Mode** is enabled, this document is injected into every Adventure Companion request as its source of truth for explaining the framework. Tutorial Mode does not create a separate bot or remove the Companion's other capabilities.
+
+The Adventure Companion's CHAT view can be detached into a draggable, resizable floating panel with the **⧉** control on desktop. On mobile it always uses the full-height floating presentation, with no detach or reattach control. Reattaching moves the same live conversation back into the State Tracker panel, and closing CHAT reattaches it automatically.
+
+The **Adventure Companion can perform three narrowly scoped actions** when ordinary conversational language shows clear intent:
+
+1. Send a direct command to the **State Tracker** to correct or update mechanical campaign state.
+2. Send a direct command to the **Lorebook Agent** to create or update campaign lore.
+3. **Act for the player** by submitting their next turn. When CYOA mode is active, it may choose one of the current CYOA buttons or type a player action through SillyTavern's normal chat input. When CYOA mode is inactive, it submits through the normal chat input.
+
+Players do not need exact command strings, magic phrases, imperative wording, or the subsystem names. Polite questions, indirect requests, and requests to show, test, or demonstrate the capability count as action intent. For an underspecified demo, the Companion may choose one small, harmless, clearly labeled demo addition.
+
+The Adventure Companion must not treat brainstorming, theories, casual possibilities, or hypothetical discussion as authorization unless the player also indicates that the idea should be recorded or applied. It should preserve the player's intent, infer only minor low-risk details, report the action result honestly, and must not change extension settings or narrate new story outcomes itself. Acting for the player only submits a player turn; the main narrator remains responsible for advancing the story.
+
+Acting for the player requires clear intent to submit a turn, such as “choose for me,” “take my turn,” “act for me,” or “continue for me.” Asking “What should I choose?” requests advice and does not submit a turn.
+
+After acting for the player, the Adventure Companion responds with a brief, lively reaction to its choice rather than repeating the submitted text or showing a mechanical success receipt. It must not invent the narrator's outcome.
 
 The D&D setup is the default plug-and-play cartridge. You can scrap the stock system prompt and modules and track whatever you want — fantasy, slice-of-life, modern, sci-fi, or pure homebrew.
 
@@ -44,14 +62,14 @@ These are recommendations, not rules.
 | Role | Suggestion | Notes |
 |------|------------|--------|
 | Narrator / GM | MiMo 2.5 Pro or DeepSeek 4 Pro (e.g. via OpenRouter) | Needs **tool calling** if you use Hybrid RNG (tool-call mode). |
-| State Tracker + Lorebook Agent | Gemini 3.1 Flash-Lite (or Flash / 3.5 Flash) | Cheap and reliable for extraction / lore passes. |
-| Combat narrator (optional) | Gemini 3.5 Flash with thinking Medium | Use **Combat API Override** so combat uses a faster model while `[COMBAT]` is active. |
+| State Tracker + Lorebook Agent | Gemini 3.5 Flash-Lite (or 3.6 Flash, though Flash-Lite truly is enough) | Cheap and reliable for extraction / lore passes. |
+| Combat narrator (optional) | Gemini 3.6 Flash with thinking Medium | Use **Combat API Override** so combat uses a faster model while `[COMBAT]` is active. |
 
 ### More About Models
 
 MiMo 2.5 Pro or DeepSeek 4 Pro: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.
 
-For the State Tracker and Lorebook Agent, I use Gemini 3.1 Flash-Lite. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job. The tracker and Lorebook Agent do not need powerful models generally.
+For the State Tracker and Lorebook Agent, I use Gemini 3.1 Flash-Lite. It's very inexpensive and handles the job amazingly well. Gemini 3.6 Flash (or whatever Flash is the most recent at the moment) are of course even better, but I don't think they're needed. Flash-Lite does the job. The tracker and Lorebook Agent do not need powerful models generally.
 
 If your model thinks too long in combat, enable Combat API Override in State Tracker settings — it auto-switches when the [COMBAT] tag is active in the tracker and switches back when combat ends. Gemini 3.5 Flash is a great choice for this; set thinking to Medium so it still thinks a little.
 

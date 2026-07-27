@@ -19,7 +19,7 @@ beforeEach(() => {
 describe('Adventure Companion chat partitions', () => {
     it('starts an unseen chat with the default Companion session', async () => {
         const { runtimeState } = await import('../src/app/runtime-state.js');
-        const companion = await import('../tutorial-bot.js');
+        const companion = await import('../adventure-companion.js');
 
         runtimeState.currentChatId = 'alpha';
         companion.applyAdventureCompanionSnapshot({
@@ -36,6 +36,31 @@ describe('Adventure Companion chat partitions', () => {
             lookback: 5,
             lookbackAll: true,
             history: [],
+        });
+    });
+
+    it('migrates the selected legacy help conversation into Tutorial Mode', async () => {
+        localStorage.setItem('rpg_tracker_chat_prefs_v1', JSON.stringify({
+            mode: 'tutorial',
+            tutorial: {
+                lookback: 7,
+                lookbackAll: false,
+                history: [{ role: 'user', content: 'How does RNG work?' }],
+            },
+            companion: {
+                lookback: 5,
+                lookbackAll: true,
+                history: [],
+            },
+        }));
+
+        const companion = await import('../adventure-companion.js');
+
+        expect(companion.isTutorialModeEnabled()).toBe(true);
+        expect(companion.getAdventureCompanionSnapshot()).toEqual({
+            lookback: 7,
+            lookbackAll: false,
+            history: [{ role: 'user', content: 'How does RNG work?' }],
         });
     });
 });

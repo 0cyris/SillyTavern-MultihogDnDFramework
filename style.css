@@ -396,7 +396,7 @@
     display: none !important;
 }
 
-.rpg-tracker-panel.rt-agent-detached-mode #rt-panel-mode-switch-wrap {
+.rpg-tracker-panel.rt-agent-detached-mode:not(.rt-tutorial-active) #rt-panel-mode-switch-wrap {
     display: none !important;
 }
 
@@ -796,7 +796,7 @@
     min-width: auto;
 }
 
-/* ── Tutorial Bot (panel morph) ─────────────────────────────────────────── */
+/* ── Adventure Companion (panel morph) ─────────────────────────────────── */
 .rt-panel-mode-pane.rt-tutorial-mode {
     display: flex;
     flex-direction: column;
@@ -820,6 +820,31 @@
     display: flex;
 }
 
+.rt-adventure-companion-header {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    min-height: 30px;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    border: 1px solid var(--rt-accent-dim, rgba(120, 170, 255, 0.28));
+    border-radius: 7px;
+    background: linear-gradient(90deg, rgba(80, 125, 210, 0.13), rgba(120, 80, 200, 0.13));
+    color: var(--rt-accent, #9bc0ff);
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.rt-adventure-companion-header i {
+    font-size: 0.9em;
+    opacity: 0.85;
+}
+
 .rt-tutorial-header {
     display: flex;
     align-items: center;
@@ -835,18 +860,75 @@
     margin-right: auto;
 }
 
-.rt-chat-mode-switch {
+.rt-chat-tutorial-mode-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     flex-shrink: 0;
-    font-size: 0.78em;
 }
 
-.rt-tutorial-title {
-    flex: 1;
-    font-size: 0.85em;
+.rt-chat-detach-btn {
+    flex-shrink: 0;
+    padding: 4px 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.rt-chat-tutorial-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    padding: 4px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    font-size: 0.72em;
     font-weight: 700;
-    opacity: 0.85;
-    letter-spacing: 0.02em;
-    min-width: 4em;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.rt-chat-tutorial-mode-toggle input {
+    margin: 0;
+    accent-color: var(--rt-accent, #8ab4ff);
+    cursor: pointer;
+}
+
+.rt-chat-tutorial-info-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--rt-text, #e0e0e0);
+    font: 700 0.75em/1 inherit;
+    cursor: pointer;
+}
+
+.rt-chat-tutorial-info {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 45;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    width: min(310px, calc(100vw - 36px));
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background: rgba(18, 18, 28, 0.98);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    font-size: 0.76em;
+    line-height: 1.4;
+}
+
+.rt-chat-tutorial-info strong {
+    color: var(--rt-accent, #8ab4ff);
 }
 
 .rt-tutorial-lookback {
@@ -3314,6 +3396,37 @@
     flex-direction: column;
 }
 
+.rt-adventure-companion-detached {
+    width: 360px;
+    height: 520px;
+}
+
+.rt-adventure-companion-detached .rt-chat-detached-header {
+    flex-shrink: 0;
+    min-height: 34px;
+    cursor: move;
+}
+
+.rt-adventure-companion-detached .rt-chat-detached-header .rpg-tracker-header-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.rt-chat-detached-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.rt-adventure-companion-detached .rt-tutorial-view {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .rt-detached-panel .rpg-tracker-header {
     cursor: move;
     background: rgba(0, 0, 0, 0.4);
@@ -3417,6 +3530,12 @@
 
 /* Mobile UI overrides */
 @media screen and (max-width: 800px) {
+    /* CHAT always uses its floating, full-height presentation on mobile. */
+    #rt-chat-detach-btn,
+    #rt-chat-reattach-btn {
+        display: none !important;
+    }
+
     .rpg-tracker-panel:not(.rt-detached-panel) {
         top: 44px !important;
         left: 3vw !important;
@@ -3447,6 +3566,15 @@
 
     /* Detached Lorebook Agent: fill the viewport (user cannot resize on mobile) */
     #rpg-tracker-agent.rt-detached-panel {
+        top: 44px !important;
+        left: 3vw !important;
+        width: 94vw !important;
+        max-width: 94vw !important;
+        height: calc(100dvh - 44px - 8px - env(safe-area-inset-bottom, 0px)) !important;
+        max-height: calc(100dvh - 44px - 8px - env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    #rpg-tracker-adventure-companion.rt-detached-panel {
         top: 44px !important;
         left: 3vw !important;
         width: 94vw !important;

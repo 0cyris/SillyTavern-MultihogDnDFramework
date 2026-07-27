@@ -4,7 +4,12 @@ import { wireAgentWorldProgression } from './panel-world-progression.js';
 import { wireAgentActivity } from './panel-agent-activity.js';
 import { buildPanelMarkup } from './panel-markup.js';
 import { createSceneViewController } from './panel-scene-view.js';
-import { bindTutorialBot, exitTutorialMode } from '../../../tutorial-bot.js';
+import { bindAdventureCompanion, closeAdventureCompanion, refreshAdventureCompanionLayout } from '../../../adventure-companion.js';
+
+/** CHAT always owns the integrated tracker pane while it is open. */
+export function resolveModeAfterAgentAttach(chatOpen, storedMode) {
+    return chatOpen ? 'tracker' : (storedMode === 'agent' ? 'agent' : 'tracker');
+}
 
 /** Builds and wires the tracker panel. Dependencies stay explicit to avoid entry-module cycles. */
 export function createPanel(dependencies) {
@@ -4714,6 +4719,7 @@ Rules:
                     s.trackerContentMode = 'agent';
                     applyViewState();
                 } else {
+                    const chatOpen = panel.classList.contains('rt-tutorial-active');
                     if (destroyAgentDraggable) {
                         destroyAgentDraggable();
                         destroyAgentDraggable = null;
@@ -4738,7 +4744,11 @@ Rules:
                     detachBtn.innerHTML = '⧉';
                     detachBtn.title = 'Detach Lorebook Agent';
 
-                    applyPanelContentMode(getSettings().trackerContentMode || 'tracker');
+                    applyPanelContentMode(resolveModeAfterAgentAttach(
+                        chatOpen,
+                        getSettings().trackerContentMode,
+                    ));
+                    if (chatOpen) refreshAdventureCompanionLayout();
                 }
                 applyPanelBackgroundToDom();
                 updateAgentBtnUI();
@@ -5040,7 +5050,7 @@ Rules:
     _viewBtn.addEventListener('click', () => {
         // CHAT morph owns the tracker body — leave it so Raw/Rendered can show again.
         if (panel.classList.contains('rt-tutorial-active')) {
-            exitTutorialMode();
+            closeAdventureCompanion();
             applyViewState();
             return;
         }
@@ -5354,6 +5364,6 @@ Rules:
 
     syncMemoView();
 
-    bindTutorialBot(/** @type {HTMLElement} */ (panel));
+    bindAdventureCompanion(/** @type {HTMLElement} */ (panel));
 
 }

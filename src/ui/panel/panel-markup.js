@@ -65,6 +65,10 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
             </div>
             <div class="rpg-tracker-content">
                 <div class="rt-panel-mode-switch-wrap" id="rt-panel-mode-switch-wrap">
+                    <div class="rt-adventure-companion-header" id="rt-adventure-companion-header" style="display:none;" aria-hidden="true">
+                        <i class="fa-solid fa-compass" aria-hidden="true"></i>
+                        <span>Adventure Companion</span>
+                    </div>
                     <div class="rt-agent-view-mode-switch rt-panel-mode-switch" id="rt-panel-mode-switch" role="tablist" aria-label="Panel content mode">
                         <button type="button" id="rt-panel-mode-tracker" class="rt-agent-view-mode-btn rt-agent-view-mode-btn-active" role="tab" aria-selected="true">State Tracker</button>
                         <button type="button" id="rt-panel-mode-agent" class="rt-agent-view-mode-btn" role="tab" aria-selected="false">Lorebook Agent</button>

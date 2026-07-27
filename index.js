@@ -17,7 +17,7 @@ import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, mak
 import { applyCustomTheme, openThemeWizard, refreshSavedThemesList, handleRecolor, undoThemeChange } from './theme-manager.js';
 import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenerate, generatePersonaBio, showPersonaConfirmOverlay, extractCharNameFromMemo } from './character-creator.js';
 import { bindQuickStartEvents } from './quickstart.js';
-import { bindTutorialBot, openTutorialBot, exitTutorialMode } from './tutorial-bot.js';
+import { bindAdventureCompanion, openAdventureCompanion, closeAdventureCompanion } from './adventure-companion.js';
 import { handleCategorySettings, openCustomFieldEditor, openPromptEditor, refreshOrderList, exportModules, importModulesFromJson, openNpcSectionEditor, openPcSectionEditor } from './ui-editors.js';
 import { openGameSystemWizard, openManageGameSystems, openSystemPromptControlRoom, syncAllNarratorTogglesForUnlockState, extractTopLevelSections, normalizeSectionOrder, getSectionRowDescriptor, transformBaseSectionContent, isBlankSectionContent, isSectionUnlocked, isEffectiveSectionEnabled } from './game-systems.js';
 import { openManageGameCartridges, promptAndSaveCurrentAsCartridge } from './game-cartridges.js';
@@ -2206,10 +2206,11 @@ async function runStateModelPass(narrativeOutput, isFullContext = false, overrid
  */
 function resetTrackerUi(opts = {}) {
     const quiet = !!opts.quiet;
-    try { if (typeof exitTutorialMode === 'function') exitTutorialMode(); } catch (_) {}
+    try { if (typeof closeAdventureCompanion === 'function') closeAdventureCompanion(); } catch (_) {}
 
     // Layout / visibility keys that can leave the UI unreachable
     localStorage.removeItem('rpg_tracker_agent_detached');
+    localStorage.removeItem('rpg_tracker_adventure_companion_detached');
     localStorage.removeItem('rpg_tracker_agent_visible');
     localStorage.setItem('rpg_tracker_content_mode', 'tracker');
     localStorage.setItem('rpg_tracker_visible', 'true');
@@ -2306,14 +2307,14 @@ async function syncActivePersonaDescriptionFromAvatar() {
 export async function sendDirectPrompt(message) {
     if (runtimeState.stateModelRunning) {
         toastr['info']('State Model is already running. Please wait.', 'RPG Tracker');
-        return;
+        return { success: false, status: 'busy', changed: false, message: 'State Tracker is already running.' };
     }
 
     const settings = getSettings();
     const { generateRaw } = SillyTavern.getContext();
     if (!generateRaw) {
         toastr['warning']('Text generation is not available. Connect an API in SillyTavern settings.', 'RPG Tracker');
-        return;
+        return { success: false, status: 'unavailable', changed: false, message: 'State Tracker connection is unavailable.' };
     }
 
     try {
@@ -2413,19 +2414,23 @@ export async function sendDirectPrompt(message) {
                 saveSettings();
                 if (settings.chatLinkEnabled && runtimeState.currentChatId) saveChatState(runtimeState.currentChatId);
                 toastr['success']('Tracker updated.', 'RPG Tracker');
+                return { success: true, status: 'changed', changed: true, message: 'State Tracker updated.' };
             } else {
                 toastr['info']('No changes were made.', 'RPG Tracker');
+                return { success: true, status: 'unchanged', changed: false, message: 'State Tracker made no changes.' };
             }
         } else {
             toastr['warning']('State Model returned no output. Check your API connection and State Model settings.', 'RPG Tracker');
+            return { success: false, status: 'no_output', changed: false, message: 'State Tracker returned no output.' };
         }
     } catch (err) {
         if (err.name === 'AbortError') {
             if (settings.debugMode) console.log("[RPG Tracker] Direct prompt aborted by user.");
-            return;
+            return { success: false, status: 'cancelled', changed: false, message: 'State Tracker command was cancelled.' };
         }
         console.error('[RPG Tracker] Direct prompt failed:', err);
         toastr['error']('Direct prompt failed. Check console.', 'RPG Tracker');
+        return { success: false, status: 'failed', changed: false, message: err?.message || 'State Tracker command failed.' };
     } finally {
         runtimeState.stateModelRunning = false;
         runtimeState.stateController = null;
@@ -4347,6 +4352,8 @@ async function runPortraitMigrationIfNeeded() {
         autoApplySysprompt,
         fetchBaseSyspromptRaw,
         sendDirectPrompt,
+        runRouterPass,
+        isRouterRunning,
         refreshAgentManifestNow,
         syncTimeFormatSettingsUi,
         applyTrackerThemeToDom,
@@ -4361,8 +4368,8 @@ async function runPortraitMigrationIfNeeded() {
         rebuildNpcInstructionIfNeeded,
         applyPortraitData,
         bindQuickStartEvents,
-        bindTutorialBot,
-        openTutorialBot,
+        bindAdventureCompanion,
+        openAdventureCompanion,
         blockToItems,
         buildCombatAndSkillScalingHint,
         buildNpcInstruction,
@@ -5554,7 +5561,7 @@ async function runPortraitMigrationIfNeeded() {
         });
 
         $('#rpg_tracker_tutorial_help').on('click', function () {
-            openTutorialBot();
+            openAdventureCompanion();
         });
 
         $('#rpg_tracker_purge_all_portraits').on('click', async function () {

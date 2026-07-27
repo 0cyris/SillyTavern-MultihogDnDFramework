@@ -42,6 +42,8 @@ export const refreshRenderedView = (...args) => invoke('refreshRenderedView', ar
 export const autoApplySysprompt = (...args) => invoke('autoApplySysprompt', args);
 export const fetchBaseSyspromptRaw = (...args) => invoke('fetchBaseSyspromptRaw', args);
 export const sendDirectPrompt = (...args) => invoke('sendDirectPrompt', args);
+export const runRouterPass = (...args) => invoke('runRouterPass', args);
+export const isRouterRunning = (...args) => invoke('isRouterRunning', args);
 export const refreshAgentManifestNow = (...args) => invoke('refreshAgentManifestNow', args);
 export const syncTimeFormatSettingsUi = (...args) => invoke('syncTimeFormatSettingsUi', args);
 export const applyTrackerThemeToDom = (...args) => invoke('applyTrackerThemeToDom', args);

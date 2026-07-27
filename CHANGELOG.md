@@ -2,6 +2,87 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.50] - 2026-07-27
+
+### Added
+- **Adventure Companion actions**: the Companion can now delegate clear player requests to State Tracker or Lorebook Agent, and can submit a player action through chat or CYOA controls.
+- **Tutorial Mode**: the Companion can optionally include the learning guide in its context, with a concise explanation available from the new help control.
+
+### Changed
+- **Unified Companion**: Tutorial Bot and Adventure Companion are now one Companion experience, with tutorial guidance controlled by the Tutorial Mode setting.
+- **Responsive Companion layout**: CHAT can be detached on desktop; mobile always uses the clean floating presentation without dock/undock controls.
+- **Natural player-action reactions**: after acting for the player, Companion responds with table-side commentary instead of a mechanical receipt.
+
+## [6.2.34] - 2026-07-27
+
+### Changed
+- **Mobile Adventure Companion**: CHAT now always opens in its full-height floating presentation on mobile, with dock/undock controls hidden. Resizing back to desktop restores the normal docked view unless the player had explicitly detached it there.
+
+## [6.2.33] - 2026-07-27
+
+### Changed
+- **Organic player-action reactions**: after acting for the player, Adventure Companion now gives a brief entertaining or funny table-side comment instead of echoing a dry `Player Turn: Submitted...` receipt.
+- **Single-turn commentary**: the reaction is generated alongside the action itself, avoiding a second Companion request that could compete with the main narrator.
+
+## [6.2.32] - 2026-07-27
+
+### Added
+- **Detachable Adventure Companion**: CHAT can be moved into its own draggable, resizable floating panel and reattached without losing its live conversation or request state.
+- **Detached CHAT geometry**: desktop position and size are remembered and clamped to the viewport; mobile uses a full-height layout.
+
+## [6.2.31] - 2026-07-27
+
+### Changed
+- **Adventure Companion header**: CHAT now displays its name as a styled, non-interactive header rather than a redundant top button.
+
+## [6.2.30] - 2026-07-27
+
+### Changed
+- **Free-form actions in CYOA**: Adventure Companion can now type and submit a normal player action even while CYOA mode is active, instead of being limited to pressing a listed choice.
+
+## [6.2.29] - 2026-07-27
+
+### Changed
+- **One Adventure Companion**: CHAT no longer separates framework help and story conversation into different bots or histories.
+- **Tutorial Mode**: a new toggle injects `docs/multihogDnDdoc.md` into every Adventure Companion request. Its `?` popup explains the extra context and token cost.
+- **Unified capabilities**: framework questions, story discussion, State Tracker and Lorebook Agent commands, and acting for the player are all available in the same conversation.
+
+## [6.2.28] - 2026-07-27
+
+### Added
+- **Adventure Companion player actions**: when clearly asked to choose or act for the player, the Companion can submit the player's next turn through SillyTavern.
+- **CYOA-aware acting**: with CYOA mode active, the Companion receives the currently actionable choices and must select one of their buttons. With CYOA inactive, it composes and submits a normal player chat message.
+
+### Changed
+- **Terminal player submissions**: successfully submitting a player turn ends the Companion action loop immediately, avoiding a competing follow-up request while narrator generation begins.
+
+## [6.2.27] - 2026-07-27
+
+### Fixed
+- **Connection Manager action feedback**: post-action results now use a profile-compatible conversation role, avoiding `Bad Request` failures caused by inserting a system message after the Companion's action response.
+- **Successful action misreported as failure**: if the State Tracker or Lorebook Agent command completes but the optional conversational summary request fails, CHAT now displays the authoritative completed-action receipt instead of claiming the entire operation failed.
+
+## [6.2.26] - 2026-07-27
+
+### Changed
+- **Natural Companion action intent**: Adventure Companion no longer expects command-like wording or exact strings. Polite questions, indirect requests, and requests to demonstrate or test an action now count when the user's intent to make a change is clear.
+- **Underspecified demos**: the Companion may choose and execute one small, harmless, clearly labeled demo addition instead of explaining how the player should ask again.
+
+## [6.2.25] - 2026-07-27
+
+### Fixed
+- **CHAT with detached Lorebook Agent**: Adventure Companion navigation remains visible while the Lorebook Agent is detached.
+- **CHAT during Lorebook Agent reattachment**: reattaching no longer switches the main panel underneath CHAT to Lorebook Agent or leaves the CHAT tabs unresponsive.
+
+## [6.2.24] - 2026-07-27
+
+### Added
+- **Adventure Companion actions**: explicit player requests can now be forwarded as direct commands to the State Tracker and Lorebook Agent. Native tool calls are used when supported, with a validated tagged fallback for other connection types.
+- **Action result reporting**: Companion commands report completed, unchanged, unavailable, busy, cancelled, and failed outcomes instead of assuming an update succeeded.
+
+### Changed
+- **Adventure Companion capability instructions**: the embedded persona and framework documentation now explain the two available actions and prohibit turning brainstorming or theories into campaign state.
+
 ## [6.2.23] - 2026-07-27
 
 ### Fixed
@@ -23,7 +104,7 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 ## [6.2.12] - 2026-07-25
 
 ### Changed
-- **CHAT mobile layout**: Tutorial Bot and Adventure Companion now use the primary panel tabs while CHAT is open; Back, options, and Clear share one compact row.
+- **CHAT mobile layout**: Adventure Companion chat uses the primary panel area while CHAT is open; Back, options, and Clear share one compact row.
 - **CHAT context controls**: moved Story lookback into the options menu and defaulted new CHAT sessions to the full chat history.
 
 ## [6.2.11] - 2026-07-24
@@ -34,10 +115,10 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 ## [6.2.10] - 2026-07-24
 
 ### Added
-- **Startup “How It Works”**: noticeable tip to open **CHAT** in the State Tracker header and ask the Tutorial Bot (knows most of the framework).
+- **Startup “How It Works”**: noticeable tip to open **CHAT** in the State Tracker header and ask the Adventure Companion (knows most of the framework).
 
 ### Changed
-- **Tutorial docs**: updates to `docs/multihogDnDdoc.md` (Tutorial Bot knowledge base).
+- **Tutorial docs**: updates to `docs/multihogDnDdoc.md` (Adventure Companion knowledge base).
 - **System Prompt Control Room**: section/content editors wrap long lines instead of forcing horizontal scroll.
 
 ## [6.2.1] - 2026-07-24
@@ -58,15 +139,15 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 ## [6.1.1] - 2026-07-24
 
 ### Added
-- **Tutorial Bot story lookback**: adjustable header control (**Story lookback**) injects the last N SillyTavern chat messages so players can discuss their adventure with the bot.
+- **Adventure Companion story lookback**: adjustable header control (**Story lookback**) injects the last N SillyTavern chat messages so players can discuss their adventure with the Companion.
 
 ### Changed
-- **Tutorial Bot lookback UI**: moved from the composer to the header next to the Tutorial Bot title, with a clear label.
+- **Adventure Companion lookback UI**: moved from the composer to the header, with a clear label.
 
 ## [6.1.0] - 2026-07-24
 
 ### Added
-- **Tutorial Bot**: in-panel HELP chat that morphs the State Tracker into a multi-turn instructor. Answers from `docs/multihogDnDdoc.md` via the State Tracker LLM connection. Open from the tracker **HELP** button or **General & Visuals → Tutorial Bot (HELP)**. Chat persists across reloads until Clear; replies render Markdown (showdown).
+- **Adventure Companion**: in-panel HELP chat that morphs the State Tracker into a multi-turn instructor. Answers from `docs/multihogDnDdoc.md` via the State Tracker LLM connection. Open from the tracker **HELP** button or **General & Visuals → Adventure Companion (HELP)**. Chat persists across reloads until Clear; replies render Markdown (showdown).
 - **Framework documentation**: `docs/multihogDnDdoc.md` (tutorial knowledge base) covering setup, turn flow, RNG, modules, Lorebook Agent, World Progression, and more.
 
 ### Changed
@@ -74,7 +155,7 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 - **Mobile Raw View**: larger tap target for the Raw/Rendered view toggle.
 
 ### Fixed
-- **Mobile HELP button**: no longer stays green after closing Tutorial Bot (sticky touch hover/focus).
+- **Mobile HELP button**: no longer stays green after closing Adventure Companion (sticky touch hover/focus).
 
 ## [6.0.85] - 2026-07-24
 
