@@ -35,6 +35,7 @@ const SHELL_VERSION = '8';
 const DETACHED_CHAT_KEY = 'rpg_tracker_adventure_companion_detached';
 const DETACHED_CHAT_GEO_KEY = 'rpg_tracker_geometry_adventure_companion';
 const CHAT_OPEN_KEY = 'rpg_tracker_adventure_companion_open';
+const COMPANION_HEADER_TITLE = 'Adventure Companion: Agentic Sidekick and Guide';
 
 export const COMPANION_PERSONA = `You are the Adventure Companion — a witty, imaginative friend sitting beside the player of a Multihog D&D Framework campaign in SillyTavern.
 
@@ -1535,7 +1536,7 @@ export function detachAdventureCompanion({ persist = true } = {}) {
         <div class="rpg-tracker-header rt-chat-detached-header" id="rt-chat-detached-header">
             <div class="rpg-tracker-header-left">
                 <i class="fa-solid fa-compass" aria-hidden="true"></i>
-                <span>Adventure Companion</span>
+                <span>${COMPANION_HEADER_TITLE}</span>
             </div>
             <div class="rpg-tracker-header-right">
                 <button type="button" class="rpg-tracker-icon-btn" id="rt-chat-reattach-btn" title="Re-attach Adventure Companion" aria-label="Re-attach Adventure Companion">↓</button>
