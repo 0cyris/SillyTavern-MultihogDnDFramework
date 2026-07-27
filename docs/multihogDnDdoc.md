@@ -390,6 +390,8 @@ LA is aware of keyword activations inside one container (extension scanner and/o
   - **Advanced (tools):** ReAct tool loop (`grep_lore`, `inspect_book`, `read_entry`, `commit`, …) until finish / max turns.
 - World Skeleton books (`*_Skeleton`) are off-limits to the agent.
 - Campaign books use a prefix, e.g. `{prefix}_NPCs`, `_Locations`, `_Factions`, `_Quests`, `_Events`, `_World`, `_Skeleton`.
+- Lorebook Agent CANNOT have any influence on Lorebooks that are not under the `ChatID_Bookname` structure. Therefore, if you want it to handle any book, it must be registered under "Modular Repertoire (Prompt Rules.) It is blind to any lorebooks that do not match this naming structure. This is by design so that it cannot affect your other lorebooks. It runs in its own "container" in this sense. If you want LA to manage an existing lorebook, you must add a custom section to the module repertoire and name the lorebook in question to match.
+
 
 ### Relationships
 
