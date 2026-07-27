@@ -400,7 +400,7 @@ Optional friendship/affection on NPC cards. Update methods (only one active):
 1. **Narrator Regex** (default) — parses annotations like `*(Friendship: Name +X — …)*` / Affection from narrator output.
 2. **State Tracker Tags** — tracker emits `[RELATIONS]` command lines; code applies deltas. (Those blocks are stripped before memo merge so they don’t leak into the GM memo.)
 
-Caps default around ±150 (per-chat override possible in Campaign Records).
+Caps default around ±150 (per-chat override possible in Campaign Records under the gear ⚙️ in the NPCs header).
 
 ### Portraits & Visualization
 
@@ -523,7 +523,7 @@ You are not locked to wizards and goblins:
 3. Use Custom Sysprompt Mode or Control Room library entries for a wholly different ruleset.
 4. Export the result as a Game Cartridge for reuse.
 
-The framework’s backbone is still **time + memo + optional lore/world layers** — the fiction genre is yours.
+The framework’s backbone is still **time + memo + optional lore/world layers** — the fiction genre is yours. You can disable [TIME] as well, but it wrecks the bulk of the simulation features as so much depends on time tracking in the STATE MEMO.
 
 ---
 
