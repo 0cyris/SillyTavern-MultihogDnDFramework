@@ -2,6 +2,14 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.23] - 2026-07-27
+
+### Fixed
+- **Detached Lorebook Agent**: clamp floating panel into the viewport; closing while detached reattaches so State Tracker / Lorebook Agent tabs return.
+
+### Added
+- **`/multihogresetui`**: emergency UI rebuild that clears stuck layout state (detached agent, geometry, visibility) and recreates the panels. Aliases: `/rpgresetui`, `/rtresetui`.
+
 ## [6.2.21] - 2026-07-26
 
 ### Fixed

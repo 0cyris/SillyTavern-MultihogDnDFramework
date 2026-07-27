@@ -13,11 +13,11 @@ import { getRequestHeaders } from '../../../../script.js';
 import { fileToDataUrl, scaleImageTo512Square, scaleImageToLandscape, applyPortraitData, applyLocationImageData, renamePortraitEntity, reconcileMemoPortraitRenames, generatePortraitPrompt, generateNpcPortraitPrompt, generateLocationImagePrompt, showPortraitPromptPopup, generatePortraitDirect, autoGeneratePartyPortraits, removeAllPortraits, checkAndTriggerAutoGenerations, autoGenerateEnemyPortraits, forceCheckAutoGenerations, resetAutoGenerationTracking, resetRealtimeLocationGenerationFailure, stopRealtimeLocationGeneration, resolveLocationImageWithMeta, normalizeLocationPath, buildLocationPath, getLinkedPlayerCharacter, resolvePortraitSrcForPlayerCharacter, imageGenToast } from './portraits.js';
 import { buildImmersionSceneState, renderImmersionViewHtml, getCurrentLocationText, loadLocationEntryByPath, loadNpcEntryByKey, maybeAutoGenerateImmersionSceneArt, runRealtimeSceneArtCheck, resetImmersionSceneArtTracking, hydrateImmersionSceneArtPath } from './immersion.js';
 import { migrateAllEmbeddedPortraits, countEmbeddedPortraitDataUrls, purgeAllPortraitData, resolvePortraitDisplaySrc, lookupCustomPortraitSrc, collectAllPortraitRefs, isManagedPortraitPath, isPortraitMigrationLocked, setPortraitMigrationLocked, PORTRAIT_STORAGE_FOLDER } from './portrait-storage.js';
-import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, makeResizableBR, makeResizableBL, setupResizeObserver, setupDeltaResize, canResizePanels, jqueryToggleSlide } from './ui-geometry.js';
+import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, makeResizableBR, makeResizableBL, setupResizeObserver, setupDeltaResize, canResizePanels, jqueryToggleSlide, resolveViewportClampedGeometry, clampFloatingPanelToViewport } from './ui-geometry.js';
 import { applyCustomTheme, openThemeWizard, refreshSavedThemesList, handleRecolor, undoThemeChange } from './theme-manager.js';
 import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenerate, generatePersonaBio, showPersonaConfirmOverlay, extractCharNameFromMemo } from './character-creator.js';
 import { bindQuickStartEvents } from './quickstart.js';
-import { bindTutorialBot, openTutorialBot } from './tutorial-bot.js';
+import { bindTutorialBot, openTutorialBot, exitTutorialMode } from './tutorial-bot.js';
 import { handleCategorySettings, openCustomFieldEditor, openPromptEditor, refreshOrderList, exportModules, importModulesFromJson, openNpcSectionEditor, openPcSectionEditor } from './ui-editors.js';
 import { openGameSystemWizard, openManageGameSystems, openSystemPromptControlRoom, syncAllNarratorTogglesForUnlockState, extractTopLevelSections, normalizeSectionOrder, getSectionRowDescriptor, transformBaseSectionContent, isBlankSectionContent, isSectionUnlocked, isEffectiveSectionEnabled } from './game-systems.js';
 import { openManageGameCartridges, promptAndSaveCurrentAsCartridge } from './game-cartridges.js';
@@ -2198,12 +2198,53 @@ async function runStateModelPass(narrativeOutput, isFullContext = false, overrid
     }
 }
 
+/**
+ * Emergency UI rebuild: clear stuck layout localStorage (detached agent off-screen,
+ * missing Lorebook Agent tab, hidden panel) and recreate the tracker panels.
+ * @param {{ quiet?: boolean }} [opts]
+ * @returns {string} status message
+ */
+function resetTrackerUi(opts = {}) {
+    const quiet = !!opts.quiet;
+    try { if (typeof exitTutorialMode === 'function') exitTutorialMode(); } catch (_) {}
+
+    // Layout / visibility keys that can leave the UI unreachable
+    localStorage.removeItem('rpg_tracker_agent_detached');
+    localStorage.removeItem('rpg_tracker_agent_visible');
+    localStorage.setItem('rpg_tracker_content_mode', 'tracker');
+    localStorage.setItem('rpg_tracker_visible', 'true');
+    for (const key of [...Object.keys(localStorage)]) {
+        if (key === 'rpg_tracker_geometry' || key.startsWith('rpg_tracker_geometry_')) {
+            localStorage.removeItem(key);
+        }
+    }
+
+    const settings = getSettings();
+    settings.trackerContentMode = 'tracker';
+
+    document.getElementById('rpg-tracker-panel')?.remove();
+    document.querySelector('body > #rpg-tracker-agent')?.remove();
+    document.querySelectorAll('body > .rpg-tracker-detached-panel').forEach((el) => el.remove());
+
+    createPanel();
+    if (typeof updatePanelStatus === 'function') updatePanelStatus();
+    if (typeof applyPanelBackgroundToDom === 'function') applyPanelBackgroundToDom();
+
+    const msg = 'Multihog UI reset: panels rebuilt, detached/layout state cleared.';
+    if (!quiet && typeof toastr !== 'undefined') {
+        toastr['success'](msg, 'RPG Tracker');
+    }
+    console.log('[RPG Tracker]', msg);
+    return msg;
+}
+
 // ── Phase-5 bridge: exposes runStateModelPass for narrative-hooks.js/onGenerationEnded ──
 // Removed when memo-processor.js is created in Phase 5.
 globalThis._rpgRunStateModelPass = runStateModelPass;
 globalThis._rpgStateModelRunning = () => runtimeState.stateModelRunning;
 globalThis._rpgCurrentChatId = () => runtimeState.currentChatId;
 globalThis._rpgResetRouterAutoTick = resetRouterAutoTick;
+globalThis._rpgResetTrackerUi = resetTrackerUi;
 // Expose live prefix derivation for any module that needs the current prefix.
 globalThis._rpgGetCurrentPrefix = () => getEffectiveRouterCampaignPrefix(SillyTavern.getContext().chatId || '');
 globalThis._rpgUpdateUIMemo = (text) => {
@@ -3674,6 +3715,8 @@ function createPanel() {
         buildNpcInstruction,
         canResizePanels,
         checkAndTriggerAutoGenerations,
+        clampFloatingPanelToViewport,
+        resolveViewportClampedGeometry,
         clampRelationshipValue,
         confirmAndPurgeWorldHistory,
         deleteLorebookEntry,

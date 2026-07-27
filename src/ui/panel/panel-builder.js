@@ -27,6 +27,8 @@ export function createPanel(dependencies) {
         buildNpcInstruction,
         canResizePanels,
         checkAndTriggerAutoGenerations,
+        clampFloatingPanelToViewport,
+        resolveViewportClampedGeometry,
         clampRelationshipValue,
         confirmAndPurgeWorldHistory,
         deleteLorebookEntry,
@@ -245,6 +247,8 @@ export function createPanel(dependencies) {
             && (!needsPcHandler || typeof globalThis._rpgAgentOpenPcDetail === 'function');
     };
     let updateAgentBtnUI = () => { };
+    /** Assigned when Lorebook Agent detach wiring runs — reattach/clamp helpers. */
+    let applyAgentDetachedState = () => { };
 
     const isAgentDetachedForCollapse = () => localStorage.getItem('rpg_tracker_agent_detached') === 'true';
 
@@ -296,9 +300,14 @@ export function createPanel(dependencies) {
         const updateAgentWorldStatus = agentWorldProgression.updateStatus;
 
         agentCloseBtn.addEventListener('click', () => {
+            // Closing while detached used to hide the float and leave tabs gone
+            // (rt-agent-detached-mode). Reattach so Lorebook Agent stays reachable.
             if (isAgentDetached()) {
-                agentPanel.style.display = 'none';
-                updateAgentBtnUI();
+                const s = getSettings();
+                s.trackerContentMode = 'tracker';
+                localStorage.setItem('rpg_tracker_content_mode', 'tracker');
+                localStorage.setItem('rpg_tracker_agent_detached', 'false');
+                applyAgentDetachedState();
                 return;
             }
             applyPanelContentMode('tracker');
@@ -4643,8 +4652,13 @@ Rules:
                     agentPanel.classList.remove('rt-agent-integrated');
                     agentPanel.classList.add('rt-detached-panel');
                     const s = getSettings();
-                    const showDetached = s.trackerContentMode === 'agent';
-                    agentPanel.style.display = showDetached ? 'flex' : 'none';
+                    // Always show the float while detached — never leave tabs hidden
+                    // with the agent display:none / off-screen and unreachable.
+                    if (s.trackerContentMode !== 'agent') {
+                        s.trackerContentMode = 'agent';
+                        localStorage.setItem('rpg_tracker_content_mode', 'agent');
+                    }
+                    agentPanel.style.display = 'flex';
                     document.body.appendChild(agentPanel);
                     moveAgentHeaderToDetached();
                     syncRouterPrefixDisplays(s.routerCampaignPrefix || '');
@@ -4672,42 +4686,32 @@ Rules:
                         try {
                             const savedStr = localStorage.getItem(GEO_KEY);
                             const saved = savedStr ? JSON.parse(savedStr) : null;
-
-                            let left = 100;
-                            let top = 100;
-                            let width = 300;
-                            let height = 400;
-
-                            if (saved && typeof saved.left === 'number') {
-                                const isOffScreen = (
-                                    saved.left + 50 > window.innerWidth ||
-                                    saved.top + 50 > window.innerHeight ||
-                                    saved.left < -250 ||
-                                    saved.top < -50
-                                );
-
-                                if (!isOffScreen) {
-                                    left = saved.left;
-                                    top = saved.top;
-                                    if (saved.width) width = saved.width;
-                                    if (saved.height) height = saved.height;
-                                }
-                            }
-
-                            agentPanel.style.left = left + 'px';
-                            agentPanel.style.top = top + 'px';
-                            agentPanel.style.width = width + 'px';
-                            if (height) agentPanel.style.height = height + 'px';
+                            const geo = resolveViewportClampedGeometry(saved, {
+                                defaultLeft: 100,
+                                defaultTop: 100,
+                                defaultWidth: 300,
+                                defaultHeight: 400,
+                            });
+                            agentPanel.style.left = geo.left + 'px';
+                            agentPanel.style.top = geo.top + 'px';
+                            agentPanel.style.width = geo.width + 'px';
+                            agentPanel.style.height = geo.height + 'px';
                             agentPanel.style.maxHeight = '';
                             agentPanel.style.right = 'auto';
+                            // Persist clamped geometry so a laptop reopen stays correct.
+                            localStorage.setItem(GEO_KEY, JSON.stringify(geo));
                         } catch (e) {
-                            agentPanel.style.left = '100px';
-                            agentPanel.style.top = '100px';
-                            agentPanel.style.width = '300px';
+                            const geo = resolveViewportClampedGeometry(null);
+                            agentPanel.style.left = geo.left + 'px';
+                            agentPanel.style.top = geo.top + 'px';
+                            agentPanel.style.width = geo.width + 'px';
+                            agentPanel.style.height = geo.height + 'px';
                         }
                     }
 
                     applyPanelContentMode('tracker', { skipPersist: true });
+                    // applyPanelContentMode always writes memory mode; keep agent while detached.
+                    s.trackerContentMode = 'agent';
                     applyViewState();
                 } else {
                     if (destroyAgentDraggable) {
@@ -4740,6 +4744,8 @@ Rules:
                 updateAgentBtnUI();
             };
 
+            applyAgentDetachedState = applyDetachedState;
+
             detachBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const s = getSettings();
@@ -4757,9 +4763,12 @@ Rules:
             }
 
             window.addEventListener('resize', () => {
-                if (isDetached() && isMobileLayout()) {
+                if (!isDetached()) return;
+                if (isMobileLayout()) {
                     applyMobileAgentGeometry();
+                    return;
                 }
+                clampFloatingPanelToViewport(agentPanel, GEO_KEY);
             });
         }
 

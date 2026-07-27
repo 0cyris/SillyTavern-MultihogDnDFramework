@@ -30,6 +30,67 @@ export function jqueryToggleSlide($el, show) {
 }
 
 /**
+ * Keep a floating panel's header reachable inside the viewport.
+ * Used when restoring saved geometry across monitor/laptop size changes.
+ * @param {{ left?: number, top?: number, width?: number, height?: number }|null|undefined} saved
+ * @param {{ defaultLeft?: number, defaultTop?: number, defaultWidth?: number, defaultHeight?: number, minWidth?: number, minHeight?: number }} [opts]
+ * @returns {{ left: number, top: number, width: number, height: number }}
+ */
+export function resolveViewportClampedGeometry(saved, opts = {}) {
+    const minWidth = opts.minWidth ?? 220;
+    const minHeight = opts.minHeight ?? 200;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+    let width = Math.max(minWidth, Number(saved?.width) || opts.defaultWidth || 300);
+    let height = Math.max(minHeight, Number(saved?.height) || opts.defaultHeight || 400);
+    let left = typeof saved?.left === 'number' ? saved.left : (opts.defaultLeft ?? 100);
+    let top = typeof saved?.top === 'number' ? saved.top : (opts.defaultTop ?? 100);
+
+    // Keep at least 100×50px of the header inside the viewport (same idea as makeDraggable).
+    left = Math.max(0, Math.min(Math.max(0, vw - 100), left));
+    top = Math.max(0, Math.min(Math.max(0, vh - 50), top));
+
+    const maxW = Math.max(minWidth, vw - left - 8);
+    const maxH = Math.max(minHeight, vh - top - 8);
+    width = Math.min(width, maxW);
+    height = Math.min(height, maxH);
+
+    return { left, top, width, height };
+}
+
+/**
+ * Apply clamped left/top/width/height to a floating panel and optionally persist.
+ * @param {HTMLElement} panel
+ * @param {string|null} [customKey]
+ * @returns {{ left: number, top: number, width: number, height: number }|null}
+ */
+export function clampFloatingPanelToViewport(panel, customKey = null) {
+    if (!panel || panel.style.display === 'none') return null;
+    const rect = panel.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return null;
+
+    const geo = resolveViewportClampedGeometry({
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+    });
+
+    panel.style.left = geo.left + 'px';
+    panel.style.top = geo.top + 'px';
+    panel.style.width = geo.width + 'px';
+    panel.style.height = geo.height + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+
+    if (customKey) {
+        localStorage.setItem(customKey, JSON.stringify(geo));
+    }
+    return geo;
+}
+
+/**
  * Persist panel left/top/width/height to localStorage.
  * @param {HTMLElement} panel
  * @param {string|null} [customKey] Optional storage key (defaults to main tracker geometry).
@@ -62,16 +123,21 @@ export function loadPanelGeometry(panel, customKey = null) {
         const saved = JSON.parse(localStorage.getItem(customKey || GEOMETRY_KEY));
         if (!saved) return;
 
-        // Sanitize coordinates to prevent "bricking" off-screen
-        const left = saved.left !== undefined ? Math.max(0, Math.min(window.innerWidth - 50, saved.left)) : undefined;
-        const top = saved.top !== undefined ? Math.max(0, Math.min(window.innerHeight - 50, saved.top)) : undefined;
+        const hasLeft = typeof saved.left === 'number';
+        const hasTop = typeof saved.top === 'number';
+        const geo = resolveViewportClampedGeometry({
+            left: hasLeft ? saved.left : 0,
+            top: hasTop ? saved.top : 0,
+            width: saved.width,
+            height: saved.height,
+        });
 
-        if (left !== undefined) { panel.style.left = left + 'px'; panel.style.right = 'auto'; }
-        if (top !== undefined) { panel.style.top = top + 'px'; panel.style.bottom = 'auto'; }
-        if (saved.width) panel.style.width = saved.width + 'px';
+        if (hasLeft) { panel.style.left = geo.left + 'px'; panel.style.right = 'auto'; }
+        if (hasTop) { panel.style.top = geo.top + 'px'; panel.style.bottom = 'auto'; }
+        if (saved.width) panel.style.width = geo.width + 'px';
         // Guard: ignore saved heights that are smaller than a reasonable minimum (e.g. a stale
         // header-only save from before the collapse feature existed). 80px ≈ header + tiny content.
-        if (saved.height && saved.height > 80) panel.style.height = saved.height + 'px';
+        if (saved.height && saved.height > 80) panel.style.height = geo.height + 'px';
     } catch { /* ignore */ }
 }
 

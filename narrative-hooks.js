@@ -724,6 +724,29 @@ export function registerDiceSlashCommand() {
             }),
         ],
     }));
+
+    SlashCommandParser.addCommandObject(SlashCommand.fromProps({
+        name: 'multihogresetui',
+        aliases: ['rpgresetui', 'rtresetui'],
+        callback: async (args) => {
+            const quiet = String(args.quiet) === 'true';
+            if (typeof globalThis._rpgResetTrackerUi !== 'function') {
+                return 'UI reset is not ready yet.';
+            }
+            return globalThis._rpgResetTrackerUi({ quiet });
+        },
+        helpString: 'Emergency Multihog UI reset — rebuilds the State Tracker / Lorebook Agent panels and clears stuck layout (detached agent off-screen, missing tabs, hidden panel). Aliases: /rpgresetui, /rtresetui.',
+        returns: 'status message',
+        namedArgumentList: [
+            SlashCommandNamedArgument.fromProps({
+                name: 'quiet',
+                description: 'Suppress the toast notification',
+                isRequired: false,
+                typeList: [ARGUMENT_TYPE.BOOLEAN],
+                defaultValue: 'false',
+            }),
+        ],
+    }));
 }
 
 // ── stripMemoHtml (local copy — canonical version moves to renderer.js in Phase 6) ──
