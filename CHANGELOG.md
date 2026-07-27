@@ -2,6 +2,13 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.52] - 2026-07-27
+
+### Fixed
+- **Settings drawer hierarchy**: restored the Framework drawer’s complete nesting so General & Visuals and all other primary sections share the same layout and toggle behavior.
+- **Mobile settings rendering**: removed the collapsed-content optimization that could hide the first nested drawer until interaction.
+- **CHAT persistence**: Adventure Companion now restores its open/closed state after a page reload.
+
 ## [6.2.50] - 2026-07-27
 
 ### Added

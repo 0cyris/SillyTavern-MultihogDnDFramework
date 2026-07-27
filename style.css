@@ -5234,19 +5234,13 @@ textarea.rt-cr-input {
     transform: rotate(-180deg);
 }
 
-/* Mobile settings: skip drawer animations/transitions; skip painting collapsed subtrees */
+/* Mobile settings: skip drawer animations/transitions. Native drawer visibility
+   handles collapsed content; content-visibility can skip the first nested drawer
+   before SillyTavern finishes initializing the settings tree. */
 @media screen and (max-width: 800px) {
     .rpg-tracker-settings .inline-drawer-icon,
     .rpg-tracker-settings .inline-drawer .inline-drawer .inline-drawer-header {
         transition: none !important;
-    }
-
-    .rpg-tracker-settings .inline-drawer:not(.open) > .inline-drawer-content {
-        content-visibility: hidden;
-    }
-
-    .rpg-tracker-settings .inline-drawer.open > .inline-drawer-content {
-        content-visibility: visible;
     }
 }
 

@@ -34,6 +34,7 @@ const LEGACY_LOOKBACK_KEY = 'rpg_tracker_tutorial_lookback';
 const SHELL_VERSION = '8';
 const DETACHED_CHAT_KEY = 'rpg_tracker_adventure_companion_detached';
 const DETACHED_CHAT_GEO_KEY = 'rpg_tracker_geometry_adventure_companion';
+const CHAT_OPEN_KEY = 'rpg_tracker_adventure_companion_open';
 
 export const COMPANION_PERSONA = `You are the Adventure Companion — a witty, imaginative friend sitting beside the player of a Multihog D&D Framework campaign in SillyTavern.
 
@@ -1616,6 +1617,7 @@ export function closeAdventureCompanion() {
     setBusy(false);
     if (_detachedChatPanel) reattachAdventureCompanion({ refresh: false, force: true });
     _chatOpen = false;
+    localStorage.setItem(CHAT_OPEN_KEY, 'false');
     applyMorph(false);
 }
 
@@ -1644,6 +1646,7 @@ export function showAdventureCompanion() {
     }
 
     _chatOpen = true;
+    localStorage.setItem(CHAT_OPEN_KEY, 'true');
     if (isMobileLayout()) {
         const restoreManualDetach = isAdventureCompanionDetached();
         _mobileForcedDetach = !restoreManualDetach;
@@ -1806,6 +1809,14 @@ export function bindAdventureCompanion(panel) {
     }
     // Re-hydrate companion for the active chat once panel/settings are available
     loadCompanionForChat(resolveActiveChatId());
+
+    // Restore CHAT after the panel has been attached and its normal layout initialized.
+    if (localStorage.getItem(CHAT_OPEN_KEY) === 'true' && !_chatOpen && !panel.dataset.rtCompanionOpenRestore) {
+        panel.dataset.rtCompanionOpenRestore = '1';
+        setTimeout(() => {
+            if (_panel === panel && !_chatOpen) openAdventureCompanion();
+        }, 0);
+    }
 }
 
 /**

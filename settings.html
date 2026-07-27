@@ -14,10 +14,14 @@
                     <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                 </div>
                 <div class="inline-drawer-content">
-                    <div class="flex-container flexFlowColumn gap-1">
-
-                        <!-- CORE -->
-                        <small style="display: block; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Core</small>
+                    <div class="inline-drawer">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-sliders" style="margin-right: 6px; opacity: 0.65;"></i>
+                            <b>Core</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="flex-container flexFlowColumn gap-1">
                         <small style="display: block; padding-left: 4px; font-size: 0.78em; opacity: 0.6; margin-bottom: 2px;">Chat Links</small>
                         <label class="checkbox_label" style="padding-left: 4px;">
                             <input id="rpg_tracker_chat_link_enabled" type="checkbox" />
@@ -49,9 +53,18 @@
                             </div>
                             <div id="rpg_main_sysprompt_backup_status" style="font-size: 0.75em; opacity: 0.7; font-style: italic; min-height: 1.2em;"></div>
                         </div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <!-- APPEARANCE -->
-                        <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Appearance</small>
+                    <div class="inline-drawer">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-palette" style="margin-right: 6px; opacity: 0.65;"></i>
+                            <b>UI Appearance</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="flex-container flexFlowColumn gap-1">
                         <label style="font-size: 0.82em; opacity: 0.75;">Panel Layout</label>
                         <div class="rt-seg-toggle" id="rpg_tracker_layout_mode_seg" role="group" style="width: 100%;" title="Stacked shows every module at once, vertically. Tab Mode pins Character/Combat at the top and puts the rest behind a compact tab strip — better for small screens or mobile.">
                             <button type="button" data-value="stack" style="flex: 1;">📚 Stacked</button>
@@ -167,10 +180,18 @@
                                 <div id="rpg_tracker_saved_themes_list" class="flex-container flexFlowColumn gap-1"></div>
                             </div>
                         </div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <!-- CHARACTER PORTRAITS -->
-                        <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Character Portraits</small>
-                        <div id="rpg_portrait_config_block" class="flex-container flexFlowColumn gap-1">
+                    <div class="inline-drawer">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-image" style="margin-right: 6px; opacity: 0.65;"></i>
+                            <b>Portraits</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div id="rpg_portrait_config_block" class="flex-container flexFlowColumn gap-1">
                             <label class="checkbox_label">
                                 <input id="rpg_tracker_enable_portraits" type="checkbox" />
                                 <span>Enable Portraits in Tracker</span>
@@ -406,6 +427,8 @@
                                 <i class="fa-solid fa-trash-can"></i> Emergency: Purge All Portraits
                             </button>
                         </div>
+                        </div>
+                    </div>
 
                         <!-- DEVELOPER & RESET -->
                         <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Developer &amp; Reset</small>
@@ -446,7 +469,6 @@
                                 <button id="rpg_tracker_btn_factory_reset" class="menu_button interactable" style="background: rgba(181, 31, 31, 0.4); border-color: #ff5555; width: 100%; margin-top: 6px;"><i class="fa-solid fa-radiation"></i> FACTORY RESET</button>
                             </div>
                         </div>
-                    </div>
                 </div>
             </div>
 
