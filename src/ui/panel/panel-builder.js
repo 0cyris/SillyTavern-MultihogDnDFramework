@@ -4748,7 +4748,10 @@ Rules:
                         chatOpen,
                         getSettings().trackerContentMode,
                     ));
-                    if (chatOpen) refreshAdventureCompanionLayout();
+                    // CHAT may be open in its floating panel, in which case the
+                    // main panel intentionally no longer has rt-tutorial-active.
+                    // The refresh helper already no-ops when CHAT is truly closed.
+                    refreshAdventureCompanionLayout();
                 }
                 applyPanelBackgroundToDom();
                 updateAgentBtnUI();

@@ -823,20 +823,20 @@
 .rt-adventure-companion-header {
     display: none;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 7px;
     width: 100%;
-    min-height: 30px;
+    min-height: 34px;
     box-sizing: border-box;
-    padding: 6px 10px;
+    padding: 8px 12px;
     border: 1px solid var(--rt-accent-dim, rgba(120, 170, 255, 0.28));
     border-radius: 7px;
     background: linear-gradient(90deg, rgba(80, 125, 210, 0.13), rgba(120, 80, 200, 0.13));
-    color: var(--rt-accent, #9bc0ff);
-    font-size: 0.78em;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    color: var(--rt-text);
+    font-size: 0.9em;
+    font-weight: bold;
+    letter-spacing: normal;
+    text-transform: none;
     user-select: none;
 }
 

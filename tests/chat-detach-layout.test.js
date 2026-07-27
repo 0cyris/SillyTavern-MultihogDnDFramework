@@ -16,6 +16,7 @@ describe('Adventure Companion layout', () => {
     it('uses one Companion with an explained Tutorial Mode toggle', async () => {
         const source = await readFile(new URL('../adventure-companion.js', import.meta.url), 'utf8');
         const markup = await readFile(new URL('../src/ui/panel/panel-markup.js', import.meta.url), 'utf8');
+        const css = await readFile(new URL('../style.css', import.meta.url), 'utf8');
 
         expect(source).toContain('id="rt-chat-tutorial-mode"');
         expect(source).toContain('id="rt-chat-tutorial-info-btn"');
@@ -25,12 +26,14 @@ describe('Adventure Companion layout', () => {
         expect(source).not.toContain("mode === 'companion'");
         expect(markup).toContain('id="rt-adventure-companion-header"');
         expect(markup).toContain('<span>Adventure Companion: Agentic Sidekick and Guide</span>');
+        expect(css).toMatch(/\.rt-adventure-companion-header\s*\{[^}]*font-size:\s*0\.9em;[^}]*text-transform:\s*none;/s);
         expect(source).toContain("trackerTab.style.display = 'none'");
         expect(source).toContain("companionHeader.style.display = 'flex'");
     });
 
     it('moves the live CHAT view into a restorable floating panel', async () => {
         const source = await readFile(new URL('../adventure-companion.js', import.meta.url), 'utf8');
+        const panelBuilder = await readFile(new URL('../src/ui/panel/panel-builder.js', import.meta.url), 'utf8');
         const css = await readFile(new URL('../style.css', import.meta.url), 'utf8');
 
         expect(source).toContain('export function detachAdventureCompanion(');
@@ -39,8 +42,11 @@ describe('Adventure Companion layout', () => {
         expect(source).toContain('body.appendChild(view)');
         expect(source).toContain('trackerPane.appendChild(view)');
         expect(source).toContain("makeDraggable(floating, header, DETACHED_CHAT_GEO_KEY)");
+        expect(source).toContain('if (_detachedChatPanel) restorePanelModeTabs({ preserveActive: true });');
         expect(source).toContain('if (isMobileLayout()) {');
         expect(source).toContain('detachAdventureCompanion({ persist: restoreManualDetach })');
+        expect(panelBuilder).not.toContain('if (chatOpen) refreshAdventureCompanionLayout();');
+        expect(panelBuilder).toContain('refreshAdventureCompanionLayout();');
         expect(css).toContain('.rt-adventure-companion-detached');
         expect(css).toContain('#rpg-tracker-adventure-companion.rt-detached-panel');
         expect(css).toContain('#rt-chat-detach-btn,');

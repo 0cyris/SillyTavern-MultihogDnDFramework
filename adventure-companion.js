@@ -1181,11 +1181,12 @@ function syncPanelModeTabsForChat() {
 }
 
 /** Restore the normal State Tracker / Lorebook Agent tabs after leaving CHAT. */
-function restorePanelModeTabs() {
+function restorePanelModeTabs({ preserveActive = false } = {}) {
     if (!_panel) return;
     const trackerTab = _panel.querySelector('#rt-panel-mode-tracker');
     const agentTab = _panel.querySelector('#rt-panel-mode-agent');
     const companionHeader = _panel.querySelector('#rt-adventure-companion-header');
+    const agentActive = preserveActive && _panel.classList.contains('rt-panel-mode-agent');
     if (companionHeader instanceof HTMLElement) {
         companionHeader.style.display = 'none';
         companionHeader.setAttribute('aria-hidden', 'true');
@@ -1194,14 +1195,14 @@ function restorePanelModeTabs() {
         trackerTab.textContent = 'State Tracker';
         trackerTab.style.display = '';
         trackerTab.setAttribute('aria-hidden', 'false');
-        trackerTab.classList.add('rt-agent-view-mode-btn-active');
-        trackerTab.setAttribute('aria-selected', 'true');
+        trackerTab.classList.toggle('rt-agent-view-mode-btn-active', !agentActive);
+        trackerTab.setAttribute('aria-selected', String(!agentActive));
     }
     if (agentTab instanceof HTMLElement) {
         agentTab.textContent = 'Lorebook Agent';
         agentTab.style.display = localStorage.getItem('rpg_tracker_agent_detached') === 'true' ? 'none' : '';
-        agentTab.classList.remove('rt-agent-view-mode-btn-active');
-        agentTab.setAttribute('aria-selected', 'false');
+        agentTab.classList.toggle('rt-agent-view-mode-btn-active', agentActive);
+        agentTab.setAttribute('aria-selected', String(agentActive));
     }
 }
 
@@ -1456,6 +1457,9 @@ export function refreshAdventureCompanionLayout() {
     }
     if (!_panel) return;
     applyMorph(true);
+    // A floating CHAT no longer owns the main panel's mode switch. Reassert
+    // the normal State Tracker / Lorebook Agent tabs after agent reattachment.
+    if (_detachedChatPanel) restorePanelModeTabs({ preserveActive: true });
     syncChromeFromPrefs();
 }
 
