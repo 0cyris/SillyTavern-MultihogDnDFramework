@@ -681,9 +681,12 @@ function dedupePartyAgainstBenched(memo) {
     const partyContent = blockContentFromMemo(memo, 'PARTY');
     if (!partyContent) return memo;
 
-    const entries = splitPartyMemberEntries(partyContent).filter(
-        e => !benchedKeys.has(memberNameKey(e.name)),
-    );
+    const rawEntries = splitPartyMemberEntries(partyContent);
+    // If the block has content but nothing parsed as a member header (unrecognized custom
+    // format), leave it untouched rather than treating it as an empty roster.
+    if (!rawEntries.length) return memo;
+
+    const entries = rawEntries.filter(e => !benchedKeys.has(memberNameKey(e.name)));
     if (!entries.length) return stripMemoBlock(memo, 'PARTY');
     return replaceMemoBlock(memo, 'PARTY', rebuildPartyBlockContent(entries));
 }
@@ -790,7 +793,15 @@ function replaceMemoBlock(memo, tag, innerContent) {
 
 // Member boundary: ONLY a true entity header line (Name (Class): X/Y HP), never a sub-field
 // like "Combat:" or "Status:". Sub-field lines are continuations of the current entry.
-const PARTY_MEMBER_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?):\s*([\d,]+)(?:\/([\d,]+))?\s*HP\b/i;
+// Custom templates often wrap the HP value in a rendering marker, e.g.
+// "Alice: ((BAR)) 100/100 HP" or "Alice: ((BARRED - #ff0000)) 100/100 HP" — tolerate any
+// number of ((...)) tokens between the colon and the HP figure so those headers still count
+// as a member boundary instead of silently vanishing from the parsed roster.
+const PARTY_MEMBER_MARKER_TOKEN = '(?:\\(\\([^)]*\\)\\)\\s*)*';
+const PARTY_MEMBER_HEADER_RX = new RegExp(
+    `^\\s*[-*+•–—]?(?:\\s+)?(.+?):\\s*${PARTY_MEMBER_MARKER_TOKEN}([\\d,]+)(?:\\/([\\d,]+))?\\s*HP\\b`,
+    'i',
+);
 const PARTY_MEMBER_COMPACT_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?):\s*(Benched\s*\([^)]*\)|Benched\b.*)$/i;
 const PARTY_SUBFIELD_LABELS = /^(Combat|Gear|Proficiencies|Attr|Saves|Skills|Traits|Abilities|Spells|HD|Status):/i;
 
@@ -910,7 +921,18 @@ export function hydratePartyRelocationStats(priorMemo, mergedMemo) {
         if (!content) continue;
         if (/^(?:REMOVED|EXPIRED|CLEARED|NONE)$/i.test(content.trim())) continue;
 
-        const hydrated = splitPartyMemberEntries(content).map(entry => {
+        const rawEntries = splitPartyMemberEntries(content);
+        // Guard against wiping the block: if the content is non-empty but no member
+        // headers were recognized (e.g. an unexpected custom header format), leave the
+        // block exactly as the model emitted it instead of collapsing it to empty.
+        if (!rawEntries.length) {
+            if (getSettings().debugMode) {
+                console.warn(`[RPG Tracker] hydratePartyRelocationStats: [${tag}] has content but 0 parsed member headers — leaving block untouched to avoid data loss.`);
+            }
+            continue;
+        }
+
+        const hydrated = rawEntries.map(entry => {
             const text = entryText(entry);
             if (isFullPartyStatEntry(text)) return entry;
 

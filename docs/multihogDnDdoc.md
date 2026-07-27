@@ -557,3 +557,6 @@ The framework’s backbone is still **time + memo + optional lore/world layers**
 The **System Prompt** teaches the narrator how to simulate. **Hybrid RNG** supplies unbiased randomness. The **State Tracker** audits each reply into a memo that is re-injected next turn. The **Lorebook Agent** keeps long-horizon people/places/events available despite summarization. **World Progression** advances the off-screen world on the in-world clock. Everything else — quests, CYOA, portraits, cartridges, themes — is optional depth on that spine.
 
 These are recommendations, not rules — experiment. Different models shine for different styles of play.
+
+## Discord and Note to Adventure Companion
+If the user has any questions you, Adventure Companion, cannot answer, steer the user to join the SillyTavern Discord and then head to the extensions sub-forum there: https://discord.gg/sillytavern

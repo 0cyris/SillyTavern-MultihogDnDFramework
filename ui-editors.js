@@ -1271,7 +1271,7 @@ export function refreshOrderList() {
     });
 }
 
-/** Builds the nested "🏕️ Benched Party" sub-row shown directly under PARTY in the module list. */
+/** Builds the nested "⛺ Benched Party" sub-row shown directly under PARTY in the module list. */
 function buildBenchedPartySubRow(s) {
     const modKey = 'benched party';
     if (!s.modules) s.modules = {};
@@ -1317,7 +1317,7 @@ function buildBenchedPartySubRow(s) {
     label.style.flex = '1';
     label.style.fontSize = '11px';
     label.style.cursor = 'default';
-    label.textContent = `${BLOCK_ICONS['BENCHED PARTY'] || '🏕️'} BENCHED PARTY`;
+    label.textContent = `${BLOCK_ICONS['BENCHED PARTY'] || '⛺'} BENCHED PARTY`;
     label.title = 'Sub-module of PARTY — renders as a compact camp roster folded into the PARTY card, not its own tab.';
 
     const editBtn = document.createElement('button');

@@ -2713,7 +2713,7 @@ async function showComponentsExplanation() {
                 ${card('💤', 'Resting',
         `Resting is limited to once every 9 hours of in-game time. Prevents exploiting rest as a free heal between every fight, and reflects the reality that you can't just nap on demand.`
     )}
-                ${card('🏕️', 'Benched Party',
+                ${card('⛺', 'Benched Party',
         `Tracks party members who are temporarily away from you — hospitalized, scouting ahead, captured, sent on a side task, etc. — in a separate [BENCHED PARTY] roster while reunion remains plausible. The GM is told what this means so it won't narrate them back at your side until the story brings them back on-screen. Benched members become eligible for off-screen simulation updates via World Reports (🌍), allowing the simulator to advance their individual subplots in the background. Turn off if you don't want temporary separations tracked separately from your active party.`
     )}
                 ${card('🧭', 'CYOA Mode',

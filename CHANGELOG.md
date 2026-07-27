@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.2.60] - 2026-07-28
+
+### Fixed
+- **Custom `[PARTY]` templates**: member headers with inline rendering markers (e.g. `Name: ((BAR)) 100/100 HP`) are recognized again, so merge/hydrate no longer empties the party roster.
+- **Benched portrait overlay**: removed the mojibake’d camping badge on individual chips; tent emoji stays on the Benched header only.
+
+### Changed
+- **Benched Party icon**: uses ⛺ across State Tracker UI, settings, and badges.
+
 ## [6.2.52] - 2026-07-27
 
 ### Fixed

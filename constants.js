@@ -1295,7 +1295,7 @@ Firearms (modern/realistic homebrew): when assigning damage on new characters/ge
 // ── Renderer / block layout constants ─────────────────────────────────────────
 
 export const BLOCK_ICONS = {
-  TIME: '🕒', XP: '🌟', CHARACTER: '🧙', PARTY: '👥', 'BENCHED PARTY': '🏕️',
+  TIME: '🕒', XP: '🌟', CHARACTER: '🧙', PARTY: '👥', 'BENCHED PARTY': '⛺',
   COMBAT: '⚔️', INVENTORY: '🎒', ABILITIES: '✨', SPELLS: '📖',
   QUESTS: '📋',
 };

@@ -1760,16 +1760,6 @@
     box-shadow: 0 0 8px rgba(232, 176, 96, 0.5);
 }
 
-.rt-benched-chip-portrait::after {
-    content: 'Ã°Å¸Ââ€¢Ã¯Â¸Â';
-    position: absolute;
-    bottom: -5px;
-    right: -5px;
-    font-size: 11px;
-    line-height: 1;
-    filter: drop-shadow(0 0 1px #000);
-}
-
 .rt-benched-chip-portrait .rt-entity-portrait,
 .rt-benched-chip-portrait .rt-entity-portrait-placeholder {
     width: 100%;

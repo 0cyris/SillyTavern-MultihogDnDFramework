@@ -2324,7 +2324,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" id="rt_onboarding_mod_party_bench" />
-                            <span>🏕️ Benched Party (Tracks temporarily separated companions)</span>
+                            <span>⛺ Benched Party (Tracks temporarily separated companions)</span>
                         </label>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <input type="checkbox" id="rt_onboarding_mod_cyoa_mode" />
@@ -2634,7 +2634,7 @@ function renderBenchedPartyPanel(benchedContent, isPanelCollapsed, expandedNames
 
     return `<div class="rt-benched-panel${isPanelCollapsed ? ' rt-collapsed' : ''}">
         <div class="rt-section-header rt-benched-panel-header" data-tag="BENCHED PARTY">
-            <span>🏕️ Benched <span class="rt-benched-count">${roster.length}</span></span>
+            <span>⛺ Benched <span class="rt-benched-count">${roster.length}</span></span>
             <span class="rt-collapse-icon">${isPanelCollapsed ? '&#9656;' : '&#9662;'}</span>
         </div>
         <div class="rt-benched-chips">${chips}</div>
@@ -2709,7 +2709,7 @@ export function renderTabModeView(memo, sectionPages, questsCtx = null) {
         // PARTY's tab carries a secondary badge for its folded-in benched sub-panel count.
         if (tag === 'PARTY' && blocks['BENCHED PARTY'] !== undefined) {
             const benchedCount = extractBenchedRoster(blocks['BENCHED PARTY']).length;
-            if (benchedCount > 0) badges += `<span class="rt-tab-badge rt-tab-badge-secondary" title="Benched">🏕️${benchedCount}</span>`;
+            if (benchedCount > 0) badges += `<span class="rt-tab-badge rt-tab-badge-secondary" title="Benched">⛺${benchedCount}</span>`;
         }
         return badges;
     };
