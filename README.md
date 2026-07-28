@@ -38,7 +38,7 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 - **Draggable HUD** with HP bars, spell pips, colored status pills, alert badges, and economy coins.
 - **Automatic spell slot tracking** via 🔵 pips in the UI; never worry about remembering how many you have left.
 - **Buff/debuff temporal decay** via [TIME] delta tracking; statuses expire automatically over time based on time elapsed.
-- **Dynamic enemy scaling** — enemies adapt to quest difficulty and player level contextually.
+- **NO enemy scaling** — the narrative is king and the logic of reality applies; you're not accommodated if you take a task beyond you just because you're a weak.
 - **Auto model-switching** so that you can use a different model for tracking the state.
 - **Full-context audit mode** with automatic chunking for massive chat histories.
 - **Custom fields, themes, reorderable sections**; track whatever you want beyond the stock fields and customize the visuals to your liking.
