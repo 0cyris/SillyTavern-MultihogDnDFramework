@@ -12,7 +12,7 @@
 //                              intact.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { getSettings, getNpcRelationshipMax, buildRelationshipTrackingSysprompt, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries } from './state-manager.js';
+import { getSettings, getNpcRelationshipMax, buildRelationshipTrackingSysprompt, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries, getChatSetupItemScope, setChatSetupItemScope, setChatSetupItemEnabled } from './state-manager.js';
 import { sendStateRequest, restoreUserMacro } from './llm-client.js';
 import { escapeHtml } from './memo-processor.js';
 import { refreshOrderList } from './ui-editors.js';
@@ -612,6 +612,8 @@ export function getSectionRowDescriptor(key, settings, baseSectionMap) {
                 description: override.description || `Unlocked override of <${tag}>`,
                 enabled: !!override.enabled,
                 content: override.content,
+                scope: getChatSetupItemScope(settings, 'syspromptSnippet', override),
+                scopeInherited: false,
             };
         }
         return {
@@ -640,6 +642,9 @@ export function getSectionRowDescriptor(key, settings, baseSectionMap) {
             description: wizardSubtext || item.description || '',
             enabled: !!item.enabled,
             content: item.content,
+            scope: getChatSetupItemScope(settings, 'syspromptSnippet', item),
+            scopeInherited: true,
+            scopeOwnerName: gs?.name || 'Game System',
         };
     }
     return {
@@ -651,6 +656,8 @@ export function getSectionRowDescriptor(key, settings, baseSectionMap) {
         description: item.description || 'Custom Section',
         enabled: !!item.enabled,
         content: item.content,
+        scope: getChatSetupItemScope(settings, 'syspromptSnippet', item),
+        scopeInherited: false,
     };
 }
 
@@ -917,6 +924,7 @@ export async function runAiSectionBuilder(options = {}) {
             tag: result.tag,
             content: result.content,
             enabled: result.saveMode === 'apply',
+            scope: 'chat',
             icon: 'fa-wand-magic-sparkles',
             description: result.description || description,
         };
@@ -949,6 +957,7 @@ export async function runManualSectionBuilder(options = {}) {
         tag: result.tag,
         content: result.content,
         enabled: result.saveMode === 'apply',
+        scope: 'chat',
         icon: 'fa-pen-to-square',
         description: result.description || 'Custom Section',
     };
@@ -1822,6 +1831,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
 
     const enabled = result.saveMode === 'apply';
     const existing = existingSystemId ? settings.gameSystems.find(g => g.id === existingSystemId) : null;
+    const bundleScope = getChatSetupItemScope(settings, 'gameSystem', existing || { scope: 'chat' });
 
     // ── GM section half ──
     let syspromptLibraryId = existing?.syspromptLibraryId || null;
@@ -1845,6 +1855,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
                 icon: 'fa-hat-wizard',
                 description: `Game System: ${result.name}`,
                 origin: 'wizard',
+                scope: bundleScope,
             };
             settings.customSyspromptLibrary.push(libItem);
             syspromptLibraryId = libItem.id;
@@ -1879,6 +1890,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
                 template: '',
                 enabled,
                 origin: 'wizard',
+                scope: bundleScope,
             };
             settings.customFields.push(field);
             customFieldTag = finalTag;
@@ -1913,6 +1925,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
             name: result.name,
             icon: result.icon,
             enabled,
+            scope: 'chat',
             needsTracker: result.includeTracker,
             driverTime: result.driverTime,
             driverGmAnnotation: result.driverGmAnnotation,
@@ -2212,22 +2225,7 @@ export async function importGameSystem() {
 export async function setGameSystemEnabled(gs, enabled, options = {}) {
     const { deferPersistence = false } = options;
     const settings = getSettings();
-    gs.enabled = enabled;
-    gs._chatSetupMember = true;
-    if (gs.syspromptLibraryId) {
-        const lib = (settings.customSyspromptLibrary || []).find(p => p.id === gs.syspromptLibraryId);
-        if (lib) {
-            lib.enabled = enabled;
-            lib._chatSetupMember = true;
-        }
-    }
-    if (gs.customFieldTag) {
-        const field = (settings.customFields || []).find(f => f.tag.toUpperCase() === gs.customFieldTag);
-        if (field) {
-            field.enabled = enabled;
-            field._chatSetupMember = true;
-        }
-    }
+    setChatSetupItemEnabled(settings, 'gameSystem', gs, enabled);
     if (deferPersistence) return;
     saveSettings();
     refreshOrderList();
@@ -2280,12 +2278,16 @@ export async function openManageGameSystems() {
             return `<div style="text-align:center; padding:30px; opacity:0.5; font-style:italic;">No Game Systems yet. Use the Wizard to create one.</div>`;
         }
         return '<div style="display:flex; flex-direction:column; gap:8px;">' + settings.gameSystems.map((gs, index) => `
-            <div class="rt-gs-item" data-index="${index}" style="display:flex; align-items:center; gap:10px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:rgba(0,0,0,0.2); padding:10px;">
+            <div class="rt-gs-item" data-index="${index}" style="display:flex; align-items:center; flex-wrap:wrap; gap:10px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:rgba(0,0,0,0.2); padding:10px;">
                 <div style="font-size:18px; width:26px; text-align:center;">${escapeHtml(gs.icon || '✨')}</div>
                 <div style="flex:1; min-width:0;">
                     <div style="font-weight:bold; font-size:13px;">${escapeHtml(gs.name)}</div>
                     <div style="font-size:10px; opacity:0.6; text-transform:uppercase; letter-spacing:0.5px;">${badgeForSystem(gs)}</div>
                 </div>
+                <select class="rt-gs-scope text_pole" data-index="${index}" title="Global shares this bundle's enabled state across every chat. Chat-bound remembers activation separately for each chat." style="width:auto; max-width:105px; height:26px; font-size:9px; padding:1px 4px;">
+                    <option value="chat" ${getChatSetupItemScope(settings, 'gameSystem', gs) === 'chat' ? 'selected' : ''}>CHAT-BOUND</option>
+                    <option value="global" ${getChatSetupItemScope(settings, 'gameSystem', gs) === 'global' ? 'selected' : ''}>GLOBAL</option>
+                </select>
                 <label class="checkbox_label" style="margin:0; font-size:11px;">
                     <input type="checkbox" class="rt-gs-toggle" data-index="${index}" ${gs.enabled ? 'checked' : ''}>
                     <span>Enable</span>
@@ -2300,7 +2302,7 @@ export async function openManageGameSystems() {
     const html = `
         <div id="rt-gs-manage-container" style="display:flex; flex-direction:column; gap:12px; width:100%; box-sizing:border-box; max-height:85vh;">
             <div style="display:flex; align-items:center; justify-content:space-between;">
-                <div style="font-size:11px; opacity:0.8; line-height:1.4;">Manage Game System bundles. Toggling or deleting a bundle affects both its GM section and tracker module together.</div>
+                <div style="font-size:11px; opacity:0.8; line-height:1.4;">Manage Game System bundles. Enabled state and scope apply to the linked GM section and tracker module together. Global bundles share one enabled state across every chat; Chat-bound bundles remember activation per chat.</div>
                 <button id="rt_gs_btn_import" class="menu_button interactable" style="white-space:nowrap; margin-left:10px; font-size:11px; padding:4px 8px;">
                     <i class="fa-solid fa-file-import"></i> Import
                 </button>
@@ -2324,6 +2326,18 @@ export async function openManageGameSystems() {
                     const idx = parseInt(e.target.dataset.index);
                     const gs = settings.gameSystems[idx];
                     await setGameSystemEnabled(gs, e.target.checked);
+                });
+            });
+
+            wrap.querySelectorAll('.rt-gs-scope').forEach(el => {
+                el.addEventListener('change', (e) => {
+                    const idx = parseInt(e.target.dataset.index);
+                    const gs = settings.gameSystems[idx];
+                    setChatSetupItemScope(settings, 'gameSystem', gs, e.target.value);
+                    saveSettings();
+                    refreshOrderList();
+                    const w = document.getElementById('rt-gs-manage-list-wrap');
+                    if (w) { w.innerHTML = generateListHtml(); bindEvents(); }
                 });
             });
 
@@ -2400,6 +2414,7 @@ export async function unlockBaseSection(tag, options = {}) {
         tag,
         content: seedContent,
         enabled: true,
+        scope: 'chat',
         icon: 'fa-lock-open',
         description: `Unlocked override of <${tag}>`,
         origin: 'unlocked_base',
@@ -2533,6 +2548,19 @@ function controlRoomRowActions(row) {
         <button class="rt-cr-delete-custom" data-libid="${escapeHtml(row.libId)}" style="background:none; border:none; color:#ff5555; cursor:pointer; padding:4px;" title="Delete Section"><i class="fa-solid fa-trash-can"></i></button>`;
 }
 
+function controlRoomRowScope(row) {
+    if (!row.scope) return '';
+    const label = row.scope === 'global' ? 'GLOBAL' : 'CHAT-BOUND';
+    if (row.scopeInherited) {
+        return `<span title="${escapeHtml(`${label} scope inherited from Game System "${row.scopeOwnerName || 'Game System'}". Change it in Manage Game Systems.`)}" style="font-size:9px;padding:2px 5px;border-radius:3px;white-space:nowrap;background:rgba(180,100,255,0.13);color:#c9a0ff;border:1px solid rgba(180,100,255,0.25);">${label}</span>`;
+    }
+    return `
+        <select class="rt-cr-scope text_pole" data-key="${escapeHtml(row.key)}" title="Global shares this snippet's enabled state across every chat. Chat-bound remembers activation separately for each chat." style="width:auto;max-width:105px;height:24px;font-size:9px;padding:1px 4px;">
+            <option value="chat" ${row.scope === 'chat' ? 'selected' : ''}>CHAT-BOUND</option>
+            <option value="global" ${row.scope === 'global' ? 'selected' : ''}>GLOBAL</option>
+        </select>`;
+}
+
 function renderControlRoomRow(row) {
     return `
         <div class="rt-cr-row" data-key="${escapeHtml(row.key)}" style="opacity:${row.enabled ? '1' : '0.55'};">
@@ -2545,6 +2573,7 @@ function renderControlRoomRow(row) {
                 </div>
             </div>
             <div class="rt-cr-row-controls">
+                ${controlRoomRowScope(row)}
                 <label class="checkbox_label rt-cr-row-enable">
                     <input type="checkbox" class="rt-cr-enable" data-key="${escapeHtml(row.key)}" ${row.enabled ? 'checked' : ''}>
                     <span>Enabled</span>
@@ -2589,7 +2618,7 @@ export async function openSystemPromptControlRoom() {
             ${groupedRows.map(renderControlRoomRow).join('')}
         ` : '';
         return '<div id="rt-cr-list" style="display:flex; flex-direction:column; gap:8px;">'
-            + renderGroup('Active for this chat', activeRows, true)
+            + renderGroup('Active snippets', activeRows, true)
             + renderGroup('Inactive snippet pool', inactiveRows, false)
             + '</div>';
     };
@@ -2597,7 +2626,7 @@ export async function openSystemPromptControlRoom() {
     const html = `
         <div id="rt-cr-container" class="rt-cr-popup-container">
             <div style="font-size:11px; opacity:0.8; line-height:1.4;">
-                Drag any row to reorder sections, toggle <b>Enabled</b> to move it between this chat's active list and the inactive snippet pool, or use the tools below to unlock a built-in section or add a brand-new one. 🧙 rows are managed by the Game System Wizard — Edit/Delete there keeps the linked tracker module in sync.
+                Drag any row to reorder sections, toggle <b>Enabled</b>, and choose whether standalone snippets are <b>Global</b> or <b>Chat-bound</b>. 🧙 rows inherit both activation and scope from their Game System so the linked tracker module stays in sync.
                 <div style="margin-top:4px; opacity:0.75;">Changes are kept in memory until you click <b>Save</b>.</div>
             </div>
             <details id="rt-cr-custom-sysprompt-details" style="border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 8px;">
@@ -2711,11 +2740,21 @@ export async function openSystemPromptControlRoom() {
                         }
                     } else {
                         const item = (settings.customSyspromptLibrary || []).find(p => p.id === row.libId);
-                        if (item) {
-                            item.enabled = checked;
-                            item._chatSetupMember = true;
-                        }
+                        if (item) setChatSetupItemEnabled(settings, 'syspromptSnippet', item, checked);
                     }
+                    refresh();
+                });
+            });
+
+            // ── Global / Chat-bound scope ──
+            wrap.querySelectorAll('.rt-cr-scope').forEach(el => {
+                el.addEventListener('change', (e) => {
+                    const key = e.currentTarget.dataset.key;
+                    const row = getSectionRowDescriptor(key, settings, baseSectionMap);
+                    if (!row || !row.libId || row.scopeInherited) return;
+                    const item = (settings.customSyspromptLibrary || []).find(p => p.id === row.libId);
+                    if (!item) return;
+                    setChatSetupItemScope(settings, 'syspromptSnippet', item, e.currentTarget.value);
                     refresh();
                 });
             });

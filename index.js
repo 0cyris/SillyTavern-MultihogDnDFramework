@@ -5583,11 +5583,11 @@ async function runPortraitMigrationIfNeeded() {
             settings.chatSetupLinkEnabled = enabled;
             if (enabled && settings.chatLinkEnabled && runtimeState.currentChatId) {
                 saveChatState(runtimeState.currentChatId);
-                toastr['success']('This chat now owns its Control Room and State Tracker module setup.', 'RPG Tracker');
+                toastr['success']('Per-item scopes active. Chat-bound setup saved to this chat; Global items remain shared.', 'RPG Tracker');
             } else if (enabled) {
                 toastr['info']('Setup lock is ready. Turn on Chat-Linked Mode to bind the current setup.', 'RPG Tracker');
             } else {
-                toastr['info']('Per-chat setup lock off — the current setup will carry between chats.', 'RPG Tracker');
+                toastr['info']('Setup scope bypass on — the current setup will carry between chats without changing saved item scopes.', 'RPG Tracker');
             }
             saveSettings();
             updateChatLinkUI();
@@ -6728,11 +6728,12 @@ async function runPortraitMigrationIfNeeded() {
                 tag: newTag, label: 'New Field', icon: '📝',
                 prompt: '',
                 template: EXAMPLES + '\n\n' + COLOR_EXAMPLES,
-                enabled: true
+                enabled: true,
+                scope: 'chat'
             });
             clearDeletedCustomTagTombstones(newTag);
-            refreshOrderList();
             saveSettings(true);
+            refreshOrderList();
         });
 
         // ── AI Custom Field Creator ──
@@ -6908,11 +6909,12 @@ RULES:
                     icon: parsed.icon,
                     prompt: parsed.prompt,
                     template: parsed.template,
-                    enabled: true
+                    enabled: true,
+                    scope: 'chat'
                 });
                 clearDeletedCustomTagTombstones(parsed.tag);
-                refreshOrderList();
                 saveSettings(true);
+                refreshOrderList();
                 toastr['success'](`Custom field "${parsed.label}" created!`, 'AI Field Creator');
             } catch (err) {
                 console.error('[RPG Tracker] AI Field Creator error:', err);

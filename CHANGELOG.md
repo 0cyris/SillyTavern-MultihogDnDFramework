@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.3.50] - 2026-07-28
+
+### Added
+- **Global / Chat-bound item scopes**: standalone tracker modules and system-prompt snippets can now share one enabled state across every chat or retain activation separately per chat. Wizard-created modules and snippets inherit one atomic scope from their Game System bundle.
+- **Scope bypass mode**: turning off the per-chat Control Room/module lock temporarily carries the current setup between chats without changing saved item scopes.
+
+### Fixed
+- **First scope change on new modules**: newly created module rows now persist the first Global / Chat-bound selection immediately, even when catalog synchronization has just replaced the in-memory definition.
+
 ## [6.3.0] - 2026-07-28
 
 ### Added

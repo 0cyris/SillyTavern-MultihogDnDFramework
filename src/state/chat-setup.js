@@ -8,6 +8,10 @@
 
 import { buildDefaultSettings } from './defaults.js';
 
+export const CHAT_SETUP_CATALOG_VERSION = 2;
+export const CHAT_SETUP_SCOPE_CHAT = 'chat';
+export const CHAT_SETUP_SCOPE_GLOBAL = 'global';
+
 export const CHAT_SETUP_KEYS = Object.freeze([
     // System Prompt Control Room (custom definitions live in the snippet catalog)
     'syspromptSectionOrder',
@@ -48,8 +52,25 @@ function gameSystemKey(item) {
     return String(item?.id || '').trim();
 }
 
+function normalizeScope(scope) {
+    return scope === CHAT_SETUP_SCOPE_GLOBAL ? CHAT_SETUP_SCOPE_GLOBAL : CHAT_SETUP_SCOPE_CHAT;
+}
+
+function normalizeScopeRecord(item) {
+    if (!item || typeof item !== 'object') return item;
+    item.scope = normalizeScope(item.scope);
+    if (item.scope === CHAT_SETUP_SCOPE_GLOBAL && typeof item.globalEnabled !== 'boolean') {
+        item.globalEnabled = typeof item.enabled === 'boolean' ? !!item.enabled : false;
+    }
+    return item;
+}
+
 function definitionOnly(item) {
     const copy = clone(item || {});
+    normalizeScopeRecord(copy);
+    if (copy.scope === CHAT_SETUP_SCOPE_GLOBAL && typeof item?.enabled === 'boolean') {
+        copy.globalEnabled = !!item.enabled;
+    }
     delete copy.enabled;
     delete copy._chatSetupMember;
     return copy;
@@ -86,7 +107,9 @@ function stateMap(items, keyOf) {
     const states = {};
     for (const item of Array.isArray(items) ? items : []) {
         const key = keyOf(item);
-        if (key && item._chatSetupMember !== false) states[key] = !!item.enabled;
+        if (key && normalizeScope(item?.scope) !== CHAT_SETUP_SCOPE_GLOBAL && item._chatSetupMember !== false) {
+            states[key] = !!item.enabled;
+        }
     }
     return states;
 }
@@ -94,13 +117,150 @@ function stateMap(items, keyOf) {
 function hydrateCatalog(catalog, states, keyOf) {
     return (Array.isArray(catalog) ? catalog : []).map(item => {
         const key = keyOf(item);
+        const scope = normalizeScope(item?.scope);
+        if (scope === CHAT_SETUP_SCOPE_GLOBAL) {
+            return {
+                ...clone(item),
+                scope,
+                enabled: !!item.globalEnabled,
+                _chatSetupMember: true,
+            };
+        }
         const member = Object.prototype.hasOwnProperty.call(states || {}, key);
         return {
             ...clone(item),
+            scope,
             enabled: member ? !!states[key] : false,
             _chatSetupMember: member,
         };
     });
+}
+
+function findLinkedGameSystem(gameSystems, kind, item) {
+    const systems = Array.isArray(gameSystems) ? gameSystems : [];
+    if (kind === 'gameSystem') return item || null;
+    if (kind === 'customField') {
+        const tag = customFieldKey(item);
+        return systems.find(gs => String(gs?.customFieldTag || '').trim().toUpperCase() === tag) || null;
+    }
+    if (kind === 'syspromptSnippet') {
+        const id = snippetKey(item);
+        return systems.find(gs => String(gs?.syspromptLibraryId || '').trim() === id) || null;
+    }
+    return null;
+}
+
+function findCurrentItem(settings, kind, item) {
+    if (kind === 'gameSystem') {
+        const key = gameSystemKey(item);
+        return (settings?.gameSystems || []).find(candidate => gameSystemKey(candidate) === key) || item;
+    }
+    if (kind === 'customField') {
+        const key = customFieldKey(item);
+        return (settings?.customFields || []).find(candidate => customFieldKey(candidate) === key) || item;
+    }
+    if (kind === 'syspromptSnippet') {
+        const key = snippetKey(item);
+        return (settings?.customSyspromptLibrary || []).find(candidate => snippetKey(candidate) === key) || item;
+    }
+    return item;
+}
+
+function alignWizardCollectionScopes(gameSystems, snippets, fields, live) {
+    for (const gameSystem of Array.isArray(gameSystems) ? gameSystems : []) {
+        normalizeScopeRecord(gameSystem);
+        const scope = gameSystem.scope;
+        const enabled = live ? !!gameSystem.enabled : !!gameSystem.globalEnabled;
+        const member = scope === CHAT_SETUP_SCOPE_GLOBAL ? true : gameSystem._chatSetupMember !== false;
+
+        const snippetId = String(gameSystem.syspromptLibraryId || '').trim();
+        const fieldTag = String(gameSystem.customFieldTag || '').trim().toUpperCase();
+        const snippet = snippetId
+            ? (snippets || []).find(item => snippetKey(item) === snippetId)
+            : null;
+        const field = fieldTag
+            ? (fields || []).find(item => customFieldKey(item) === fieldTag)
+            : null;
+
+        for (const child of [snippet, field]) {
+            if (!child) continue;
+            child.scope = scope;
+            if (scope === CHAT_SETUP_SCOPE_GLOBAL) child.globalEnabled = enabled;
+            if (live) {
+                child.enabled = !!gameSystem.enabled;
+                child._chatSetupMember = member;
+            }
+        }
+    }
+}
+
+function alignWizardScopes(settings) {
+    alignWizardCollectionScopes(
+        settings?.gameSystemDatabase,
+        settings?.syspromptSnippetDatabase,
+        settings?.trackerModuleDatabase,
+        false,
+    );
+    alignWizardCollectionScopes(
+        settings?.gameSystems,
+        settings?.customSyspromptLibrary,
+        settings?.customFields,
+        true,
+    );
+}
+
+/**
+ * Resolves an item's effective scope. Wizard-created children inherit from
+ * their Game System bundle; standalone items own their scope directly.
+ */
+export function getChatSetupItemScope(settings, kind, item) {
+    const owner = findLinkedGameSystem(settings?.gameSystems, kind, item)
+        || findLinkedGameSystem(settings?.gameSystemDatabase, kind, item);
+    return normalizeScope(owner?.scope ?? item?.scope);
+}
+
+/** Returns the linked Game System when an item's scope is inherited. */
+export function getChatSetupScopeOwner(settings, kind, item) {
+    if (kind === 'gameSystem') return null;
+    return findLinkedGameSystem(settings?.gameSystems, kind, item)
+        || findLinkedGameSystem(settings?.gameSystemDatabase, kind, item);
+}
+
+/**
+ * Changes an item's scope without changing its current enabled state. When a
+ * Wizard child is passed, the owning Game System remains authoritative.
+ */
+export function setChatSetupItemScope(settings, kind, item, scope) {
+    if (!settings || !item) return CHAT_SETUP_SCOPE_CHAT;
+    const normalized = normalizeScope(scope);
+    const currentItem = findCurrentItem(settings, kind, item);
+    const owner = kind === 'gameSystem'
+        ? currentItem
+        : (getChatSetupScopeOwner(settings, kind, currentItem) || currentItem);
+    owner.scope = normalized;
+    owner._chatSetupMember = true;
+    if (normalized === CHAT_SETUP_SCOPE_GLOBAL) owner.globalEnabled = !!owner.enabled;
+    alignWizardScopes(settings);
+    return normalized;
+}
+
+/**
+ * Applies an enabled state to an item. Wizard children delegate to their bundle,
+ * and Global items immediately update the shared catalog-facing state.
+ */
+export function setChatSetupItemEnabled(settings, kind, item, enabled) {
+    if (!settings || !item) return false;
+    const currentItem = findCurrentItem(settings, kind, item);
+    const owner = kind === 'gameSystem'
+        ? currentItem
+        : (getChatSetupScopeOwner(settings, kind, currentItem) || currentItem);
+    owner.enabled = !!enabled;
+    owner._chatSetupMember = true;
+    if (normalizeScope(owner.scope) === CHAT_SETUP_SCOPE_GLOBAL) {
+        owner.globalEnabled = !!enabled;
+    }
+    alignWizardScopes(settings);
+    return !!enabled;
 }
 
 function collectLegacySetupArrays(settings, field) {
@@ -119,7 +279,7 @@ function upgradeLegacySetup(setup) {
     delete setup.customFields;
     delete setup.customSyspromptLibrary;
     delete setup.gameSystems;
-    setup.version = 2;
+    setup.version = 3;
 }
 
 /**
@@ -128,50 +288,68 @@ function upgradeLegacySetup(setup) {
  * the current chat's enabled flags.
  */
 export function migrateChatSetupCatalogs(settings) {
-    if (!settings || settings.chatSetupCatalogVersion === 1) return false;
+    if (!settings || Number(settings.chatSetupCatalogVersion) >= CHAT_SETUP_CATALOG_VERSION) return false;
 
     const currentFieldStates = stateMap(settings.customFields, customFieldKey);
     const currentSnippetStates = stateMap(settings.customSyspromptLibrary, snippetKey);
     const currentGameStates = stateMap(settings.gameSystems, gameSystemKey);
 
-    settings.trackerModuleDatabase = mergeCatalog(
-        settings.trackerModuleDatabase,
-        [...collectLegacySetupArrays(settings, 'customFields'), settings.customFields],
-        customFieldKey,
-    );
-    settings.syspromptSnippetDatabase = mergeCatalog(
-        settings.syspromptSnippetDatabase,
-        [...collectLegacySetupArrays(settings, 'customSyspromptLibrary'), settings.customSyspromptLibrary],
-        snippetKey,
-    );
-    settings.gameSystemDatabase = mergeCatalog(
-        settings.gameSystemDatabase,
-        [...collectLegacySetupArrays(settings, 'gameSystems'), settings.gameSystems],
-        gameSystemKey,
-    );
+    if (Number(settings.chatSetupCatalogVersion) < 1) {
+        settings.trackerModuleDatabase = mergeCatalog(
+            settings.trackerModuleDatabase,
+            [...collectLegacySetupArrays(settings, 'customFields'), settings.customFields],
+            customFieldKey,
+        );
+        settings.syspromptSnippetDatabase = mergeCatalog(
+            settings.syspromptSnippetDatabase,
+            [...collectLegacySetupArrays(settings, 'customSyspromptLibrary'), settings.customSyspromptLibrary],
+            snippetKey,
+        );
+        settings.gameSystemDatabase = mergeCatalog(
+            settings.gameSystemDatabase,
+            [...collectLegacySetupArrays(settings, 'gameSystems'), settings.gameSystems],
+            gameSystemKey,
+        );
+    }
 
     for (const snapshot of Object.values(settings.chatStates || {})) upgradeLegacySetup(snapshot?.setup);
 
+    for (const collection of [
+        settings.trackerModuleDatabase,
+        settings.syspromptSnippetDatabase,
+        settings.gameSystemDatabase,
+        settings.customFields,
+        settings.customSyspromptLibrary,
+        settings.gameSystems,
+    ]) {
+        for (const item of Array.isArray(collection) ? collection : []) normalizeScopeRecord(item);
+    }
+    alignWizardScopes(settings);
+
+    settings.gameSystems = hydrateCatalog(settings.gameSystemDatabase, currentGameStates, gameSystemKey);
     settings.customFields = hydrateCatalog(settings.trackerModuleDatabase, currentFieldStates, customFieldKey);
     settings.customSyspromptLibrary = hydrateCatalog(settings.syspromptSnippetDatabase, currentSnippetStates, snippetKey);
-    settings.gameSystems = hydrateCatalog(settings.gameSystemDatabase, currentGameStates, gameSystemKey);
-    settings.chatSetupCatalogVersion = 1;
+    alignWizardScopes(settings);
+    settings.chatSetupCatalogVersion = CHAT_SETUP_CATALOG_VERSION;
     return true;
 }
 
 /** Merge newly created or edited live definitions into their global catalogs. */
 export function syncChatSetupCatalogs(settings) {
     if (!settings) return false;
-    if (settings.chatSetupCatalogVersion !== 1) migrateChatSetupCatalogs(settings);
+    if (Number(settings.chatSetupCatalogVersion) < CHAT_SETUP_CATALOG_VERSION) migrateChatSetupCatalogs(settings);
+    alignWizardScopes(settings);
     const fieldStates = stateMap(settings.customFields, customFieldKey);
     const snippetStates = stateMap(settings.customSyspromptLibrary, snippetKey);
     const gameStates = stateMap(settings.gameSystems, gameSystemKey);
     settings.trackerModuleDatabase = mergeCatalog(settings.trackerModuleDatabase, [settings.customFields], customFieldKey, false);
     settings.syspromptSnippetDatabase = mergeCatalog(settings.syspromptSnippetDatabase, [settings.customSyspromptLibrary], snippetKey, false);
     settings.gameSystemDatabase = mergeCatalog(settings.gameSystemDatabase, [settings.gameSystems], gameSystemKey, false);
+    alignWizardScopes(settings);
+    settings.gameSystems = hydrateCatalog(settings.gameSystemDatabase, gameStates, gameSystemKey);
     settings.customFields = hydrateCatalog(settings.trackerModuleDatabase, fieldStates, customFieldKey);
     settings.customSyspromptLibrary = hydrateCatalog(settings.syspromptSnippetDatabase, snippetStates, snippetKey);
-    settings.gameSystems = hydrateCatalog(settings.gameSystemDatabase, gameStates, gameSystemKey);
+    alignWizardScopes(settings);
     return true;
 }
 
@@ -179,7 +357,7 @@ export function syncChatSetupCatalogs(settings) {
 export function snapshotChatSetup(settings) {
     syncChatSetupCatalogs(settings);
     const setup = {
-        version: 2,
+        version: 3,
         customFieldStates: stateMap(settings?.customFields, customFieldKey),
         syspromptSnippetStates: stateMap(settings?.customSyspromptLibrary, snippetKey),
         gameSystemStates: stateMap(settings?.gameSystems, gameSystemKey),
@@ -195,7 +373,7 @@ export function snapshotChatSetup(settings) {
  */
 export function applyChatSetup(settings, setup) {
     if (!settings || !setup || typeof setup !== 'object') return false;
-    if (settings.chatSetupCatalogVersion !== 1) migrateChatSetupCatalogs(settings);
+    if (Number(settings.chatSetupCatalogVersion) < CHAT_SETUP_CATALOG_VERSION) migrateChatSetupCatalogs(settings);
     upgradeLegacySetup(setup);
 
     const defaults = buildDefaultSettings();
@@ -204,16 +382,17 @@ export function applyChatSetup(settings, setup) {
         settings[key] = clone(value);
     }
 
+    settings.gameSystems = hydrateCatalog(settings.gameSystemDatabase, setup.gameSystemStates, gameSystemKey);
     settings.customFields = hydrateCatalog(settings.trackerModuleDatabase, setup.customFieldStates, customFieldKey);
     settings.customSyspromptLibrary = hydrateCatalog(settings.syspromptSnippetDatabase, setup.syspromptSnippetStates, snippetKey);
-    settings.gameSystems = hydrateCatalog(settings.gameSystemDatabase, setup.gameSystemStates, gameSystemKey);
+    alignWizardScopes(settings);
     return true;
 }
 
 /** Reset only the Control Room / tracker setup; catalog items stay visible and inactive. */
 export function resetChatSetupToStock(settings) {
     const defaults = buildDefaultSettings();
-    const setup = { version: 2, customFieldStates: {}, syspromptSnippetStates: {}, gameSystemStates: {} };
+    const setup = { version: 3, customFieldStates: {}, syspromptSnippetStates: {}, gameSystemStates: {} };
     for (const key of CHAT_SETUP_KEYS) setup[key] = clone(defaults[key]);
     return applyChatSetup(settings, setup);
 }

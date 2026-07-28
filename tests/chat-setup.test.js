@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
     applyChatSetup,
     buildDefaultSettings,
+    getChatSetupItemScope,
+    getChatSetupScopeOwner,
     migrateChatSetupCatalogs,
     removeChatSetupCatalogEntries,
     resetChatSetupToStock,
+    setChatSetupItemEnabled,
+    setChatSetupItemScope,
     snapshotChatSetup,
     syncChatSetupCatalogs,
 } from '../state-manager.js';
@@ -98,5 +102,131 @@ describe('per-chat Control Room and tracker setup', () => {
 
         expect(settings.trackerModuleDatabase[0].prompt).toBe('Revised tracker prompt');
         expect(settings.syspromptSnippetDatabase[0].content).toBe('Revised snippet');
+    });
+
+    it('keeps Global activation outside chat snapshots', () => {
+        const settings = buildDefaultSettings();
+        migrateChatSetupCatalogs(settings);
+        settings.customFields = [{
+            tag: 'WEATHER',
+            label: 'Weather',
+            enabled: true,
+            scope: 'global',
+        }];
+        settings.customSyspromptLibrary = [{
+            id: 'weather-rules',
+            tag: 'weather_rules',
+            content: 'Track the weather.',
+            enabled: true,
+            scope: 'global',
+        }];
+
+        const chatA = snapshotChatSetup(settings);
+        expect(chatA.customFieldStates).not.toHaveProperty('WEATHER');
+        expect(chatA.syspromptSnippetStates).not.toHaveProperty('weather-rules');
+
+        setChatSetupItemEnabled(settings, 'customField', settings.customFields[0], false);
+        setChatSetupItemEnabled(settings, 'syspromptSnippet', settings.customSyspromptLibrary[0], false);
+        syncChatSetupCatalogs(settings);
+        expect(applyChatSetup(settings, chatA)).toBe(true);
+        expect(settings.customFields[0].enabled).toBe(false);
+        expect(settings.customSyspromptLibrary[0].enabled).toBe(false);
+
+        setChatSetupItemEnabled(settings, 'customField', settings.customFields[0], true);
+        setChatSetupItemEnabled(settings, 'syspromptSnippet', settings.customSyspromptLibrary[0], true);
+        syncChatSetupCatalogs(settings);
+        resetChatSetupToStock(settings);
+        expect(settings.customFields[0].enabled).toBe(true);
+        expect(settings.customSyspromptLibrary[0].enabled).toBe(true);
+    });
+
+    it('combines shared Global state with per-chat activation', () => {
+        const settings = buildDefaultSettings();
+        migrateChatSetupCatalogs(settings);
+        settings.customFields = [
+            { tag: 'SANITY', label: 'Sanity', enabled: true, scope: 'chat' },
+            { tag: 'WEATHER', label: 'Weather', enabled: true, scope: 'global' },
+        ];
+        const chatA = snapshotChatSetup(settings);
+
+        setChatSetupItemEnabled(settings, 'customField', settings.customFields[0], false);
+        setChatSetupItemEnabled(settings, 'customField', settings.customFields[1], false);
+        snapshotChatSetup(settings);
+
+        applyChatSetup(settings, chatA);
+        expect(settings.customFields.find(item => item.tag === 'SANITY')?.enabled).toBe(true);
+        expect(settings.customFields.find(item => item.tag === 'WEATHER')?.enabled).toBe(false);
+    });
+
+    it('makes a Wizard Game System authoritative for both linked children', () => {
+        const settings = buildDefaultSettings();
+        migrateChatSetupCatalogs(settings);
+        settings.gameSystems = [{
+            id: 'stress-system',
+            name: 'Stress',
+            enabled: true,
+            scope: 'global',
+            customFieldTag: 'STRESS',
+            syspromptLibraryId: 'stress-rules',
+        }];
+        settings.customFields = [{
+            tag: 'STRESS',
+            label: 'Stress',
+            enabled: false,
+            scope: 'chat',
+            origin: 'wizard',
+        }];
+        settings.customSyspromptLibrary = [{
+            id: 'stress-rules',
+            tag: 'stress_rules',
+            content: 'Apply stress.',
+            enabled: false,
+            scope: 'chat',
+            origin: 'wizard',
+        }];
+
+        const setup = snapshotChatSetup(settings);
+        const gameSystem = settings.gameSystems[0];
+        const field = settings.customFields[0];
+        const snippet = settings.customSyspromptLibrary[0];
+        expect(getChatSetupScopeOwner(settings, 'customField', field)).toBe(gameSystem);
+        expect(getChatSetupItemScope(settings, 'customField', field)).toBe('global');
+        expect(field.enabled).toBe(true);
+        expect(snippet.enabled).toBe(true);
+        expect(setup.gameSystemStates).not.toHaveProperty('stress-system');
+        expect(setup.customFieldStates).not.toHaveProperty('STRESS');
+        expect(setup.syspromptSnippetStates).not.toHaveProperty('stress-rules');
+
+        setChatSetupItemEnabled(settings, 'syspromptSnippet', snippet, false);
+        expect(gameSystem.enabled).toBe(false);
+        expect(field.enabled).toBe(false);
+        expect(snippet.enabled).toBe(false);
+
+        setChatSetupItemScope(settings, 'customField', field, 'chat');
+        expect(gameSystem.scope).toBe('chat');
+        expect(field.scope).toBe('chat');
+        expect(snippet.scope).toBe('chat');
+    });
+
+    it('applies the first scope change even when a newly rendered row holds a pre-sync object', () => {
+        const settings = buildDefaultSettings();
+        migrateChatSetupCatalogs(settings);
+        settings.customFields = [{
+            tag: 'MORALE',
+            label: 'Morale',
+            enabled: true,
+            scope: 'chat',
+        }];
+
+        const renderedFieldReference = settings.customFields[0];
+        syncChatSetupCatalogs(settings);
+        expect(settings.customFields[0]).not.toBe(renderedFieldReference);
+
+        setChatSetupItemScope(settings, 'customField', renderedFieldReference, 'global');
+        expect(settings.customFields[0].scope).toBe('global');
+
+        syncChatSetupCatalogs(settings);
+        expect(settings.trackerModuleDatabase[0].scope).toBe('global');
+        expect(settings.trackerModuleDatabase[0].globalEnabled).toBe(true);
     });
 });

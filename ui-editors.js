@@ -1,4 +1,4 @@
-import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries } from './state-manager.js';
+import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries, getChatSetupItemScope, setChatSetupItemScope, setChatSetupItemEnabled } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
 import { BLOCK_ICONS, BLOCK_ORDER, DEFAULT_STOCK_PROMPTS, PAGE_SIZE, resolveTimePromptKey, resolveTimePromptDisplayTag } from './constants.js';
 import { escapeHtml } from './memo-processor.js';
@@ -17,7 +17,8 @@ import {
     syncMemoView,
     bindRenderedCardEvents,
     sectionPages as _sectionPages,
-    rebuildNpcInstructionIfNeeded
+    rebuildNpcInstructionIfNeeded,
+    autoApplySysprompt
 } from './src/app/runtime-bridge.js';
 import { renderMemoAsCards, MARKER_TYPE_MAP, getMarkerLibraryKeys } from './renderer.js';
 
@@ -955,6 +956,9 @@ export async function importModulesFromJson(jsonString) {
     for (const m of incoming) {
         const isConflict = existingTags.has(m.tag);
         if (isConflict && !overwriteConflicts) continue;
+        const existingField = isConflict
+            ? s.customFields.find(f => f.tag.toUpperCase() === m.tag)
+            : null;
 
         const newField = {
             icon: m.icon || '📄',
@@ -963,6 +967,7 @@ export async function importModulesFromJson(jsonString) {
             prompt: m.prompt || '',
             template: '',
             enabled: true,
+            scope: existingField?.scope || 'chat',
         };
 
         if (isConflict) {
@@ -1104,7 +1109,7 @@ export function refreshOrderList() {
         return field?.enabled ?? false;
     };
     const groups = [
-        { label: 'Active for this chat', tags: order.filter(isTagEnabled), active: true },
+        { label: 'Active modules', tags: order.filter(isTagEnabled), active: true },
         { label: 'Inactive module pool', tags: order.filter(tag => !isTagEnabled(tag)), active: false },
     ];
 
@@ -1136,7 +1141,7 @@ export function refreshOrderList() {
         cb.type = 'checkbox';
         cb.checked = isEnabled;
         cb.style.margin = '0 5px';
-        cb.onchange = () => {
+        cb.onchange = async () => {
             if (isStock) {
                 s.modules[tag.toLowerCase()] = cb.checked;
                 // Benched Party is a sub-module of PARTY — the two toggles stay coupled.
@@ -1146,12 +1151,12 @@ export function refreshOrderList() {
                     s.syspromptModules.party_bench = false;
                 }
             } else {
-                field.enabled = cb.checked;
-                field._chatSetupMember = true;
+                setChatSetupItemEnabled(s, 'customField', field, cb.checked);
             }
             saveSettings();
             refreshOrderList();
             refreshRenderedView();
+            if (linkedGameSystem) await autoApplySysprompt(true);
         };
 
         const label = document.createElement('span');
@@ -1172,6 +1177,30 @@ export function refreshOrderList() {
                 : 'Created via Game System Wizard';
             wizardBadge.style.cssText = 'font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;background:rgba(180,100,255,0.2);color:#c9a0ff;';
             label.appendChild(wizardBadge);
+        }
+
+        let scopeControl = null;
+        if (!isStock && field) {
+            const scope = getChatSetupItemScope(s, 'customField', field);
+            const bypassed = !s.chatLinkEnabled || !s.chatSetupLinkEnabled;
+            if (linkedGameSystem) {
+                scopeControl = document.createElement('span');
+                scopeControl.textContent = scope === 'global' ? 'GLOBAL' : 'CHAT-BOUND';
+                scopeControl.title = `${scope === 'global' ? 'Global' : 'Chat-bound'} scope inherited from Game System "${linkedGameSystem.name || 'Unnamed'}". Change it in Manage Game Systems.${bypassed ? ' The master setup link is currently bypassing per-item scopes.' : ''}`;
+                scopeControl.style.cssText = 'font-size:9px;padding:2px 5px;border-radius:3px;white-space:nowrap;background:rgba(180,100,255,0.13);color:#c9a0ff;border:1px solid rgba(180,100,255,0.25);';
+            } else {
+                scopeControl = document.createElement('select');
+                scopeControl.className = 'text_pole rt-module-scope';
+                scopeControl.title = `Choose whether this module shares one enabled state across every chat or remembers activation separately per chat.${bypassed ? ' The master setup link is currently bypassing per-item scopes.' : ''}`;
+                scopeControl.style.cssText = 'width:auto;max-width:105px;height:24px;font-size:9px;padding:1px 4px;';
+                scopeControl.innerHTML = '<option value="chat">CHAT-BOUND</option><option value="global">GLOBAL</option>';
+                scopeControl.value = scope;
+                scopeControl.onchange = () => {
+                    setChatSetupItemScope(s, 'customField', field, scopeControl.value);
+                    saveSettings();
+                    refreshOrderList();
+                };
+            }
         }
 
         const btnGroup = document.createElement('div');
@@ -1261,6 +1290,7 @@ export function refreshOrderList() {
 
         item.appendChild(cb);
         item.appendChild(label);
+        if (scopeControl) item.appendChild(scopeControl);
 
         if (tag === 'TIME' && isStock) {
             const pill = document.createElement('label');
