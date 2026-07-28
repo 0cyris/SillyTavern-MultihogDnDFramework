@@ -125,7 +125,7 @@ These are recommendations, not rules — experiment. Different models shine for 
 
 <div align="center">
   <figure>
-    <img width="1918" height="982" alt="Screenshot 2026-06-18 195917" src="https://github.com/user-attachments/assets/a9778adb-8bdf-485e-ac96-973613321407" />
+    <img width="1918" height="982" alt="Screenshot 2026-06-18 195917" src="https://github.com/user-attachments/assets/7eb15c2b-bfd8-4193-8553-4053bac14c34" />
   </figure>
 </div>
 
