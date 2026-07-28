@@ -100,7 +100,20 @@ You can also use **Character Creator** with explicit name/class/level/gear, or p
 
 ### Chat-Linked Mode
 
-On by default. Each chat keeps its own memo, modules, quests, portraits, Lorebook Agent watermarks, World Progression timer, and related campaign data under that chat ID. Switching chats saves the old partition and loads the new one. Campaign lorebook prefix is derived from the chat filename (sanitized) unless overridden. Most people really never have any reason to turn Chat-Linked Mode off, so don't worry about it.
+On by default. Each chat keeps its own memo, quests, portraits, Lorebook Agent watermarks, World Progression timer, and related campaign data under that chat ID. Switching chats saves the old partition and loads the new one. Campaign lorebook prefix is derived from the chat filename (sanitized) unless overridden.
+
+**Lock Control Room & Modules to each chat** is also enabled by default. It saves the active System Prompt Control Room sections and State Tracker modules for each chat, so a new chat begins from the stock setup without requiring you to restore a cartridge or manually rebuild anything.
+
+Turn that lock off only when you deliberately want to carry the current setup into another chat. While it is off, the current setup carries between chats as a temporary bypass; it does **not** alter any saved Global or Chat-bound choices. Turn the lock back on in the destination chat to save that setup there.
+
+#### Global and Chat-bound items
+
+Created modules and custom system-prompt snippets live in a reusable library. Switching chats never deletes their definitions: items that are not active in the current chat remain in that chat's inactive pool, ready to be enabled again.
+
+- **CHAT-BOUND** — its enabled state is remembered separately for each chat. This is the default for newly created and migrated standalone items and is best for campaign-specific rules.
+- **GLOBAL** — its enabled state is shared across chats. Use it for a rule you want active everywhere. The module/snippet definition is always shared; the scope only controls activation. Module order and Control Room order remain part of each chat's setup.
+
+Choose the scope from the dropdown on a standalone module or snippet. The setting is saved immediately.
 
 **Scenario Profiles** are a separate feature: named snapshots of memo + modules + campaign-related fields you can save/load manually. They are not a full dump of connection settings or UI preferences.
 
@@ -232,6 +245,8 @@ ST is built from **modules**. Each module:
 3. Uses a corresponding `[TAG]` in the memo (e.g. `[COMBAT]`, `[INVENTORY]`).
 
 Adding a template/example inside a module prompt is optional but strongly recommended so output matches the rendering backend.
+
+Custom modules can be **CHAT-BOUND** or **GLOBAL** (see [Chat-Linked Mode](#chat-linked-mode)). An inactive module is still saved in the library, so you can activate it again later instead of recreating it.
 
 ### Stock modules
 
@@ -452,6 +467,8 @@ JavaScript checks `[TIME]` in the State Memo after State Tracker updates. The AI
 
 ## Quests (player-facing)
 
+Deadlines and Frustration are enabled in the default narrator configuration. They give NPC quests time pressure and let overdue quests affect the giver's mood instead of being only a binary failure.
+
 Enable the Quests module (and optionally Deadlines / Frustration) in settings. Accepted quests appear in the tracker UI. Difficulty is narrative-only — the system does not soft-cap quest danger to party level; if you accept a dragon hunt at level 2, that is on you.
 
 ---
@@ -476,6 +493,8 @@ Describe a mechanic in plain language (e.g. “reputation system”). The wizard
 2. A **State Tracker module**
 
 Review both in the forge (edit, regenerate either/both, iterate with feedback, set effect owner), then save as a Game System bundle. No tool-calling required for this flow — it is tag/prompt based.
+
+Game Systems are deliberately atomic bundles. In **Manage Game Systems**, choose **CHAT-BOUND** or **GLOBAL** for the Game System itself; its linked tracker module and GM prompt snippet inherit that scope and enabled state together. They cannot be scoped independently. If you need only one piece to behave independently, recreate that module or snippet as a standalone item.
 
 ## Why is the Game Systems Wizard Good?
 It's good because you don't actually need to understand how the extension works. The Wizard has an excellent understanding of the system, so it can reliably make solid Game Systems even if you don't know anything about the extension. It's recommended to use a relatively strong model for this such as Claude Sonnet 5, or GPT-5.6 Terra or something of that caliber at least. Weaker models can also make good systems but not with such a high reliability and complexity.
@@ -547,7 +566,7 @@ The framework’s backbone is still **time + memo + optional lore/world layers**
 | World Reports never appear | WP + Lorebook Agent must be on; `[TIME]` must advance in-world past the interval; first TIME parse only baselines. |
 | Lorebook Agent “missed” a `/sendas` scene | Expected — `/sendas` does not auto-trigger, and non-`{{char}}` speakers are skipped; run `/lorebookagent` manually. |
 | Lorebook Agent ran on a roll-announcement `/sendas` | Auto-runs require the latest assistant speaker to be `{{char}}`; announcements under another name should not fire. If it still fires, check the script isn’t also generating or calling `/la`. |
-| Wrong campaign data in a new chat | Chat-Linked Mode should isolate chats; if links were removed or disabled, memo restore behavior differs — check Chat-Linked settings. |
+| Wrong campaign data or setup in a new chat | Check that Chat-Linked Mode and **Lock Control Room & Modules to each chat** are enabled. GLOBAL items intentionally share activation; CHAT-BOUND items restore that chat's saved setup. Lock-off mode is a temporary carry-over bypass. |
 | Tracker formatting broken after paste | Use 💬 Direct Prompt: “Reformat this sheet to stock module layout.” |
 
 ---
