@@ -2,9 +2,16 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
-## [6.2.60] - 2026-07-28
+## [6.3.0] - 2026-07-28
+
+### Added
+- **Per-chat Control Room & Module setups**: an optional setup lock now saves and restores System Prompt Control Room sections, Game Systems, custom/stock State Tracker modules, prompts, ordering, and related toggles per chat. Unseen chats start from stock; temporarily disabling Chat-Linked Mode carries the current setup between chats.
+- **Global module & snippet catalogs**: created tracker modules, Game Systems, and system-prompt snippets now remain available across chats. Each chat stores only membership/activation and ordering; definitions from other chats appear in dedicated inactive pools instead of disappearing.
+- **Separate Player Card / ST Persona controls**: Character Creator and Other Ways to Begin now independently control the rich Lorebook Agent Player Card and the name-only SillyTavern persona used for the outgoing message header.
 
 ### Fixed
+- **Instant Action persona duplication**: the matching SillyTavern persona now has an empty description, keeping the rich PC biography exclusively in the Lorebook Agent Player Card.
+- **System Prompt section editor wrappers**: editing or appending text to a custom/unlocked section no longer nests another copy of its outer XML tag on every save. The editor now exposes only the section body, and saving repairs previously duplicated matching wrappers without losing their instructions.
 - **Custom `[PARTY]` templates**: member headers with inline rendering markers (e.g. `Name: ((BAR)) 100/100 HP`) are recognized again, so merge/hydrate no longer empties the party roster.
 - **Benched portrait overlay**: removed the mojibake’d camping badge on individual chips; tent emoji stays on the Benched header only.
 

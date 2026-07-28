@@ -29,6 +29,12 @@
                             <i class="fa-solid fa-circle-question interactable"
                                 title="When enabled, the tracker state (memo) is automatically saved and restored per chat ID. Switching chats will reload that specific campaign's state."></i>
                         </label>
+                        <label class="checkbox_label" style="padding-left: 20px;">
+                            <input id="rpg_tracker_chat_setup_link_enabled" type="checkbox" />
+                            <span>Lock Control Room &amp; Modules to each chat</span>
+                            <i class="fa-solid fa-circle-question interactable"
+                                title="Opt in to saving and restoring activation, ordering, prompts, and stock setup per chat. Created State Tracker modules, Game Systems, and system-prompt snippets remain in global inactive pools, so they are always available without automatically activating in other chats. Turn Chat-Linked Mode off temporarily to carry the current setup into another chat, then turn it back on to lock it there."></i>
+                        </label>
                         <button id="rpg_tracker_clear_chat_states" class="menu_button interactable" style="margin-top: 4px; margin-left: 4px; width: calc(100% - 4px); font-size: 0.9em;"><i class="fa-solid fa-trash-can"></i> Remove all chat links</button>
 
                         <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Help</small>

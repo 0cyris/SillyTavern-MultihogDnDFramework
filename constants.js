@@ -313,7 +313,7 @@ export function getResolvedTimePrompt(settings) {
 }
 
 
-export const QUESTS_NARRATOR = `On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure, promised reward. Don't do this pre-agreement. Note objective completion naturally; narrate success/failure at conclusion. Keep objectives few and broad (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene. Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
+export const QUESTS_NARRATOR = `On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward. Note objective completion naturally; narrate success/failure at conclusion. Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene. Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
 QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.
 
@@ -456,7 +456,7 @@ LEVEL THRESHOLDS: 1–0 | 2–300 | 3–900 | 4–2,700 | 5–6,500 | 6–14,000
 </xp_system>
 
 <quests>
-On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure, promised reward. Don't do this pre-agreement. Note objective completion naturally; narrate success/failure at conclusion. Keep objectives few and broad (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene. Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
+On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward. Note objective completion naturally; narrate success/failure at conclusion. Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene. Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
 QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.
 
@@ -745,7 +745,7 @@ LEVEL THRESHOLDS: 1–0 | 2–300 | 3–900 | 4–2,700 | 5–6,500 | 6–14,000
 </xp_system>
 
 <quests>
-On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure, promised reward. Don't do this pre-agreement. Note objective completion naturally; narrate success/failure at conclusion. Keep objectives few and broad (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene. Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
+On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward. Note objective completion naturally; narrate success/failure at conclusion. Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene. Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
 QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.
 

@@ -1,4 +1,4 @@
-import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, recordDeletedCustomTags, clearDeletedCustomTagTombstones } from './state-manager.js';
+import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
 import { BLOCK_ICONS, BLOCK_ORDER, DEFAULT_STOCK_PROMPTS, PAGE_SIZE, resolveTimePromptKey, resolveTimePromptDisplayTag } from './constants.js';
 import { escapeHtml } from './memo-processor.js';
@@ -611,6 +611,14 @@ export function openCustomFieldEditor(index) {
         }
 
         if (oldTag !== rawTag) {
+            removeChatSetupCatalogEntries(s, { customFieldTags: [oldTag] });
+            for (const gameSystem of s.gameSystems || []) {
+                if (String(gameSystem.customFieldTag || '').toUpperCase() === oldTag) {
+                    gameSystem.customFieldTag = rawTag;
+                }
+            }
+            recordDeletedCustomTags(oldTag);
+            clearDeletedCustomTagTombstones(rawTag);
             if (s.blockOrder) {
                 const idx = s.blockOrder.indexOf(oldTag);
                 if (idx !== -1) s.blockOrder[idx] = rawTag;
@@ -640,6 +648,7 @@ export function openCustomFieldEditor(index) {
             if (s.blockOrder) {
                 s.blockOrder = s.blockOrder.filter(t => t.toUpperCase() !== deletedTag.toUpperCase());
             }
+            removeChatSetupCatalogEntries(s, { customFieldTags: [deletedTag] });
             recordDeletedCustomTags(deletedTag);
             saveSettings(true);
             refreshOrderList();
@@ -1088,7 +1097,27 @@ export function refreshOrderList() {
     });
     s.blockOrder = order;
 
-    order.forEach((tag, index) => {
+    const isTagEnabled = (tag) => {
+        const isStock = BLOCK_ORDER.includes(tag);
+        if (isStock) return s.modules[tag.toLowerCase()] ?? false;
+        const field = s.customFields.find(f => f.tag.toUpperCase() === tag);
+        return field?.enabled ?? false;
+    };
+    const groups = [
+        { label: 'Active for this chat', tags: order.filter(isTagEnabled), active: true },
+        { label: 'Inactive module pool', tags: order.filter(tag => !isTagEnabled(tag)), active: false },
+    ];
+
+    groups.forEach(group => {
+        if (!group.tags.length) return;
+        const heading = document.createElement('div');
+        heading.className = 'rt-module-pool-heading';
+        heading.textContent = group.label;
+        heading.style.cssText = `font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.55px;margin:${group.active ? '3px' : '12px'} 2px 4px;opacity:${group.active ? '.8' : '.55'};`;
+        list.appendChild(heading);
+
+        group.tags.forEach((tag, groupIndex) => {
+        const index = order.indexOf(tag);
         const isStock = BLOCK_ORDER.includes(tag);
         const customIndex = s.customFields.findIndex(f => f.tag.toUpperCase() === tag);
         const field = isStock ? null : s.customFields[customIndex];
@@ -1118,6 +1147,7 @@ export function refreshOrderList() {
                 }
             } else {
                 field.enabled = cb.checked;
+                field._chatSetupMember = true;
             }
             saveSettings();
             refreshOrderList();
@@ -1129,6 +1159,20 @@ export function refreshOrderList() {
         label.style.fontSize = '12px';
         label.style.cursor = 'default';
         label.textContent = `${getIcon(tag)} ${tag}`;
+        const linkedGameSystem = !isStock
+            ? (s.gameSystems || []).find(gs => String(gs.customFieldTag || '').toUpperCase() === tag)
+            : null;
+        const isWizardField = !isStock && (field?.origin === 'wizard' || !!linkedGameSystem);
+        if (isWizardField) {
+            const wizardBadge = document.createElement('span');
+            wizardBadge.className = 'rt-module-wizard-badge';
+            wizardBadge.textContent = 'WIZARD';
+            wizardBadge.title = linkedGameSystem?.name
+                ? `Created via Game System Wizard: ${linkedGameSystem.name}`
+                : 'Created via Game System Wizard';
+            wizardBadge.style.cssText = 'font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;background:rgba(180,100,255,0.2);color:#c9a0ff;';
+            label.appendChild(wizardBadge);
+        }
 
         const btnGroup = document.createElement('div');
         btnGroup.className = 'flex-container gap-1';
@@ -1189,10 +1233,11 @@ export function refreshOrderList() {
         upBtn.className = 'menu_button interactable rt-order-btn';
         upBtn.style.padding = '2px 6px';
         upBtn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
-        upBtn.disabled = index === 0;
+        upBtn.disabled = groupIndex === 0;
         upBtn.onclick = () => {
             const newOrder = [...order];
-            [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+            const previousIndex = order.indexOf(group.tags[groupIndex - 1]);
+            [newOrder[previousIndex], newOrder[index]] = [newOrder[index], newOrder[previousIndex]];
             s.blockOrder = newOrder;
             saveSettings();
             refreshOrderList();
@@ -1203,10 +1248,11 @@ export function refreshOrderList() {
         downBtn.className = 'menu_button interactable rt-order-btn';
         downBtn.style.padding = '2px 6px';
         downBtn.innerHTML = '<i class="fa-solid fa-arrow-down"></i>';
-        downBtn.disabled = index === order.length - 1;
+        downBtn.disabled = groupIndex === group.tags.length - 1;
         downBtn.onclick = () => {
             const newOrder = [...order];
-            [newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
+            const nextIndex = order.indexOf(group.tags[groupIndex + 1]);
+            [newOrder[nextIndex], newOrder[index]] = [newOrder[index], newOrder[nextIndex]];
             s.blockOrder = newOrder;
             saveSettings();
             refreshOrderList();
@@ -1268,6 +1314,7 @@ export function refreshOrderList() {
         if (tag === 'PARTY') {
             list.appendChild(buildBenchedPartySubRow(s));
         }
+        });
     });
 }
 

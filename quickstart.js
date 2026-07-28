@@ -127,7 +127,7 @@ export async function runQuickStart(genre, rootEl = null) {
             gearTier,
         });
 
-        setQuickStartStatus(root, 'Creating persona…');
+        setQuickStartStatus(root, 'Creating Lorebook Agent Player Card…');
         const bio = await generatePersonaBio(charName, wordCount);
         if (!bio) {
             throw new Error('Persona generation returned empty.');
@@ -137,8 +137,8 @@ export async function runQuickStart(genre, rootEl = null) {
             throw new Error('Could not add Player Card — no active chat.');
         }
 
-        setQuickStartStatus(root, 'Activating chat persona…');
-        await activateSillyTavernPersona(charName, bio);
+        setQuickStartStatus(root, 'Creating name-only chat persona…');
+        await activateSillyTavernPersona(charName);
 
         setQuickStartStatus(root, 'Starting adventure…');
         sendOutgoingChatMessage('Begin the adventure');

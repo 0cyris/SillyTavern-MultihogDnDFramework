@@ -1,5 +1,6 @@
 import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped } from './constants.js';
 import { MODULE_NAME, DEFAULT_MODULES, getSettings, getBarBackground, migrateCustomFields, saveChatState, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
+import { resetChatSetupToStock, snapshotChatSetup, chatSetupsMatch, syncChatSetupCatalogs, removeChatSetupCatalogEntries } from './src/state/chat-setup.js';
 import { diffTextLines, diffHasChanges } from './prompt-diff.js';
 import { sendStateRequest, fetchOllamaModels, fetchOpenAIModels, testOpenAIConnection, getConnectionProfiles, getCurrentCompletionPreset, setCompletionPreset, syncCombatProfile, resetCombatProfileOverride, isCombatActive } from './llm-client.js';
 import { getDiceToolName, getDiceCommandName, getDiceCommandAliases, doDiceRoll, registerDiceFunctionTool, syncDiceFunctionToolForRngContext, registerDiceSlashCommand, installInterceptor, getNarrativeBlocks, onGenerationStarted, onGenerationEnded, handleRelationshipSwipeChange, applyStateTrackerRelationshipCommands, resetRouterTick, getRouterTick, resetRouterAutoTick, getRouterSchedulerInternals, makeRngQueue, buildRngBlock, RNG_QUEUE_LEN } from './narrative-hooks.js';
@@ -15,7 +16,7 @@ import { buildImmersionSceneState, renderImmersionViewHtml, getCurrentLocationTe
 import { migrateAllEmbeddedPortraits, countEmbeddedPortraitDataUrls, purgeAllPortraitData, resolvePortraitDisplaySrc, lookupCustomPortraitSrc, collectAllPortraitRefs, isManagedPortraitPath, isPortraitMigrationLocked, setPortraitMigrationLocked, PORTRAIT_STORAGE_FOLDER } from './portrait-storage.js';
 import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, makeResizableBR, makeResizableBL, setupResizeObserver, setupDeltaResize, canResizePanels, jqueryToggleSlide, resolveViewportClampedGeometry, clampFloatingPanelToViewport } from './ui-geometry.js';
 import { applyCustomTheme, openThemeWizard, refreshSavedThemesList, handleRecolor, undoThemeChange } from './theme-manager.js';
-import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenerate, generatePersonaBio, showPersonaConfirmOverlay, extractCharNameFromMemo } from './character-creator.js';
+import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenerate, generatePersonaBio, showPersonaConfirmOverlay, extractCharNameFromMemo, activateSillyTavernPersona } from './character-creator.js';
 import { bindQuickStartEvents } from './quickstart.js';
 import { bindAdventureCompanion, openAdventureCompanion, closeAdventureCompanion } from './adventure-companion.js';
 import { handleCategorySettings, openCustomFieldEditor, openPromptEditor, refreshOrderList, exportModules, importModulesFromJson, openNpcSectionEditor, openPcSectionEditor } from './ui-editors.js';
@@ -556,12 +557,12 @@ export function saveSettings(force = false, delay = 0) {
     // already in flight (delete/add must not be dropped by the re-entrancy guard).
     try {
         const s0 = getSettings();
+        syncChatSetupCatalogs(s0);
         const chatId0 = runtimeState.currentChatId || SillyTavern.getContext()?.chatId || null;
         writeModuleSchemaBackup(chatId0);
         if (s0.chatLinkEnabled && chatId0 && !isPortraitMigrationLocked()) {
-            // Keep the per-chat module presentation aligned without nesting saveSettings.
-            // Custom tracker definitions themselves are global and are intentionally
-            // not copied into a chat snapshot.
+            // Keep legacy per-chat module presentation aligned without nesting saveSettings.
+            // The optional full setup snapshot is written by saveChatState below.
             const existing = s0.chatStates?.[chatId0];
             if (existing) {
                 existing.blockOrder = JSON.parse(JSON.stringify(s0.blockOrder || []));
@@ -1060,8 +1061,10 @@ function syncOnboardingUI() {
         if (sel instanceof HTMLSelectElement && sel.value !== gearTier) sel.value = gearTier;
     });
 
-    const personaCbSync = /** @type {HTMLInputElement|null} */ (onboarding.querySelector('#rt-onboarding-persona-cb'));
-    if (personaCbSync) personaCbSync.checked = !!s.onboardingCreatePersona;
+    const playerCardCbSync = /** @type {HTMLInputElement|null} */ (onboarding.querySelector('#rt-onboarding-player-card-cb'));
+    if (playerCardCbSync) playerCardCbSync.checked = !!s.onboardingCreatePersona;
+    const stPersonaCbSync = /** @type {HTMLInputElement|null} */ (onboarding.querySelector('#rt-onboarding-st-persona-cb'));
+    if (stPersonaCbSync) stPersonaCbSync.checked = s.onboardingCreateSillyTavernPersona !== false;
     const personaWordsSync = /** @type {HTMLSelectElement|null} */ (onboarding.querySelector('#rt-onboarding-persona-words'));
     const personaWordsCustomSync = /** @type {HTMLInputElement|null} */ (onboarding.querySelector('#rt-onboarding-persona-words-custom'));
     if (personaWordsSync) personaWordsSync.value = s.onboardingPersonaWords || '150';
@@ -1424,6 +1427,7 @@ const loadChatState = createChatStateLoader({
 
 /** Reset live per-chat state when Chat Link reaches a chat with no saved snapshot. */
 function resetUnseenChatState(s) {
+    if (s.chatSetupLinkEnabled) resetChatSetupToStock(s);
     s.currentMemo = '';
     s.prevMemo1 = '';
     s.prevMemo2 = '';
@@ -1450,6 +1454,9 @@ function resetUnseenChatState(s) {
     }
 
     refreshOrderList();
+    if (s.chatSetupLinkEnabled && typeof globalThis._rpgSyncSettingsUi === 'function') {
+        globalThis._rpgSyncSettingsUi();
+    }
     scheduleAutoApply();
     const deltaPanel = document.getElementById('rpg-tracker-delta-content');
     if (deltaPanel) deltaPanel.innerHTML = '<span class="delta-empty">No changes yet.</span>';
@@ -1769,6 +1776,7 @@ function onChatChanged(newChatId) {
         // Partition missing but chatStates entry may exist empty — still hydrate companion map
         globalThis._rpgLoadAdventureCompanionForChat(resolvedId);
     }
+    if (s.chatSetupLinkEnabled) syncAllNarratorTogglesForUnlockState();
 
     scheduleAgentManifestRefresh();
     updateChatLinkUI();
@@ -1789,6 +1797,8 @@ function updateChatLinkUI() {
     const s = getSettings();
     const cb = document.getElementById('rpg_tracker_chat_link_enabled');
     if (cb instanceof HTMLInputElement) cb.checked = !!s.chatLinkEnabled;
+    const setupCb = document.getElementById('rpg_tracker_chat_setup_link_enabled');
+    if (setupCb instanceof HTMLInputElement) setupCb.checked = !!s.chatSetupLinkEnabled;
 }
 
 /**
@@ -1802,20 +1812,27 @@ async function applyChatLinkToggle(turningOn) {
 
     if (turningOn && runtimeState.currentChatId) {
         const saved = s.chatStates?.[runtimeState.currentChatId];
+        // Re-enabling Chat Link after carrying a setup into a legacy/unlocked chat
+        // adopts that live setup instead of replacing it with factory stock.
+        if (s.chatSetupLinkEnabled && saved && !saved.setup) {
+            saved.setup = snapshotChatSetup(s);
+        }
         const liveContent = (s.currentMemo || '').trim();
         const savedContent = (saved?.currentMemo || '').trim();
 
         const liveKeys = [...(s.activeRouterKeys || [])].sort();
         const savedKeys = [...(saved?.activeRouterKeys || [])].sort();
         const keysChanged = JSON.stringify(liveKeys) !== JSON.stringify(savedKeys);
+        const setupChanged = !!s.chatSetupLinkEnabled && !!saved?.setup && !chatSetupsMatch(s, saved.setup);
 
         const hasConflict = (savedContent && liveContent && liveContent !== savedContent)
-            || (savedKeys.length > 0 && liveKeys.length > 0 && keysChanged);
+            || (savedKeys.length > 0 && liveKeys.length > 0 && keysChanged)
+            || setupChanged;
 
         if (hasConflict && saved) {
             const body = `
                 <div style="text-align: left;">
-                    <p><b>Conflict Detected:</b> This chat has a saved state (memo or lore keys), but your current session is not empty.</p>
+                    <p><b>Conflict Detected:</b> This chat has saved state${setupChanged ? ' or a locked Control Room/module setup' : ' (memo or lore keys)'}, but your current session differs.</p>
                     <p style="font-size: 0.9em; opacity: 0.8; margin-top: 10px;">
                         <b>RESTORE:</b> Use the chat's saved state. (Current session moved to history)<br>
                         <b>OVERWRITE:</b> Keep current session and save it to this chat. (Old chat data moved to history)
@@ -3519,37 +3536,51 @@ async function showLocationImageSettingsMenu(locationPath, onRefresh, locContent
     }
 }
 
-/** Sync Create Persona prefs from the onboarding DOM into settings (call before sendDirectPrompt). */
+/** Sync Player Card + name-only ST persona prefs before onboarding generation. */
 function syncOnboardingPersonaPrefsFromDom(el) {
     if (!el) return;
-    const cb = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-persona-cb'));
+    const playerCardCb = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-player-card-cb'));
+    const stPersonaCb = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-st-persona-cb'));
     const wordsSelect = /** @type {HTMLSelectElement|null} */ (el.querySelector('#rt-onboarding-persona-words'));
     const wordsCustom = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-persona-words-custom'));
     const s = getSettings();
-    if (cb) s.onboardingCreatePersona = !!cb.checked;
+    if (playerCardCb) s.onboardingCreatePersona = !!playerCardCb.checked;
+    if (stPersonaCb) s.onboardingCreateSillyTavernPersona = !!stPersonaCb.checked;
     if (wordsSelect) s.onboardingPersonaWords = wordsSelect.value || '150';
     if (wordsCustom) s.onboardingPersonaWordsCustom = wordsCustom.value || '';
     saveSettings();
 }
 
 /**
- * After a quick onboarding generate, optionally write a persona bio.
+ * After a quick onboarding generate, optionally create a Lorebook Player Card
+ * and/or a name-only SillyTavern persona.
  * Uses settings (not DOM) because sendDirectPrompt → refreshRenderedView removes the onboarding UI.
  */
 async function maybeCreateOnboardingPersona(extraHints = '') {
     const s = getSettings();
-    if (!s.onboardingCreatePersona) return;
+    const createPlayerCard = !!s.onboardingCreatePersona;
+    const createStPersona = s.onboardingCreateSillyTavernPersona !== false;
+    if (!createPlayerCard && !createStPersona) return;
+    const charName = extractCharNameFromMemo(s.currentMemo) || 'My Character';
+    if (createStPersona) {
+        try {
+            await activateSillyTavernPersona(charName);
+        } catch (error) {
+            console.error('[RPG Tracker] Could not create name-only ST persona:', error);
+            toastr['warning'](`Character created, but the ST persona for "${charName}" could not be created.`, 'RPG Tracker');
+        }
+    }
+    if (!createPlayerCard) return;
     const wordsRaw = s.onboardingPersonaWords === 'other'
         ? s.onboardingPersonaWordsCustom
         : s.onboardingPersonaWords;
     const wordCount = parseInt(String(wordsRaw || '150'), 10) || 150;
-    const charName = extractCharNameFromMemo(s.currentMemo) || 'My Character';
-    toastr['info'](`Generating persona bio for "${charName}"…`, 'RPG Tracker');
+    toastr['info'](`Generating Lorebook Agent Player Card for "${charName}"…`, 'RPG Tracker');
     const bio = await generatePersonaBio(charName, wordCount, extraHints);
     if (bio) {
         showPersonaConfirmOverlay(bio, charName, wordCount, extraHints);
     } else {
-        toastr['warning']('Character created, but persona bio generation failed.', 'RPG Tracker');
+        toastr['warning']('Character created, but Player Card generation failed.', 'RPG Tracker');
     }
 }
 
@@ -5547,6 +5578,21 @@ async function runPortraitMigrationIfNeeded() {
             }
         });
 
+        $('#rpg_tracker_chat_setup_link_enabled').prop('checked', !!settings.chatSetupLinkEnabled).on('change', function () {
+            const enabled = !!$(this).prop('checked');
+            settings.chatSetupLinkEnabled = enabled;
+            if (enabled && settings.chatLinkEnabled && runtimeState.currentChatId) {
+                saveChatState(runtimeState.currentChatId);
+                toastr['success']('This chat now owns its Control Room and State Tracker module setup.', 'RPG Tracker');
+            } else if (enabled) {
+                toastr['info']('Setup lock is ready. Turn on Chat-Linked Mode to bind the current setup.', 'RPG Tracker');
+            } else {
+                toastr['info']('Per-chat setup lock off — the current setup will carry between chats.', 'RPG Tracker');
+            }
+            saveSettings();
+            updateChatLinkUI();
+        });
+
         updateChatLinkUI();
 
         $('#rpg_tracker_clear_chat_states').on('click', function () {
@@ -5632,6 +5678,10 @@ async function runPortraitMigrationIfNeeded() {
         if (bootChatId && settings.chatLinkEnabled) {
             const restoredBootChat = loadChatState(bootChatId);
             if (!restoredBootChat && !settings.chatStates?.[bootChatId]) resetUnseenChatState(settings);
+            if (settings.chatSetupLinkEnabled) {
+                syncSettingsUi();
+                syncAllNarratorTogglesForUnlockState();
+            }
             // loadChatState can reintroduce tombstoned tags from a stale partition — strip again.
             applyDeletedCustomTagTombstones();
         }
@@ -6734,7 +6784,7 @@ async function runPortraitMigrationIfNeeded() {
             });
             if (settings.customFields) {
                 settings.customFields.forEach(f => {
-                    if (!settings.modules || settings.modules[f.tag.toUpperCase()] !== false) {
+                    if (f.enabled) {
                         existingFieldsContext += `[${f.tag}] (Custom Field: ${f.label})\nPrompt: ${f.prompt}\nTemplate: ${f.template}\n\n`;
                     }
                 });
@@ -6951,6 +7001,7 @@ RULES:
 
             if (confirm(`Delete ALL (${s.customFields.length}) custom modules?\n\nThis will also remove their data from the current tracker state. Stock modules (COMBAT, CHARACTER, etc.) will not be touched.\n\nProceed?`)) {
                 const customTags = new Set(s.customFields.map(f => f.tag.toUpperCase()));
+                removeChatSetupCatalogEntries(s, { customFieldTags: [...customTags] });
                 recordDeletedCustomTags([...customTags]);
 
                 // Clear fields
@@ -9976,6 +10027,7 @@ RULES:
             // General toggles
             $('#rpg_tracker_enabled').prop('checked', !!s.enabled);
             $('#rpg_tracker_chat_link_enabled').prop('checked', !!s.chatLinkEnabled);
+            $('#rpg_tracker_chat_setup_link_enabled').prop('checked', !!s.chatSetupLinkEnabled);
             $('#rpg_tracker_debug').prop('checked', !!s.debugMode);
             $('#rpg_tracker_daynight_cycle').prop('checked', !!s.dayNightCycleEnabled);
             if (typeof globalThis._rpgSyncPanelBgSettingsUi === 'function') {

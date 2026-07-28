@@ -93,10 +93,10 @@ On an empty tracker, use Instant Action / Quick Start by genre (**Fantasy**, **M
 
 1. Applies your current Narrator Configuration (settings + sysprompt).
 2. Picks a random archetype for that genre and generates a character sheet into the State Tracker.
-3. Generates a persona bio, adds a **Player Card** for Lorebook Agent, and activates the SillyTavern persona.
+3. Generates a rich **Player Card** for Lorebook Agent, then creates/selects a SillyTavern persona with the same name and an empty description. The name-only ST persona controls the sender label without duplicating Player Card content in the prompt.
 4. Sends the chat message `Begin the adventure`.
 
-You can also use **Character Roll** with explicit name/class/level/gear, or paste an existing sheet into **Raw View**. If formatting doesn’t match what the UI expects, use the tracker’s **💬** button and ask the model to fix it.
+You can also use **Character Creator** with explicit name/class/level/gear, or paste an existing sheet into **Raw View**. Character Creator and **Other Ways to Begin** have separate toggles for a Lorebook Agent Player Card and a name-only ST persona. If formatting doesn’t match what the UI expects, use the tracker’s **💬** button and ask the model to fix it.
 
 ### Chat-Linked Mode
 

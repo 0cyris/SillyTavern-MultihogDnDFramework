@@ -19,6 +19,7 @@ import {
     enforceRealtimeVisualizationDisabled,
     setRealtimeVisualizationDisabled,
 } from './realtime-visualization-guard.js';
+import { migrateChatSetupCatalogs } from './chat-setup.js';
 
 // Re-entrancy guard: some migration blocks below call buildNpcInstruction()/
 // buildLocInstruction()/buildFacInstruction(), which themselves call
@@ -89,6 +90,9 @@ function getSettingsInternal(extensionSettings) {
         s.customFields = fields;
         s.customFieldsGlobalizedVersion = 1;
     }
+
+    // Definitions are global library records; chat snapshots retain activation only.
+    migrateChatSetupCatalogs(s);
 
     // Load UI collapse and open/close states from localStorage to prevent expensive saveSettings/disk I/O calls
     if (localStorage.getItem('rpg_tracker_collapsed') !== null) {

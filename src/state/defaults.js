@@ -115,7 +115,10 @@ export function buildDefaultSettings() {
         onboardingLevel: 1,
         onboardingGearTier: "auto",
         onboardingCustomInstructions: "",
-        onboardingCreatePersona: false,
+        /** Legacy key retained as the Player Card toggle preference. */
+        onboardingCreatePersona: false,
+        /** Create/select a name-only SillyTavern persona for the chat sender label. */
+        onboardingCreateSillyTavernPersona: true,
         onboardingPersonaWords: "150",
         onboardingPersonaWordsCustom: "",
         /** Last Character Creator form values, saved when Generate Character is pressed. */
@@ -254,8 +257,17 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
         openaiKey: "",
         openaiModel: "",
         openaiMaxTokens: 0,
-        chatLinkEnabled: true,
-        chatStates: {},
+        chatLinkEnabled: true,
+
+        /** Also bind Control Room sections and State Tracker module configuration to each chat. */
+        chatSetupLinkEnabled: true,
+
+        /** Global definition catalogs; chats store only activation state and ordering. */
+        chatSetupCatalogVersion: 0,
+        trackerModuleDatabase: [],
+        syspromptSnippetDatabase: [],
+        gameSystemDatabase: [],
+        chatStates: {},
         quests: [],
         /** Narrator <narrative> pacing mode: normal | high_agency | downtime. */
         narrativePacing: 'normal',
@@ -265,8 +277,8 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
             resting: true,
             party_bench: true,
             quests: true,
-            questsDeadlines: false,
-            questsFrustration: false,
+            questsDeadlines: true,
+            questsFrustration: true,
             questsShowArchive: true,
             CYOA_mode: true,
         },

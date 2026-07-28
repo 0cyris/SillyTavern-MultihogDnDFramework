@@ -5,6 +5,7 @@ import { escapeHtml } from './memo-processor.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { saveSettings, sendDirectPrompt, refreshAgentManifestNow, refreshRenderedView, syncTimeFormatSettingsUi } from './src/app/runtime-bridge.js';
 import { openPcSectionEditor } from './ui-editors.js';
+import { buildNameOnlyPersonaIdentity } from './src/state/player-identity.js';
 
 const _CR_CLASS_LISTS = {
     fantasy: [
@@ -295,7 +296,8 @@ export function collectCharacterCreatorDraft(panel) {
         background: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-background'))?.value ?? '',
         appearance: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-appearance'))?.value ?? '',
         additional: /** @type {HTMLTextAreaElement} */ (panel.querySelector('#rt-cr-additional'))?.value ?? '',
-        personaEnabled: !!/** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-persona-cb'))?.checked,
+        playerCardEnabled: !!/** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-player-card-cb'))?.checked,
+        stPersonaEnabled: !!/** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-st-persona-cb'))?.checked,
         personaWords: wordsSelect?.value ?? '150',
         personaWordsCustom: wordsCustom?.value ?? '',
     };
@@ -338,8 +340,10 @@ export function applyCharacterCreatorDraft(panel, draft, populateClasses) {
     setVal('#rt-cr-background', draft.background);
     setVal('#rt-cr-appearance', draft.appearance);
     setVal('#rt-cr-additional', draft.additional);
-    const personaCb = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-persona-cb'));
-    if (personaCb) personaCb.checked = !!draft.personaEnabled;
+    const playerCardCb = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-player-card-cb'));
+    if (playerCardCb) playerCardCb.checked = !!(draft.playerCardEnabled ?? draft.personaEnabled);
+    const stPersonaCb = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-st-persona-cb'));
+    if (stPersonaCb) stPersonaCb.checked = draft.stPersonaEnabled !== false;
     const wordsSelect = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-persona-words'));
     const wordsCustom = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-persona-words-custom'));
     if (wordsSelect) wordsSelect.value = draft.personaWords ?? '150';
@@ -382,8 +386,10 @@ export function resetCharacterCreatorFields(panel, populateClasses) {
     setVal('#rt-cr-background', '');
     setVal('#rt-cr-appearance', '');
     setVal('#rt-cr-additional', '');
-    const personaCb = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-persona-cb'));
-    if (personaCb) personaCb.checked = false;
+    const playerCardCb = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-player-card-cb'));
+    if (playerCardCb) playerCardCb.checked = false;
+    const stPersonaCb = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-st-persona-cb'));
+    if (stPersonaCb) stPersonaCb.checked = true;
     const wordsSelect = /** @type {HTMLSelectElement|null} */ (panel.querySelector('#rt-cr-persona-words'));
     const wordsCustom = /** @type {HTMLInputElement|null} */ (panel.querySelector('#rt-cr-persona-words-custom'));
     if (wordsSelect) wordsSelect.value = '150';
@@ -645,8 +651,10 @@ async function handleCharRollGenerate(el, panel) {
     const backgroundVal  = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-background'))?.value.trim()  || '';
     const appearanceVal  = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-appearance'))?.value.trim()  || '';
     const additionalVal  = /** @type {HTMLTextAreaElement}*/ (panel.querySelector('#rt-cr-additional'))?.value.trim()   || '';
-    const personaCb      = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-persona-cb'));
-    const wantPersona    = !!personaCb?.checked;
+    const playerCardCb   = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-player-card-cb'));
+    const stPersonaCb    = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-st-persona-cb'));
+    const wantPlayerCard = !!playerCardCb?.checked;
+    const wantStPersona  = !!stPersonaCb?.checked;
     const wordsSelectEl  = /** @type {HTMLSelectElement} */ (panel.querySelector('#rt-cr-persona-words'));
     const wordsCustomEl  = /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-persona-words-custom'));
     const wordsRaw       = wordsSelectEl?.value === 'other' ? wordsCustomEl?.value : wordsSelectEl?.value;
@@ -667,10 +675,14 @@ async function handleCharRollGenerate(el, panel) {
     try {
         await sendDirectPrompt(prompt);
 
-        if (wantPersona) {
+        if (wantPlayerCard || wantStPersona) {
             const s2 = getSettings();
             const extractedName = extractCharNameFromMemo(s2.currentMemo);
             const charName = extractedName || nameVal || 'My Character';
+            if (wantStPersona) {
+                await activateSillyTavernPersona(charName);
+            }
+            if (!wantPlayerCard) return;
             const finalExtraHints = extraHints + (cardSnippet ? `\n\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : '');
             const bio = await generatePersonaBio(charName, wordCount, finalExtraHints);
             if (bio) showPersonaConfirmOverlay(bio, charName, wordCount, extraHints);
@@ -741,7 +753,7 @@ Rules:
         const result = await sendStateRequest(s, systemPrompt, userPrompt);
         return (result || '').trim() || null;
     } catch (e) {
-        toastr['warning']('Persona bio generation failed.', 'Character Creator');
+        toastr['warning']('Player Card generation failed.', 'Character Creator');
         return null;
     }
 }
@@ -767,7 +779,7 @@ async function uploadDefaultPersonaAvatar(url, avatarId, refreshAvatars) {
     await refreshAvatars(true, data?.path || avatarId);
 }
 
-async function injectAsSillyTavernPersona(name, description) {
+async function injectAsSillyTavernPersona(name) {
     const [
         { initPersona, setUserAvatar, getUserAvatars, setPersonaDescription, user_avatar, persona_description_positions },
         { findPersona },
@@ -780,7 +792,8 @@ async function injectAsSillyTavernPersona(name, description) {
         import('../../../../script.js'),
     ]);
 
-    const trimmedName = name.trim() || 'My Character';
+    const identity = buildNameOnlyPersonaIdentity(name);
+    const trimmedName = identity.name;
     const existing = findPersona({ name: trimmedName, preferCurrentPersona: false, quiet: true });
 
     let avatarId;
@@ -797,13 +810,13 @@ async function injectAsSillyTavernPersona(name, description) {
                 title: '',
             };
         }
-        power_user.persona_descriptions[avatarId].description = description;
+        power_user.persona_descriptions[avatarId].description = identity.description;
         if (user_avatar === avatarId) {
-            power_user.persona_description = description;
+            power_user.persona_description = identity.description;
         }
     } else {
         avatarId = `${Date.now()}-${trimmedName.replace(/[^a-zA-Z0-9]/g, '')}.png`;
-        await initPersona(avatarId, trimmedName, description, '');
+        await initPersona(avatarId, trimmedName, identity.description, '');
         await uploadDefaultPersonaAvatar(default_user_avatar, avatarId, getUserAvatars);
     }
 
@@ -815,18 +828,15 @@ async function injectAsSillyTavernPersona(name, description) {
 }
 
 /**
- * Create/update a SillyTavern persona with the given name + bio, select it, and lock to chat.
- * Used so the chat username matches [CHARACTER].
+ * Create/update a name-only SillyTavern persona, select it, and lock it to the
+ * chat. Its description stays empty so the Lorebook Agent Player Card remains
+ * the sole rich character biography in prompt context.
  * @param {string} name
- * @param {string} description
  * @returns {Promise<string>} avatarId
  */
-export async function activateSillyTavernPersona(name, description) {
-    const safeName = String(name || '').replace(/['"\\]/g, '').trim() || 'My Character';
-    const bio = String(description || '').trim();
-    if (!bio) throw new Error('Persona bio is empty.');
-
-    const avatarId = await injectAsSillyTavernPersona(safeName, bio);
+export async function activateSillyTavernPersona(name) {
+    const identity = buildNameOnlyPersonaIdentity(name);
+    const avatarId = await injectAsSillyTavernPersona(identity.name);
 
     try {
         const ctx = SillyTavern.getContext();
@@ -851,21 +861,16 @@ export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHin
     box.style.cssText = 'background:var(--black80a,#1a1a2e);border:1px solid rgba(120,80,220,0.5);border-radius:8px;padding:18px;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:10px;overflow:hidden;';
     box.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
-            <b style="color:var(--rt-accent,#a78bfa);font-size:1em;">🎭 Persona Preview — ${escapeHtml(charName)}</b>
+            <b style="color:var(--rt-accent,#a78bfa);font-size:1em;">👤 Player Card Preview — ${escapeHtml(charName)}</b>
             <button id="rt-pco-close" style="background:none;border:none;color:inherit;font-size:1.1em;cursor:pointer;opacity:0.6;">✕</button>
         </div>
-        <small style="opacity:0.6;line-height:1.3;">Edit the bio below, then Accept to auto-create in SillyTavern, or copy it to paste manually.</small>
+        <small style="opacity:0.6;line-height:1.3;">Edit the Lorebook Agent Player Card below, then add it to this chat or copy the bio.</small>
         <textarea id="rt-pco-bio" style="flex:1;min-height:180px;max-height:300px;resize:vertical;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:8px;color:inherit;font-size:0.88em;line-height:1.6;">${escapeHtml(bioText)}</textarea>
         <div style="display:flex;flex-direction:column;gap:12px;">
-            <button id="rt-pco-add-pc" title="Recommended: Adds this character as the Player entry in the Lorebook Agent for this chat. It will automatically load whenever you open this chat." style="width:100%;padding:12px;background:rgba(0,180,255,0.25);border:2px solid #00b4ff;border-radius:6px;color:inherit;cursor:pointer;font-weight:bold;font-size:1.1em;box-shadow:0 4px 12px rgba(0,180,255,0.15);transition:all 0.2s ease;">👤 Add as Player into Lorebook Agent (Recommended)</button>
-            
+            <button id="rt-pco-add-pc" title="Adds this character as the Player entry in the Lorebook Agent for this chat. It will automatically load whenever you open this chat." style="width:100%;padding:12px;background:rgba(0,180,255,0.25);border:2px solid #00b4ff;border-radius:6px;color:inherit;cursor:pointer;font-weight:bold;font-size:1.1em;box-shadow:0 4px 12px rgba(0,180,255,0.15);transition:all 0.2s ease;">👤 Add as Player into Lorebook Agent</button>
             <div style="display:flex;gap:8px;">
                 <button id="rt-pco-regen" style="flex:1;padding:8px;background:rgba(120,80,220,0.18);border:1px solid rgba(120,80,220,0.6);border-radius:4px;color:inherit;cursor:pointer;">🔄 Regenerate</button>
                 <button id="rt-pco-copy" style="flex:1;padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:inherit;cursor:pointer;">📋 Copy Bio</button>
-            </div>
-
-            <div style="text-align:center;margin-top:4px;">
-                <button id="rt-pco-accept" title="Creates a new SillyTavern persona (or updates an existing one with the same name), selects it, and optionally locks it to this chat." style="background:none;border:none;color:var(--SmartThemeEmColor, rgba(255,255,255,0.5));text-decoration:underline;cursor:pointer;font-size:0.85em;padding:4px;">Inject as Current Persona (Native SillyTavern logic)</button>
             </div>
         </div>`;
 
@@ -888,27 +893,6 @@ export function showPersonaConfirmOverlay(bioText, charName, wordCount, extraHin
         }
     });
 
-    // ── Accept button ────────────────────────────────────────────────────────
-    overlay.querySelector('#rt-pco-accept').addEventListener('click', async () => {
-        const finalBio = /** @type {HTMLTextAreaElement} */ (overlay.querySelector('#rt-pco-bio')).value.trim();
-        const safeName = charName.replace(/['"\\]/g, '').trim() || 'My Character';
-        const acceptBtn = /** @type {HTMLButtonElement} */ (overlay.querySelector('#rt-pco-accept'));
-        acceptBtn.disabled = true;
-        acceptBtn.textContent = '⏳ Creating...';
-
-        try {
-            await activateSillyTavernPersona(safeName, finalBio);
-            toastr['success'](`Persona "${safeName}" saved and selected. Check User Settings → Personas to confirm.`, 'Character Creator');
-        } catch (e) {
-            try { await navigator.clipboard.writeText(finalBio); } catch (_) {}
-            toastr['warning'](
-                `Could not auto-create persona. Bio copied to clipboard — go to User Settings → Personas, create "${safeName}", and paste the description.`,
-                'Character Creator', { timeOut: 8000 }
-            );
-        }
-        overlay.remove();
-     });
- 
      // ── Add as Player into Lorebook Agent ────────────────────────────────────
      overlay.querySelector('#rt-pco-add-pc').addEventListener('click', async () => {
          const finalBio = /** @type {HTMLTextAreaElement} */ (overlay.querySelector('#rt-pco-bio')).value.trim();
@@ -1230,14 +1214,25 @@ ${worldCtx}`;
 
     el.querySelectorAll('.rt-random-char-btn').forEach(b => { /** @type {HTMLButtonElement} */ (b).disabled = false; });
 
-    // --- Step 2: Persona Bio ---
-    toastr['info'](`Generating persona bio for "${name}"…`, 'PC Import');
+    // --- Step 2: Optional name-only ST persona ---
+    if (s.onboardingCreateSillyTavernPersona !== false) {
+        try {
+            await activateSillyTavernPersona(name);
+        } catch (error) {
+            console.error('[PC Import] Could not create name-only ST persona:', error);
+            toastr['warning'](`PC imported, but the ST persona for "${name}" could not be created.`, 'PC Import');
+        }
+    }
+
+    // --- Step 3: Optional Lorebook Agent Player Card ---
+    if (!s.onboardingCreatePersona) return;
+    toastr['info'](`Generating Lorebook Agent Player Card for "${name}"…`, 'PC Import');
     
     const bio = await generatePcImportBio(charCard, mode, wordCountStr);
     if (bio) {
         showPersonaConfirmOverlay(bio, name, wordCountStr === 'same' ? 150 : parseInt(wordCountStr, 10), '');
     } else {
-        toastr['warning']('State memo sent, but persona bio generation failed. You can set up the PC persona manually.', 'PC Import');
+        toastr['warning']('State memo sent, but Player Card generation failed. You can add the Player Card manually.', 'PC Import');
     }
 }
 

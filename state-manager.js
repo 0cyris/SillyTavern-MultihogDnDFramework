@@ -20,5 +20,6 @@ export * from './src/state/defaults.js';
 export * from './src/state/factory-and-diff.js';
 export * from './src/state/settings.js';
 export * from './src/state/chat-persistence.js';
+export * from './src/state/chat-setup.js';
 export * from './src/state/profiles.js';
 export * from './src/state/router-utils.js';

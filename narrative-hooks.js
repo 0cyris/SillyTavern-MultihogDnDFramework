@@ -38,7 +38,11 @@ function substituteLoreMacros(content) {
  */
 function resolveEndOfOutputFooterSection(settings) {
     const library = settings.customSyspromptLibrary || [];
-    const override = library.find(p => p.origin === 'unlocked_base' && p.baseTag === 'end_of_output_footer');
+    const override = library.find(p =>
+        p.origin === 'unlocked_base'
+        && p.baseTag === 'end_of_output_footer'
+        && p._chatSetupMember !== false,
+    );
     if (override) {
         const raw = String(override.content || '').trim();
         const innerMatch = raw.match(/<end_of_output_footer>([\s\S]*?)<\/end_of_output_footer>/i);

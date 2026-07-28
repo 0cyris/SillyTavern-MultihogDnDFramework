@@ -43,4 +43,23 @@ describe('saveChatState', () => {
         saveChatState('fresh-chat', { skipDiskWrite: true });
         expect(migrated.chatStates['fresh-chat'].customFields).toBeUndefined();
     });
+
+    it('snapshots the full Control Room and tracker-module setup only when opted in', () => {
+        const s = getSettings();
+        s.chatSetupLinkEnabled = true;
+        s.customFields = [{ tag: 'REPUTATION', label: 'Reputation', enabled: true }];
+        s.customSyspromptLibrary = [{ id: 'law', tag: 'law', content: 'Custom law' }];
+        s.syspromptSectionOrder = ['lib:law'];
+        s.systemPromptTemplate = 'Per-chat extractor';
+
+        saveChatState('locked-chat', { skipDiskWrite: true });
+
+        const setup = s.chatStates['locked-chat'].setup;
+        expect(setup.customFieldStates.REPUTATION).toBe(true);
+        expect(setup.syspromptSnippetStates.law).toBe(false);
+        expect(setup.syspromptSectionOrder).toEqual(['lib:law']);
+        expect(setup.systemPromptTemplate).toBe('Per-chat extractor');
+        expect(s.trackerModuleDatabase[0].tag).toBe('REPUTATION');
+        expect(s.syspromptSnippetDatabase[0].content).toBe('Custom law');
+    });
 });

@@ -1919,12 +1919,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div class="rt-onboarding-hero">
                     <button type="button" class="rt-onboarding-hero-btn rt-random-char-btn" data-archetype="char_roll">🎲 Character Creator</button>
-                    <div class="rt-onboarding-hero-sub">Build your character step by step — presets, persona bio, and full stat generation.</div>
+                    <div class="rt-onboarding-hero-sub">Build your character step by step — presets, Lorebook Player Card, and full stat generation.</div>
                 </div>
 
                 <div class="rt-quickstart" id="rt-quickstart">
                     <div class="rt-quickstart-title">⚡ Instant Action</div>
-                    <div class="rt-quickstart-sub">Fully automated — pick a genre and the extension uses your Narrator Configuration, rolls your character, builds your persona &amp; Player Card, then starts the adventure for you.</div>
+                    <div class="rt-quickstart-sub">Fully automated — pick a genre and the extension uses your Narrator Configuration, rolls your character, builds a Lorebook Agent Player Card plus a name-only ST persona, then starts the adventure for you.</div>
                     <div class="rt-quickstart-genres" role="group" aria-label="Quick Start genre">
                         <button type="button" class="rt-quickstart-genre-btn" data-genre="fantasy">⚔️ Fantasy</button>
                         <button type="button" class="rt-quickstart-genre-btn" data-genre="realistic">🏙️ Modern</button>
@@ -1936,7 +1936,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-other-drawer">
                 <button type="button" class="rt-onboarding-drawer-toggle" id="rt-onboarding-drawer-toggle" aria-expanded="false" aria-controls="rt-onboarding-drawer-body">
-                    <span class="rt-onboarding-drawer-toggle-label"><span class="rt-onboarding-drawer-icon" aria-hidden="true">&#10022;</span><span>Other Ways to Begin<small>Fine-tune your start, create a persona, or import a character</small></span></span>
+                    <span class="rt-onboarding-drawer-toggle-label"><span class="rt-onboarding-drawer-icon" aria-hidden="true">&#10022;</span><span>Other Ways to Begin<small>Fine-tune your start, create a Player Card, or import a character</small></span></span>
                     <span class="rt-onboarding-drawer-chevron" aria-hidden="true">&#9656;</span>
                 </button>
                 <div class="rt-onboarding-drawer-body" id="rt-onboarding-drawer-body">
@@ -1985,21 +1985,30 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         </div>
                     </div>
                     <textarea id="rt-onboarding-custom-instructions" class="text_pole" placeholder="Custom setting/character instructions (e.g. Victorian London, space marine, gritty realism, cyberpunk decker...)" style="width: 100%; min-height: 40px; max-height: 120px; font-size: 11px; padding: 4px 6px; border-radius: 4px; background: var(--black70a); resize: vertical; margin-top: 2px;">${escapeHtml(obSettings.onboardingCustomInstructions || '')}</textarea>
-                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; padding:4px 0 2px; flex-wrap:wrap;">
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
-                            <input type="checkbox" id="rt-onboarding-persona-cb"${obSettings.onboardingCreatePersona ? ' checked' : ''} />
-                            <span>Create Persona (Recommended)</span>
-                        </label>
-                        <span class="rt-cr-help-icon" title="When checked, after generating a character the AI also writes an appearance, personality, habits, and backstory. A preview will appear — you can accept (which auto-creates a new SillyTavern persona locked to this chat) or regenerate just this part without re-rolling the whole character. Does not apply when using an existing Persona.">?</span>
-                        <span style="opacity:0.6; font-size:0.8em; margin-left:4px;">Word count:</span>
-                        <select id="rt-onboarding-persona-words" class="text_pole" style="width:65px; font-size:11px; height:22px; padding:2px 4px;">
-                            ${[100, 150, 200, 300, 400, 500, 750, 1000].map(n => {
-                                const sel = String(obSettings.onboardingPersonaWords || '150') === String(n) ? ' selected' : '';
-                                return `<option value="${n}"${sel}>${n}</option>`;
-                            }).join('')}
-                            <option value="other"${obSettings.onboardingPersonaWords === 'other' ? ' selected' : ''}>Other...</option>
-                        </select>
-                        <input id="rt-onboarding-persona-words-custom" type="number" class="text_pole" value="${escapeHtml(String(obSettings.onboardingPersonaWordsCustom || ''))}" style="display:${obSettings.onboardingPersonaWords === 'other' ? 'inline-block' : 'none'}; width:65px; font-size:11px; height:22px; padding:2px 4px; margin-left:4px;" placeholder="e.g. 800" min="50" max="5000" />
+                    <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0; padding:4px 0 2px;">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
+                                <input type="checkbox" id="rt-onboarding-player-card-cb"${obSettings.onboardingCreatePersona ? ' checked' : ''} />
+                                <span>Create Player Card in Lorebook Agent (Recommended)</span>
+                            </label>
+                            <span class="rt-cr-help-icon" title="When checked, the AI writes a rich appearance, personality, habits, and backstory for a Lorebook Agent Player Card. A preview appears so you can edit, regenerate, copy, or add it to this chat.">?</span>
+                            <span style="opacity:0.6; font-size:0.8em; margin-left:4px;">Word count:</span>
+                            <select id="rt-onboarding-persona-words" class="text_pole" style="width:65px; font-size:11px; height:22px; padding:2px 4px;">
+                                ${[100, 150, 200, 300, 400, 500, 750, 1000].map(n => {
+                                    const sel = String(obSettings.onboardingPersonaWords || '150') === String(n) ? ' selected' : '';
+                                    return `<option value="${n}"${sel}>${n}</option>`;
+                                }).join('')}
+                                <option value="other"${obSettings.onboardingPersonaWords === 'other' ? ' selected' : ''}>Other...</option>
+                            </select>
+                            <input id="rt-onboarding-persona-words-custom" type="number" class="text_pole" value="${escapeHtml(String(obSettings.onboardingPersonaWordsCustom || ''))}" style="display:${obSettings.onboardingPersonaWords === 'other' ? 'inline-block' : 'none'}; width:65px; font-size:11px; height:22px; padding:2px 4px; margin-left:4px;" placeholder="e.g. 800" min="50" max="5000" />
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
+                                <input type="checkbox" id="rt-onboarding-st-persona-cb"${obSettings.onboardingCreateSillyTavernPersona !== false ? ' checked' : ''} />
+                                <span>Create ST Persona (Recommended)</span>
+                            </label>
+                            <span class="rt-cr-help-icon" title="Creates and selects a SillyTavern persona with the character's name and an empty description. This only makes sent chat messages use the same player name; character details stay in Lorebook Agent so they are not duplicated in prompt context.">?</span>
+                        </div>
                     </div>
                 </div>
 
@@ -2039,7 +2048,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     </div>
                     <div style="font-size:10px; color:rgba(255,255,255,0.45); line-height:1.4;"><b>Add as is</b> = AI preserves original writing, fixes only era/world impossibilities · <b>Fit into Story</b> = full adaptation to campaign setting.</div>
                     <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-                        <label style="font-size:11px; color:rgba(255,255,255,0.6); white-space:nowrap;">Persona Bio Length</label>
+                        <label style="font-size:11px; color:rgba(255,255,255,0.6); white-space:nowrap;">Player Card Length</label>
                         <select id="rt-pc-import-wordselect" style="background:rgba(0,0,0,0.3); color:white; border:1px solid rgba(255,255,255,0.15); border-radius:4px; padding:2px 4px; font-size:11px; box-sizing:border-box;">
                             <option value="same">Same as Card</option>
                             <option value="150">Short (~150 words)</option>
@@ -2177,25 +2186,34 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         <label class="rt-cr-label">Additional Info</label>
                         <textarea id="rt-cr-additional" class="text_pole rt-cr-input" placeholder="Extra constraints, setting notes…" rows="2" style="resize:vertical; width:100%;"></textarea>
                     </div>
-                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; padding:4px 0;">
-                        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
-                            <input type="checkbox" id="rt-cr-persona-cb" />
-                            <span>Create Persona (Recommended)</span>
-                        </label>
-                        <span class="rt-cr-help-icon" title="When checked, the AI also generates an appearance, personality, habits, and backstory. A preview will appear — you can accept (which auto-creates a new SillyTavern persona locked to this chat) or regenerate just this part without re-rolling the whole character.">?</span>
-                        <span style="opacity:0.6; font-size:0.8em; margin-left:4px;">Word count:</span>
-                        <select id="rt-cr-persona-words" class="text_pole" style="width:65px; font-size:11px; height:22px; padding:2px 4px;">
-                            <option value="100">100</option>
-                            <option value="150" selected>150</option>
-                            <option value="200">200</option>
-                            <option value="300">300</option>
-                            <option value="400">400</option>
-                            <option value="500">500</option>
-                            <option value="750">750</option>
-                            <option value="1000">1000</option>
-                            <option value="other">Other...</option>
-                        </select>
-                        <input id="rt-cr-persona-words-custom" type="number" class="text_pole" style="display:none; width:65px; font-size:11px; height:22px; padding:2px 4px; margin-left:4px;" placeholder="e.g. 800" min="50" max="5000" />
+                    <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0; padding:4px 0;">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
+                                <input type="checkbox" id="rt-cr-player-card-cb" />
+                                <span>Create Player Card in Lorebook Agent (Recommended)</span>
+                            </label>
+                            <span class="rt-cr-help-icon" title="When checked, the AI writes a rich appearance, personality, habits, and backstory for a Lorebook Agent Player Card. A preview appears so you can edit, regenerate, copy, or add it to this chat.">?</span>
+                            <span style="opacity:0.6; font-size:0.8em; margin-left:4px;">Word count:</span>
+                            <select id="rt-cr-persona-words" class="text_pole" style="width:65px; font-size:11px; height:22px; padding:2px 4px;">
+                                <option value="100">100</option>
+                                <option value="150" selected>150</option>
+                                <option value="200">200</option>
+                                <option value="300">300</option>
+                                <option value="400">400</option>
+                                <option value="500">500</option>
+                                <option value="750">750</option>
+                                <option value="1000">1000</option>
+                                <option value="other">Other...</option>
+                            </select>
+                            <input id="rt-cr-persona-words-custom" type="number" class="text_pole" style="display:none; width:65px; font-size:11px; height:22px; padding:2px 4px; margin-left:4px;" placeholder="e.g. 800" min="50" max="5000" />
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
+                                <input type="checkbox" id="rt-cr-st-persona-cb" checked />
+                                <span>Create ST Persona (Recommended)</span>
+                            </label>
+                            <span class="rt-cr-help-icon" title="Creates and selects a SillyTavern persona with the character's name and an empty description. This only makes sent chat messages use the same player name; character details stay in Lorebook Agent so they are not duplicated in prompt context.">?</span>
+                        </div>
                     </div>
                     <button id="rt-cr-generate-btn" style="width:100%; padding:8px 12px; background:rgba(120,80,220,0.2); border:1px solid rgba(120,80,220,0.6); border-radius:5px; color:var(--rt-text,#eee); font-size:0.92em; font-weight:bold; cursor:pointer; letter-spacing:0.03em;">🎲 Generate Character</button>
                 </div>
@@ -2438,7 +2456,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         ` : '';
 
         const personaFromCharBtn = tag === 'CHARACTER' ? `
-            <button class="rt-char-to-persona-btn" data-tag="CHARACTER" title="Create Lorebook Agent Persona from this CHARACTER (uses sheet + last 3 story messages)">
+            <button class="rt-char-to-persona-btn" data-tag="CHARACTER" title="Create Lorebook Agent Player Card from this CHARACTER (uses sheet + last 3 story messages)">
                 👤
             </button>
         ` : '';

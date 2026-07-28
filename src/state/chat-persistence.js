@@ -6,6 +6,7 @@ import { BLOCK_ORDER } from '../../constants.js';
 import { getNpcRelationshipMax } from './relationship-math.js';
 import { getSettings, stripChatStateGlobalUiPrefs } from './settings.js';
 import { snapshotStockPromptsForProfile } from './profiles.js';
+import { snapshotChatSetup } from './chat-setup.js';
 
 // Kept only so legacy recovery code can be re-enabled deliberately. Normal tracker
 // operation must not create or consume a browser-local recovery copy.
@@ -153,6 +154,7 @@ export function applyDeletedCustomTagTombstones() {
 
     s.customFields = stripFields(s.customFields || []);
     s.blockOrder = stripOrder(s.blockOrder || []);
+    s.trackerModuleDatabase = stripFields(s.trackerModuleDatabase || []);
 
     if (s.chatStates && typeof s.chatStates === 'object') {
         for (const chatId of Object.keys(s.chatStates)) {
@@ -160,6 +162,16 @@ export function applyDeletedCustomTagTombstones() {
             if (!part || typeof part !== 'object') continue;
             if (part.customFields) part.customFields = stripFields(part.customFields);
             if (part.blockOrder) part.blockOrder = stripOrder(part.blockOrder);
+            if (part.setup?.customFields) part.setup.customFields = stripFields(part.setup.customFields);
+            if (part.setup?.blockOrder) part.setup.blockOrder = stripOrder(part.setup.blockOrder);
+            if (part.setup?.customFieldStates) {
+                for (const tag of banned) {
+                    if (Object.prototype.hasOwnProperty.call(part.setup.customFieldStates, tag)) {
+                        delete part.setup.customFieldStates[tag];
+                        changed = true;
+                    }
+                }
+            }
         }
     }
 
@@ -362,6 +374,10 @@ export function saveChatState(chatId, opts = {}) {
         useDdMmYyFormat: !!s.useDdMmYyFormat,
         initialDate: s.initialDate || 'Day 1',
         npcRelationshipMax: getNpcRelationshipMax(s),
+
+        // Optional full configuration lock. State-only Chat Link behavior remains
+        // unchanged unless the user explicitly enables this setting.
+        setup: s.chatSetupLinkEnabled ? snapshotChatSetup(s) : existing.setup,
 
         // Preserve lorebook stack link — written by Link button and router, not by normal state saves
         campaignBooks: existing.campaignBooks || [],

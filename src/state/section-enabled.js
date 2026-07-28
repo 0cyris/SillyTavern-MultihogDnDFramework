@@ -9,6 +9,6 @@ export function isBaseSectionEnabled(tag, settings) {
 /** Whether the section that actually occupies a base slot is currently enabled. */
 export function isEffectiveSectionEnabled(tag, settings) {
     const override = (settings.customSyspromptLibrary || [])
-        .find(p => p.origin === 'unlocked_base' && p.baseTag === tag);
+        .find(p => p.origin === 'unlocked_base' && p.baseTag === tag && p._chatSetupMember !== false);
     return override ? !!override.enabled : isBaseSectionEnabled(tag, settings);
 }

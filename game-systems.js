@@ -12,7 +12,7 @@
 //                              intact.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { getSettings, getNpcRelationshipMax, buildRelationshipTrackingSysprompt, recordDeletedCustomTags, clearDeletedCustomTagTombstones } from './state-manager.js';
+import { getSettings, getNpcRelationshipMax, buildRelationshipTrackingSysprompt, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries } from './state-manager.js';
 import { sendStateRequest, restoreUserMacro } from './llm-client.js';
 import { escapeHtml } from './memo-processor.js';
 import { refreshOrderList } from './ui-editors.js';
@@ -28,6 +28,7 @@ import {
     fetchBaseSyspromptRaw,
 } from './src/app/runtime-bridge.js';
 import { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
+import { normalizeGmContent, unwrapManagedSectionContent } from './src/state/sysprompt-content.js';
 
 export { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 
@@ -49,6 +50,9 @@ function snapshotControlRoomSettings(settings) {
         customFields: JSON.parse(JSON.stringify(settings.customFields || [])),
         blockOrder: JSON.parse(JSON.stringify(settings.blockOrder || [])),
         customSysprompt: settings.customSysprompt,
+        trackerModuleDatabase: JSON.parse(JSON.stringify(settings.trackerModuleDatabase || [])),
+        syspromptSnippetDatabase: JSON.parse(JSON.stringify(settings.syspromptSnippetDatabase || [])),
+        gameSystemDatabase: JSON.parse(JSON.stringify(settings.gameSystemDatabase || [])),
     };
 }
 
@@ -61,6 +65,9 @@ function restoreControlRoomSettings(settings, snapshot) {
     settings.customFields = snapshot.customFields;
     settings.blockOrder = snapshot.blockOrder;
     settings.customSysprompt = snapshot.customSysprompt;
+    settings.trackerModuleDatabase = snapshot.trackerModuleDatabase;
+    settings.syspromptSnippetDatabase = snapshot.syspromptSnippetDatabase;
+    settings.gameSystemDatabase = snapshot.gameSystemDatabase;
 }
 
 /** Popup sizing for content-heavy Game Systems dialogs (90% screen, scrollable). */
@@ -247,18 +254,6 @@ function extractTagBlock(raw, tagName) {
     return { attrs: parseTagAttributes(m[1]), content: m[2].trim() };
 }
 
-/**
- * If `content` isn't already self-wrapped in `<tag>...</tag>`, wrap it.
- * Handles both fresh AI generation (raw instructions) and round-tripped
- * export/import (already wrapped) uniformly.
- */
-function normalizeGmContent(tag, content) {
-    const trimmed = (content || '').trim();
-    const re = new RegExp(`^<${tag}[^>]*>[\\s\\S]*<\\/${tag}>$`);
-    if (re.test(trimmed)) return trimmed;
-    return `<${tag}>\n${trimmed}\n</${tag}>`;
-}
-
 /** Matches sysprompt section tag names, including bracket-prefixed tags like [PARTY]_mechanics. */
 const SYSPROMPT_TAG_NAME = '(?:\\[[^\\]]+\\][\\w_-]*|\\w[\\w_-]*)';
 
@@ -292,7 +287,7 @@ function buildExistingTagsContext(settings) {
     // 2. Custom Fields / Tracker Modules
     if (settings.customFields && settings.customFields.length > 0) {
         settings.customFields.forEach(f => {
-            if (!settings.modules || settings.modules[f.tag.toUpperCase()] !== false) {
+            if (f.enabled) {
                 context += `[${f.tag.toUpperCase()}] (Custom Tracker Module: ${f.label})\nPrompt:\n${f.prompt}\nTemplate:\n${f.template}\n\n`;
             }
         });
@@ -301,7 +296,7 @@ function buildExistingTagsContext(settings) {
     // 3. Custom GM Sections
     if (settings.customSyspromptLibrary && settings.customSyspromptLibrary.length > 0) {
         settings.customSyspromptLibrary.forEach(p => {
-            if (!isBlankSectionContent(p.content)) {
+            if (p.enabled && !isBlankSectionContent(p.content)) {
                 context += `<${p.tag}> (Custom GM/Narrator Section)\nInstructions:\n${p.content}\n\n`;
             }
         });
@@ -343,7 +338,9 @@ const NARRATOR_TOGGLE_IDS = {
 };
 
 export function isSectionUnlocked(settings, tag) {
-    return (settings.customSyspromptLibrary || []).some(p => p.origin === 'unlocked_base' && p.baseTag === tag);
+    return (settings.customSyspromptLibrary || []).some(p =>
+        p.origin === 'unlocked_base' && p.baseTag === tag && p._chatSetupMember !== false,
+    );
 }
 
 /** Enables/disables a built-in base section and keeps the Narrator Configuration UI in sync. */
@@ -532,7 +529,9 @@ export function normalizeSectionOrder(settings, baseSections) {
         if (p.baseTag === 'party_join_leave') p.baseTag = '[PARTY]_mechanics';
     });
     const library = settings.customSyspromptLibrary || [];
-    const orderableLibKeys = new Set(library.filter(p => p.origin !== 'unlocked_base').map(p => `lib:${p.id}`));
+    const orderableLibKeys = new Set(library
+        .filter(p => p.origin !== 'unlocked_base' || p._chatSetupMember === false)
+        .map(p => `lib:${p.id}`));
     const baseKeys = baseSections.map(s => `base:${s.tag}`);
     const baseKeySet = new Set(baseKeys);
 
@@ -601,7 +600,9 @@ export function getSectionRowDescriptor(key, settings, baseSectionMap) {
     const library = settings.customSyspromptLibrary || [];
     if (key.startsWith('base:')) {
         const tag = key.slice(5);
-        const override = library.find(p => p.origin === 'unlocked_base' && p.baseTag === tag);
+        const override = library.find(p =>
+            p.origin === 'unlocked_base' && p.baseTag === tag && p._chatSetupMember !== false,
+        );
         if (override) {
             return {
                 key, kind: 'unlocked', tag,
@@ -670,6 +671,9 @@ export function getSectionRowDescriptor(key, settings, baseSectionMap) {
  */
 export async function showSectionEditor({ mode = 'manual', tag = '', description = '', content = '', onRegenerate = null } = {}) {
     const { Popup } = SillyTavern.getContext();
+    const editorContent = mode === 'edit' && tag
+        ? unwrapManagedSectionContent(tag, content)
+        : content;
 
     const titleMap = {
         ai: '✨ Review Generated Section',
@@ -701,7 +705,7 @@ export async function showSectionEditor({ mode = 'manual', tag = '', description
                 <textarea id="rt-se-content" class="text_pole" rows="18"
                     style="width:100%; max-width:100%; box-sizing:border-box; font-size:11px; font-family:monospace; resize:vertical; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; min-height:280px;"
                     placeholder="  Rules go here...\n  - Rule 1\n  - Rule 2"
-                    >${escapeHtml(content)}</textarea>
+                    >${escapeHtml(editorContent)}</textarea>
             </div>
             ${showRegenerate ? `<button id="rt-se-regen" class="menu_button interactable" style="background:rgba(180,100,255,0.15); border-color:rgba(180,100,255,0.4); width:100%;"><i class="fa-solid fa-rotate"></i> Regenerate with AI</button>` : ''}
             ${showSaveOptions ? `
@@ -721,7 +725,7 @@ export async function showSectionEditor({ mode = 'manual', tag = '', description
 
     let currentTag = tag;
     let currentDesc = description;
-    let currentContent = content;
+    let currentContent = editorContent;
     let currentSaveMode = 'apply';
 
     // Attach event listeners after DOM is ready
@@ -759,11 +763,15 @@ export async function showSectionEditor({ mode = 'manual', tag = '', description
                     regenBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Regenerating...';
                     try {
                         const newContent = await onRegenerate(currentDescVal);
-                        if (contentEl) {
-                            contentEl.value = newContent;
-                            currentContent = newContent;
-                        }
                         const extractedTag = newContent.match(/^<(\w+[\w_-]*)/)?.[1];
+                        const managedTag = extractedTag || tagEl?.value.trim() || currentTag;
+                        const editableContent = managedTag
+                            ? unwrapManagedSectionContent(managedTag, newContent)
+                            : newContent;
+                        if (contentEl) {
+                            contentEl.value = editableContent;
+                            currentContent = editableContent;
+                        }
                         if (extractedTag && tagEl) {
                             if (!tagEl.value.trim()) {
                                 tagEl.value = extractedTag;
@@ -796,28 +804,14 @@ export async function showSectionEditor({ mode = 'manual', tag = '', description
     }
     let finalTag = currentTag.trim().replace(/[^\w_-]/g, '');
 
-    // Robust check to see if content is already wrapped in a root XML tag
-    const outerTagRegex = /^<(\w+[\w_-]*)(?:\s+[^>]*)*>([\s\S]*)<\/\1>$/;
-    const tagMatch = finalContent.match(outerTagRegex);
-
-    if (tagMatch) {
-        const contentTag = tagMatch[1];
-        const innerContent = tagMatch[2].trim();
-
-        // If Tag Name field was empty, adopt the tag from the XML content
-        if (!finalTag) {
-            finalTag = contentTag;
-        }
-
-        // Always wrap with finalTag to ensure consistency and prevent mismatch/double-tagging
-        finalContent = `<${finalTag}>\n${innerContent}\n</${finalTag}>`;
-    } else {
-        // Content is not wrapped in XML tags, or has mismatched/multiple sibling tags
-        if (!finalTag) {
-            finalTag = 'custom_section';
-        }
-        finalContent = `<${finalTag}>\n${finalContent}\n</${finalTag}>`;
+    // Accept pasted full XML, but always reduce application-managed wrappers to
+    // one pair. This also repairs sections affected by the old repeated-wrap bug.
+    const pastedTag = finalContent.match(/^<(\w+[\w_-]*)(?:\s+[^>]*)*>/)?.[1];
+    if (!finalTag) finalTag = pastedTag || 'custom_section';
+    if (pastedTag && pastedTag.toLowerCase() !== finalTag.toLowerCase()) {
+        finalContent = unwrapManagedSectionContent(pastedTag, finalContent);
     }
+    finalContent = normalizeGmContent(finalTag, finalContent);
 
     return {
         tag: finalTag,
@@ -842,7 +836,11 @@ export async function resetSyspromptLibrary(options = {}) {
     const { deferPersistence = false } = options;
     if (!confirm('This will remove all AI-generated / manually-added custom sections (Game Systems and Unlocked Sections are left untouched) and restore the default section order. Proceed?')) return;
     const settings = getSettings();
+    const removedIds = (settings.customSyspromptLibrary || [])
+        .filter(p => p.origin !== 'unlocked_base' && p.origin !== 'wizard')
+        .map(p => p.id);
     settings.customSyspromptLibrary = (settings.customSyspromptLibrary || []).filter(p => p.origin === 'unlocked_base' || p.origin === 'wizard');
+    removeChatSetupCatalogEntries(settings, { syspromptIds: removedIds });
     settings.syspromptSectionOrder = [];
     await persistSyspromptChanges(deferPersistence);
     if (!deferPersistence) {
@@ -1835,6 +1833,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
             libItem.content = wrapped;
             libItem.description = `Game System: ${result.name}`;
             libItem.enabled = enabled;
+            libItem._chatSetupMember = true;
         } else {
             const isTaken = (tag) => settings.customSyspromptLibrary.some(p => p.tag === tag);
             const finalTag = uniqueTag(result.gmTag, isTaken);
@@ -1853,6 +1852,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
     } else if (syspromptLibraryId) {
         // User unchecked the GM half during edit — drop the linked library entry.
         settings.customSyspromptLibrary = settings.customSyspromptLibrary.filter(p => p.id !== syspromptLibraryId);
+        removeChatSetupCatalogEntries(settings, { syspromptIds: [syspromptLibraryId] });
         syspromptLibraryId = null;
     }
 
@@ -1865,6 +1865,8 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
             field.icon = result.trackerIcon;
             field.prompt = result.trackerContent;
             field.enabled = enabled;
+            field.origin = 'wizard';
+            field._chatSetupMember = true;
         } else {
             const isTaken = (tag) => settings.customFields.some(f => f.tag.toUpperCase() === tag) ||
                 ['COMBAT', 'CHARACTER', 'PARTY', 'INVENTORY', 'ABILITIES', 'SPELLS', 'XP', 'TIME'].includes(tag);
@@ -1876,6 +1878,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
                 prompt: result.trackerContent,
                 template: '',
                 enabled,
+                origin: 'wizard',
             };
             settings.customFields.push(field);
             customFieldTag = finalTag;
@@ -1885,6 +1888,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
         // User unchecked the tracker half during edit — drop the linked field + its blockOrder slot.
         settings.customFields = settings.customFields.filter(f => f.tag.toUpperCase() !== customFieldTag);
         if (settings.blockOrder) settings.blockOrder = settings.blockOrder.filter(t => t.toUpperCase() !== customFieldTag);
+        removeChatSetupCatalogEntries(settings, { customFieldTags: [customFieldTag] });
         recordDeletedCustomTags(customFieldTag);
         customFieldTag = null;
     }
@@ -1894,6 +1898,7 @@ function saveGameSystemFromPreview(result, existingSystemId = null) {
         existing.name = result.name;
         existing.icon = result.icon;
         existing.enabled = enabled;
+        existing._chatSetupMember = true;
         existing.needsTracker = result.includeTracker;
         existing.driverTime = result.driverTime;
         existing.driverGmAnnotation = result.driverGmAnnotation;
@@ -2208,13 +2213,20 @@ export async function setGameSystemEnabled(gs, enabled, options = {}) {
     const { deferPersistence = false } = options;
     const settings = getSettings();
     gs.enabled = enabled;
+    gs._chatSetupMember = true;
     if (gs.syspromptLibraryId) {
         const lib = (settings.customSyspromptLibrary || []).find(p => p.id === gs.syspromptLibraryId);
-        if (lib) lib.enabled = enabled;
+        if (lib) {
+            lib.enabled = enabled;
+            lib._chatSetupMember = true;
+        }
     }
     if (gs.customFieldTag) {
         const field = (settings.customFields || []).find(f => f.tag.toUpperCase() === gs.customFieldTag);
-        if (field) field.enabled = enabled;
+        if (field) {
+            field.enabled = enabled;
+            field._chatSetupMember = true;
+        }
     }
     if (deferPersistence) return;
     saveSettings();
@@ -2232,6 +2244,11 @@ export async function deleteGameSystemWithConfirm(gs, options = {}) {
     const { deferPersistence = false } = options;
     if (!confirm(`Delete the Game System "${gs.name}"? This removes both its GM section and tracker module. This cannot be undone.`)) return false;
     const settings = getSettings();
+    removeChatSetupCatalogEntries(settings, {
+        customFieldTags: gs.customFieldTag ? [gs.customFieldTag] : [],
+        syspromptIds: gs.syspromptLibraryId ? [gs.syspromptLibraryId] : [],
+        gameSystemIds: [gs.id],
+    });
     if (gs.syspromptLibraryId) {
         settings.customSyspromptLibrary = (settings.customSyspromptLibrary || []).filter(p => p.id !== gs.syspromptLibraryId);
         if (settings.syspromptSectionOrder) {
@@ -2402,7 +2419,11 @@ export async function unlockBaseSection(tag, options = {}) {
 export async function relockBaseSection(tag, options = {}) {
     const { deferPersistence = false } = options;
     const settings = getSettings();
+    const removedIds = (settings.customSyspromptLibrary || [])
+        .filter(p => p.origin === 'unlocked_base' && p.baseTag === tag)
+        .map(p => p.id);
     settings.customSyspromptLibrary = (settings.customSyspromptLibrary || []).filter(p => !(p.origin === 'unlocked_base' && p.baseTag === tag));
+    removeChatSetupCatalogEntries(settings, { syspromptIds: removedIds });
 
     if (!settings.syspromptModules) settings.syspromptModules = {};
     if (tag in KNOWN_TOGGLE_DEFAULTS) {
@@ -2561,13 +2582,22 @@ export async function openSystemPromptControlRoom() {
         if (rows.length === 0) {
             return `<div style="text-align:center; padding:30px; opacity:0.5; font-style:italic;">No sections found.</div>`;
         }
-        return '<div id="rt-cr-list" style="display:flex; flex-direction:column; gap:8px;">' + rows.map(renderControlRoomRow).join('') + '</div>';
+        const activeRows = rows.filter(row => row.enabled);
+        const inactiveRows = rows.filter(row => !row.enabled);
+        const renderGroup = (label, groupedRows, active) => groupedRows.length ? `
+            <div class="rt-cr-pool-heading" style="font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.55px;margin:${active ? '2px' : '10px'} 2px 0;opacity:${active ? '.8' : '.55'};">${label}</div>
+            ${groupedRows.map(renderControlRoomRow).join('')}
+        ` : '';
+        return '<div id="rt-cr-list" style="display:flex; flex-direction:column; gap:8px;">'
+            + renderGroup('Active for this chat', activeRows, true)
+            + renderGroup('Inactive snippet pool', inactiveRows, false)
+            + '</div>';
     };
 
     const html = `
         <div id="rt-cr-container" class="rt-cr-popup-container">
             <div style="font-size:11px; opacity:0.8; line-height:1.4;">
-                Drag any row to reorder sections, toggle <b>Enabled</b> to turn it on/off, or use the tools below to unlock a built-in section or add a brand-new one. 🧙 rows are managed by the Game System Wizard — Edit/Delete there keeps the linked tracker module in sync.
+                Drag any row to reorder sections, toggle <b>Enabled</b> to move it between this chat's active list and the inactive snippet pool, or use the tools below to unlock a built-in section or add a brand-new one. 🧙 rows are managed by the Game System Wizard — Edit/Delete there keeps the linked tracker module in sync.
                 <div style="margin-top:4px; opacity:0.75;">Changes are kept in memory until you click <b>Save</b>.</div>
             </div>
             <details id="rt-cr-custom-sysprompt-details" style="border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 8px;">
@@ -2681,7 +2711,10 @@ export async function openSystemPromptControlRoom() {
                         }
                     } else {
                         const item = (settings.customSyspromptLibrary || []).find(p => p.id === row.libId);
-                        if (item) item.enabled = checked;
+                        if (item) {
+                            item.enabled = checked;
+                            item._chatSetupMember = true;
+                        }
                     }
                     refresh();
                 });
@@ -2756,6 +2789,7 @@ export async function openSystemPromptControlRoom() {
                     if (!confirm('Delete this custom section permanently?')) return;
                     const libId = e.currentTarget.dataset.libid;
                     settings.customSyspromptLibrary = (settings.customSyspromptLibrary || []).filter(p => p.id !== libId);
+                    removeChatSetupCatalogEntries(settings, { syspromptIds: [libId] });
                     if (settings.syspromptSectionOrder) {
                         settings.syspromptSectionOrder = settings.syspromptSectionOrder.filter(k => k !== `lib:${libId}`);
                     }

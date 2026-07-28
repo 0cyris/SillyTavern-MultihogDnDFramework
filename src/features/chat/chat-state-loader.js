@@ -1,4 +1,5 @@
 import { runtimeState } from '../../app/runtime-state.js';
+import { applyChatSetup, resetChatSetupToStock } from '../../state/chat-setup.js';
 
 /** Restores one chat-linked tracker snapshot and synchronizes dependent UI. */
 export function createChatStateLoader({
@@ -33,14 +34,23 @@ export function createChatStateLoader({
     const saved = s.chatStates?.[chatId];
     if (!saved) return false;
 
+    if (s.chatSetupLinkEnabled) {
+        if (!applyChatSetup(s, saved.setup)) resetChatSetupToStock(s);
+    }
+
     s.currentMemo = saved.currentMemo ?? '';
     s.memoHistory = saved.memoHistory ?? [];
     s.lastDelta = saved.lastDelta ?? '';
-    if (saved.modules) s.modules = { ...s.modules, ...saved.modules };
-    if (saved.blockOrder) s.blockOrder = JSON.parse(JSON.stringify(saved.blockOrder));
-    if (saved.stockPrompts) s.stockPrompts = loadStockPromptsFromProfile(saved.stockPrompts);
-    // Custom tracker definitions are global framework configuration. Chat Link
-    // restores a chat's state, never its private copy of the module library.
+    // Legacy Chat Link keeps these presentation fields at the partition root.
+    // Under setup lock the dedicated setup snapshot is authoritative, including
+    // for old partitions where a missing setup intentionally means factory stock.
+    if (!s.chatSetupLinkEnabled) {
+        if (saved.modules) s.modules = { ...s.modules, ...saved.modules };
+        if (saved.blockOrder) s.blockOrder = JSON.parse(JSON.stringify(saved.blockOrder));
+        if (saved.stockPrompts) s.stockPrompts = loadStockPromptsFromProfile(saved.stockPrompts);
+    }
+    // Custom tracker definitions remain global under legacy Chat Link. When setup
+    // lock is enabled, the chat-specific definitions were restored above.
     s.customPortraits = JSON.parse(JSON.stringify(saved.customPortraits || {}));
     s.customLocationImages = JSON.parse(JSON.stringify(saved.customLocationImages || {}));
     // Restore persisted quests (incl. completed) so the UI can display them
@@ -239,6 +249,9 @@ export function createChatStateLoader({
 
     refreshOrderList();
     syncMemoView();
+    if (s.chatSetupLinkEnabled && typeof globalThis._rpgSyncSettingsUi === 'function') {
+        globalThis._rpgSyncSettingsUi();
+    }
     scheduleAutoApply();
 
     // Refresh Lorebook Agent UI

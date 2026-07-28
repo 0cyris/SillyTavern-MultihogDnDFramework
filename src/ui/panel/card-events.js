@@ -85,11 +85,18 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
         });
     }
 
-    // Create Persona (Other ways to begin) — persist + word-count "Other..." toggle
-    const onboardingPersonaCb = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-persona-cb'));
-    if (onboardingPersonaCb) {
-        onboardingPersonaCb.addEventListener('change', () => {
-            getSettings().onboardingCreatePersona = !!onboardingPersonaCb.checked;
+    // Player Card + name-only ST persona (Other Ways to Begin)
+    const onboardingPlayerCardCb = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-player-card-cb'));
+    if (onboardingPlayerCardCb) {
+        onboardingPlayerCardCb.addEventListener('change', () => {
+            getSettings().onboardingCreatePersona = !!onboardingPlayerCardCb.checked;
+            saveSettings();
+        });
+    }
+    const onboardingStPersonaCb = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-st-persona-cb'));
+    if (onboardingStPersonaCb) {
+        onboardingStPersonaCb.addEventListener('change', () => {
+            getSettings().onboardingCreateSillyTavernPersona = !!onboardingStPersonaCb.checked;
             saveSettings();
         });
     }
@@ -351,7 +358,10 @@ Gear:
                 if (customInstructions) {
                     personaPrompt += `\n\nAdditional setting/instruction constraints: ${customInstructions}. Adapt the name, attributes, description, gear, and spells (if any) to match this setting/instruction perfectly.`;
                 }
+                syncOnboardingPersonaPrefsFromDom(el);
                 await sendDirectPrompt(personaPrompt + combatSkillHint);
+                const personaHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\nSource: the previously active SillyTavern persona.${customInstructions ? `\nAdditional: ${customInstructions}` : ''}\n`;
+                await maybeCreateOnboardingPersona(personaHints);
                 return;
             }
 
@@ -682,7 +692,7 @@ Gear:
                 if (bio) {
                     showPersonaConfirmOverlay(bio, charName, wordCount, extraHints, personaOpts);
                 } else {
-                    toastr['warning']('Persona bio generation failed.', 'RPG Tracker');
+                    toastr['warning']('Player Card generation failed.', 'RPG Tracker');
                 }
             } finally {
                 btn.disabled = false;
