@@ -527,7 +527,7 @@ Built-in visual themes: Match ST UI, Hacker, Fantasy, Hologram, Pacific Cove, Ch
 
 Configurable narrator-side behaviors include:
 
-- **Narrative Pacing** modes (e.g. Normal / High-Agency / Downtime)
+- **Narrative Pacing** modes: Normal (no length instructions), Shorter Outputs (modest length), High-Agency, and Downtime
 - **Benched Party** handling (ties into WP eligibility)
 - **Relationship Tracking** sections in the GM prompt
 - **CYOA** choice presentation

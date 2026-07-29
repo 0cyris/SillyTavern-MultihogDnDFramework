@@ -2268,11 +2268,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <small style="display: block; margin-bottom: 8px; opacity: 0.65; font-style: italic; line-height: 1.3;">Select your preferred modes and components. Changes apply to your system prompt automatically.</small>
 
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
-                        <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">Pacing</span>
+                        <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">Pacing/Output Length</span>
                         <button type="button" class="rt-narrative-pacing-help" style="background: none; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: inherit; font-size: 0.72em; opacity: 0.7; padding: 1px 7px; cursor: pointer;">What are these?</button>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; padding-left: 5px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="normal" id="rt_onboarding_narrative_pacing_normal" /><span>Normal</span></label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="normal" id="rt_onboarding_narrative_pacing_normal" /><span>Normal (no length instructions)</span></label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="shorter_outputs" id="rt_onboarding_narrative_pacing_shorter_outputs" /><span>Shorter Outputs</span></label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="high_agency" id="rt_onboarding_narrative_pacing_high_agency" /><span>High-Agency Mode</span></label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="rt_onboarding_narrative_pacing" value="downtime" id="rt_onboarding_narrative_pacing_downtime" /><span>Downtime/Slice of Life Mode</span></label>
                     </div>

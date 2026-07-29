@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.3.60] - 2026-07-29
+
+### Added
+- **Shorter Outputs pacing**: Narrator Configuration now includes a dedicated modest-output-length mode, alongside the renamed Normal (no length instructions) option.
+
 ## [6.3.53] - 2026-07-29
 
 ### Fixed

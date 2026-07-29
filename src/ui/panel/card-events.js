@@ -467,10 +467,10 @@ Gear:
 
     const onboardingPacingInputs = el.querySelectorAll('input[name="rt_onboarding_narrative_pacing"]');
     onboardingPacingInputs.forEach(input => {
-        const pacing = ['normal', 'high_agency', 'downtime'].includes(s.narrativePacing) ? s.narrativePacing : 'normal';
+        const pacing = ['normal', 'shorter_outputs', 'high_agency', 'downtime'].includes(s.narrativePacing) ? s.narrativePacing : 'normal';
         input.checked = input.value === pacing;
         input.addEventListener('change', () => {
-            if (!input.checked || !['normal', 'high_agency', 'downtime'].includes(input.value)) return;
+            if (!input.checked || !['normal', 'shorter_outputs', 'high_agency', 'downtime'].includes(input.value)) return;
             syncSettingsAndUI(settings => {
                 settings.narrativePacing = input.value;
             });

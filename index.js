@@ -1002,7 +1002,7 @@ function syncOnboardingUI() {
         rngNone.checked = !s.rngEnabled;
     }
 
-    const narrativePacing = ['normal', 'high_agency', 'downtime'].includes(s.narrativePacing) ? s.narrativePacing : 'normal';
+    const narrativePacing = ['normal', 'shorter_outputs', 'high_agency', 'downtime'].includes(s.narrativePacing) ? s.narrativePacing : 'normal';
     onboarding.querySelectorAll('input[name="rt_onboarding_narrative_pacing"]').forEach(input => {
         input.checked = input.value === narrativePacing;
     });
@@ -2688,7 +2688,8 @@ async function showNarrativePacingExplanation() {
             </div>`;
     const popupBody = `
             <div style="font-size: 0.9em; line-height: 1.5; max-width: 480px; text-align: left;">
-                ${card('Normal', 'Balanced narration. The narrator may lightly paraphrase or expand your dialogue and actions when it fits your character.')}
+                ${card('Normal (no length instructions)', 'Balanced narration. The narrator may lightly paraphrase or expand your dialogue and actions when it fits your character, without imposing an output-length instruction.')}
+                ${card('Shorter Outputs', 'Keeps the output length modest and discourages it from drifting out of control, while preserving the normal narration style.')}
                 ${card('High-Agency Mode', 'Keeps outputs short to moderate in length, leaving more room for you to respond and direct the scene.')}
                 ${card('Downtime/Slice of Life Mode', 'Uses a relaxed pace and avoids forcing action-heavy or “save the world” plots. Best for everyday life, character moments, and low-stakes roleplay.')}
             </div>`;
@@ -8435,7 +8436,7 @@ RULES:
         });
 
         // ── Narrative pacing ──────────────────────────────────────────────────
-        const validNarrativePacing = new Set(['normal', 'high_agency', 'downtime']);
+        const validNarrativePacing = new Set(['normal', 'shorter_outputs', 'high_agency', 'downtime']);
         const syncNarrativePacingUi = () => {
             const mode = validNarrativePacing.has(getSettings().narrativePacing)
                 ? getSettings().narrativePacing
@@ -10021,7 +10022,7 @@ RULES:
             }
             $(`input[name="rpg_sysprompt_rng_mode"][value="${currentRngMode}"]`).prop('checked', true);
             syncRngToolsUi(s);
-            const narrativePacing = ['normal', 'high_agency', 'downtime'].includes(s.narrativePacing)
+            const narrativePacing = ['normal', 'shorter_outputs', 'high_agency', 'downtime'].includes(s.narrativePacing)
                 ? s.narrativePacing
                 : 'normal';
             $(`input[name="rpg_narrative_pacing"][value="${narrativePacing}"]`).prop('checked', true);

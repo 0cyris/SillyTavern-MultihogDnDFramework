@@ -29,6 +29,7 @@ import {
 } from './src/app/runtime-bridge.js';
 import { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 import { normalizeGmContent, unwrapManagedSectionContent } from './src/state/sysprompt-content.js';
+import { buildNarrativePacingSection } from './src/state/narrative-pacing.js';
 
 export { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 
@@ -388,15 +389,7 @@ export function transformBaseSectionContent(tag, innerContent, settings) {
     const d100Mode = !!settings.diceD100Mode;
 
     if (tag === 'narrative') {
-        const shared = `- Simulate realistic time passage; world events progress independent of {{user}}; multiple skill checks per output are fine.
-- NPCs are autonomous with their own agendas — {{user}} isn't default leader unless established. High-competence/alpha NPCs (e.g. Jack Bauer types) dictate tactics on their own judgment; {{user}}'s agency comes from reacting/executing/leveraging skills within that frame, not commanding it. NPCs can express opinions or leave over serious value conflicts. NPCs only know what they'd realistically know.`;
-        const pacing = settings.narrativePacing;
-        const modeLine = pacing === 'high_agency'
-            ? '- Emphasize player-agency. Keep outputs short- to moderate-length to maintain high player agency/room for input.'
-            : pacing === 'downtime'
-                ? '- Keep the pacing relaxed; don\'t enforce action or "save the world" plots. This is a "slice of life" type of roleplay.'
-                : '- Voice: may paraphrase {{user}}\'s dialogue/actions consistent with their character, lightly expanding as needed.';
-        return `<narrative>\n${shared}\n${modeLine}\n</narrative>`;
+        return buildNarrativePacingSection(settings.narrativePacing);
     }
 
     if (tag === 'CYOA_mode') {
