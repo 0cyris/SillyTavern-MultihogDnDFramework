@@ -2,6 +2,17 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.3.53] - 2026-07-29
+
+### Fixed
+- **Adventure Companion story lookback**: “All” / lookback count are global prefs again and no longer get overwritten by per-chat or Chat Link companion snapshots on reload.
+
+### Changed
+- **Adventure Companion story lookback**: fresh installs default to lookback 5 with “All” off.
+
+### Added
+- **Character Creator custom modules**: enabled custom tracker modules now inject their full tracking instructions and templates into character-generation prompts, not just the tag name.
+
 ## [6.3.52] - 2026-07-29
 
 ### Changed

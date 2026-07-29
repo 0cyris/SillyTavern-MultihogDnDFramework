@@ -1,6 +1,6 @@
 import { getSettings, saveChatState, DEFAULT_PC_SECTIONS } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
-import { buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint } from './constants.js';
+import { buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildOnboardingCustomModuleInstructions, buildCombatAndSkillScalingHint } from './constants.js';
 import { escapeHtml } from './memo-processor.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { saveSettings, sendDirectPrompt, refreshAgentManifestNow, refreshRenderedView, syncTimeFormatSettingsUi } from './src/app/runtime-bridge.js';
@@ -161,6 +161,7 @@ export function buildCharacterGenerationPrompt(opts) {
     const magicGearHint = buildStartingGearHint(level, genre, hasInventory, gearTier);
 
     const activeBlocks = buildOnboardingActiveBlocks(s);
+    const customModuleInstructions = buildOnboardingCustomModuleInstructions(s);
     const closingTagExamples = activeBlocks.map(b => `[/${b}]`).join(', ');
     const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.\nCRITICAL QUESTS RULE: Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.`;
 
@@ -207,7 +208,7 @@ ${cardSnippet ? `\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : ''}
 • If the setting is non-fantasy and no class was specified, create a class that feels natural to the world — not a fantasy D&D class name.
 • All stats, gear, and saves${hasXp ? ', and XP' : ''} must be consistent with Level ${level}.${magicGearHint}
 ${combatSkillHint}
-${CHARACTER_FORMAT_HINT}${xpHint}${TIME_FORMAT_HINT}${settingHint}`;
+${CHARACTER_FORMAT_HINT}${customModuleInstructions}${xpHint}${TIME_FORMAT_HINT}${settingHint}`;
 
     return { prompt, extraHints, cardSnippet };
 }

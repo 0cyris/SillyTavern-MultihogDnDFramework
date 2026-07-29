@@ -1117,6 +1117,36 @@ export function buildOnboardingActiveBlocks(settings) {
     return blocks;
 }
 
+/**
+ * Full instructions for enabled custom tracker modules during character creation.
+ * A tag name alone is not enough for the State Model to know the module's schema.
+ * @param {object} settings
+ * @returns {string}
+ */
+export function buildOnboardingCustomModuleInstructions(settings) {
+    const sections = [];
+
+    for (const field of settings.customFields || []) {
+        if (!field?.enabled || !field.tag) continue;
+        const tag = String(field.tag).trim().toUpperCase();
+        if (!tag || tag === 'PARTY' || tag === 'QUESTS') continue;
+
+        const label = String(field.label || tag).trim();
+        const prompt = String(field.prompt || '').trim();
+        const template = String(field.template || '').trim();
+        const details = [
+            `[${tag}] — ${label}`,
+            prompt ? `Tracking instructions:\n${prompt}` : '',
+            template ? `Required format/template:\n${template}` : '',
+        ].filter(Boolean).join('\n');
+
+        sections.push(details);
+    }
+
+    if (!sections.length) return '';
+    return `\n\n--- ENABLED CUSTOM TRACKER MODULES ---\nThese modules are active for this chat. Follow each module's tracking instructions and output its matching block when creating the character.\n\n${sections.join('\n\n')}`;
+}
+
 /** REQUIREMENTS bullet for D&D magic weapon/armor tier by level (fantasy + inventory only). */
 export function buildMagicGearLevelHint(level, genre, hasInventory) {
     return buildStartingGearHint(level, genre, hasInventory, 'auto');

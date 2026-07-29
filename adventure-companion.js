@@ -153,7 +153,7 @@ const MAX_COMPANION_AGENT_TURNS = 6;
 
 /** @returns {ModePrefs} */
 function defaultCompanionPrefs() {
-    return { lookback: 5, lookbackAll: true, history: [] };
+    return { lookback: 5, lookbackAll: false, history: [] };
 }
 
 /** @returns {ChatPrefs} */
@@ -315,6 +315,15 @@ function snapshotCompanion(companion) {
     };
 }
 
+/** Keep global lookback prefs; only the conversation history is per-chat. */
+function companionWithPreservedLookback(history) {
+    return {
+        lookback: _prefs.companion?.lookback ?? 5,
+        lookbackAll: !!_prefs.companion?.lookbackAll,
+        history: Array.isArray(history) ? history : [],
+    };
+}
+
 /**
  * Snapshot of Adventure Companion state for the active chat (Chat Link + local map).
  */
@@ -328,9 +337,11 @@ export function getAdventureCompanionSnapshot() {
  */
 export function applyAdventureCompanionSnapshot(snap, opts = {}) {
     if (snap && typeof snap === 'object') {
-        _prefs.companion = mergeModePrefs(defaultCompanionPrefs(), snap);
+        // Lookback is global (localStorage prefs). Chat-linked snaps only restore history.
+        const merged = mergeModePrefs(defaultCompanionPrefs(), snap);
+        _prefs.companion = companionWithPreservedLookback(merged.history);
     } else if (opts.resetIfMissing) {
-        _prefs.companion = defaultCompanionPrefs();
+        _prefs.companion = companionWithPreservedLookback([]);
     }
     const chatId = resolveActiveChatId();
     if (chatId) {
@@ -369,23 +380,20 @@ function persistCompanionSnapshot(companion) {
  */
 function loadCompanionForChat(chatId) {
     if (!chatId) {
-        _prefs.companion = {
-            ...defaultCompanionPrefs(),
-            lookback: _prefs.companion?.lookback ?? 5,
-            lookbackAll: !!_prefs.companion?.lookbackAll,
-            history: [],
-        };
+        _prefs.companion = companionWithPreservedLookback([]);
         return;
     }
     const s = getSettings();
     const fromLink = s.chatLinkEnabled ? s.chatStates?.[chatId]?.adventureCompanion : null;
     if (fromLink && typeof fromLink === 'object') {
-        _prefs.companion = mergeModePrefs(defaultCompanionPrefs(), fromLink);
+        const merged = mergeModePrefs(defaultCompanionPrefs(), fromLink);
+        _prefs.companion = companionWithPreservedLookback(merged.history);
         return;
     }
     const map = readCompanionByChatMap();
     if (map[chatId] && typeof map[chatId] === 'object') {
-        _prefs.companion = mergeModePrefs(defaultCompanionPrefs(), map[chatId]);
+        const merged = mergeModePrefs(defaultCompanionPrefs(), map[chatId]);
+        _prefs.companion = companionWithPreservedLookback(merged.history);
         return;
     }
     // An unseen chat must always begin clean. At this point `_prefs.companion`
@@ -393,13 +401,8 @@ function loadCompanionForChat(chatId) {
     // seed here would copy that conversation into every newly visited ChatID.
     // The only legacy migration is handled by loadPrefs(), before any per-chat
     // Companion session has been loaded.
-    // Lookback prefs are carried forward; history always starts empty.
-    _prefs.companion = {
-        ...defaultCompanionPrefs(),
-        lookback: _prefs.companion?.lookback ?? 5,
-        lookbackAll: !!_prefs.companion?.lookbackAll,
-        history: [],
-    };
+    // Lookback prefs are global and preserved; history always starts empty.
+    _prefs.companion = companionWithPreservedLookback([]);
 }
 
 /**
