@@ -153,7 +153,7 @@ const MAX_COMPANION_AGENT_TURNS = 6;
 
 /** @returns {ModePrefs} */
 function defaultCompanionPrefs() {
-    return { lookback: 5, lookbackAll: false, history: [] };
+    return { lookback: 5, lookbackAll: true, history: [] };
 }
 
 /** @returns {ChatPrefs} */
@@ -369,7 +369,12 @@ function persistCompanionSnapshot(companion) {
  */
 function loadCompanionForChat(chatId) {
     if (!chatId) {
-        _prefs.companion = defaultCompanionPrefs();
+        _prefs.companion = {
+            ...defaultCompanionPrefs(),
+            lookback: _prefs.companion?.lookback ?? 5,
+            lookbackAll: !!_prefs.companion?.lookbackAll,
+            history: [],
+        };
         return;
     }
     const s = getSettings();
@@ -388,7 +393,13 @@ function loadCompanionForChat(chatId) {
     // seed here would copy that conversation into every newly visited ChatID.
     // The only legacy migration is handled by loadPrefs(), before any per-chat
     // Companion session has been loaded.
-    _prefs.companion = defaultCompanionPrefs();
+    // Lookback prefs are carried forward; history always starts empty.
+    _prefs.companion = {
+        ...defaultCompanionPrefs(),
+        lookback: _prefs.companion?.lookback ?? 5,
+        lookbackAll: !!_prefs.companion?.lookbackAll,
+        history: [],
+    };
 }
 
 /**

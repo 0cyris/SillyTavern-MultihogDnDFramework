@@ -34,7 +34,7 @@ describe('Adventure Companion chat partitions', () => {
 
         expect(companion.getAdventureCompanionSnapshot()).toEqual({
             lookback: 5,
-            lookbackAll: false,
+            lookbackAll: true,
             history: [],
         });
     });
