@@ -2,6 +2,20 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Genre-aware character names**: Instant Action and Other Ways to Begin now use genre-specific first-name / surname pools, with reroll controls and editable name fields. The Character Creator random-name button includes the combined library.
+- **Discord onboarding help**: the onboarding help card now links directly to the SillyTavern Discord Extensions subforum.
+
+### Changed
+- **Character-generation prompts**: Quick Start, Character Creator, Other Ways to Begin, and PC Import now receive active tracker-module instructions without the full State Extractor prompt. Character creation also excludes the COMBAT block.
+- **Name selection flow**: users can roll, reroll, type, or edit a name before accepting Instant Action or the Custom onboarding path. Persona and Import Card paths continue to use their source names.
+- **Narrator constraints**: added the cheese-and-abuse safeguard to the default and legacy narrator configurations.
+
+### Fixed
+- **Instant Action name propagation**: the accepted name is now passed through to character generation instead of being independently re-invented by the model.
+
 ## [6.3.60] - 2026-07-29
 
 ### Added

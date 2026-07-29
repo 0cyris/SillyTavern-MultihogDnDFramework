@@ -612,6 +612,9 @@ Out-of-range attack attempt → move {{user}} closer and note they couldn't atta
 <inventory_and_resource_constraints>
 No uses left on a resource/spell/ability/HD → state they can't do that, prompt another action. Abilities require >0/X uses; spells require slots. Missing items are never conveniently spawned — narrate the lack. Physically impossible equips are blocked and narrated; awkward-but-possible equips are allowed with explicit tied penalties. Equip/unequip is always narrated explicitly; unmarked ([E]) Gear items are carried, not worn/held. Logically incompatible equipment/use (wrong class, insufficient STR, unproficient armor, anachronistic tech) is narrated as failing, with fitting mechanical penalties (disadvantage, movement loss, spell failure). Status/HP/buffs/resources are never tracked in the footer — an external tracker owns that.
 </inventory_and_resource_constraints>
+<cheese_and_abuse>
+If the player is clearly abusing the rules to get something like infinite XP or immortality, stop them and create a narrative reason why it doesn't work.
+</cheese_and_abuse>
 </constraints>`,
   'sysprompt_legacy.txt': `<role>
 DM/World Simulator for a D&D-style TTRPG. Narrate the world, simulate NPCs, adjudicate rules, manage mechanics invisibly. In combat, simulate all NPC actions (not {{user}}'s) in initiative order.
@@ -901,6 +904,9 @@ Out-of-range attack attempt → move {{user}} closer and note they couldn't atta
 <inventory_and_resource_constraints>
 No uses left on a resource/spell/ability/HD → state they can't do that, prompt another action. Abilities require >0/X uses; spells require slots. Missing items are never conveniently spawned — narrate the lack. Physically impossible equips are blocked and narrated; awkward-but-possible equips are allowed with explicit tied penalties. Equip/unequip is always narrated explicitly; unmarked ([E]) Gear items are carried, not worn/held. Logically incompatible equipment/use (wrong class, insufficient STR, unproficient armor, anachronistic tech) is narrated as failing, with fitting mechanical penalties (disadvantage, movement loss, spell failure). Status/HP/buffs/resources are never tracked in the footer — an external tracker owns that.
 </inventory_and_resource_constraints>
+<cheese_and_abuse>
+If the player is clearly abusing the rules to get something like infinite XP or immortality, stop them and create a narrative reason why it doesn't work.
+</cheese_and_abuse>
 </constraints>`,
 };
 
@@ -1085,8 +1091,8 @@ Last Rest must be N/A — this is a brand-new character who has not taken a Long
 
 /**
  * Memo block tags for onboarding / character creator prompts: enabled stock modules
- * (except PARTY and QUESTS) plus enabled custom fields, in tracker display order.
- * PARTY/QUESTS are omitted so startups do not invent companions or quests unless asked.
+ * (except PARTY, QUESTS, and COMBAT) plus enabled custom fields, in tracker display order.
+ * Those blocks are omitted so startups do not invent companions, quests, or an active fight.
  * @param {object} settings
  * @returns {string[]}
  */
@@ -1096,7 +1102,7 @@ export function buildOnboardingActiveBlocks(settings) {
     const blocks = [];
 
     for (const tag of BLOCK_ORDER) {
-        if (tag === 'PARTY' || tag === 'QUESTS') continue;
+        if (tag === 'PARTY' || tag === 'QUESTS' || tag === 'COMBAT') continue;
         if (tag === 'CHARACTER') {
             blocks.push('CHARACTER');
             continue;
@@ -1109,7 +1115,7 @@ export function buildOnboardingActiveBlocks(settings) {
     for (const field of settings.customFields || []) {
         if (!field.enabled || !field.tag) continue;
         const tag = String(field.tag).toUpperCase();
-        if (tag === 'PARTY' || tag === 'QUESTS' || seen.has(tag)) continue;
+        if (tag === 'PARTY' || tag === 'QUESTS' || tag === 'COMBAT' || seen.has(tag)) continue;
         blocks.push(tag);
         seen.add(tag);
     }

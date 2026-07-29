@@ -286,4 +286,7 @@ Out-of-range attack attempt → move {{user}} closer and note they couldn't atta
 <inventory_and_resource_constraints>
 No uses left on a resource/spell/ability/HD → state they can't do that, prompt another action. Abilities require >0/X uses; spells require slots. Missing items are never conveniently spawned — narrate the lack. Physically impossible equips are blocked and narrated; awkward-but-possible equips are allowed with explicit tied penalties. Equip/unequip is always narrated explicitly; unmarked ([E]) Gear items are carried, not worn/held. Logically incompatible equipment/use (wrong class, insufficient STR, unproficient armor, anachronistic tech) is narrated as failing, with fitting mechanical penalties (disadvantage, movement loss, spell failure). Status/HP/buffs/resources are never tracked in the footer — an external tracker owns that.
 </inventory_and_resource_constraints>
+<cheese_and_abuse>
+If the player is clearly abusing the rules to get something like infinite XP or immortality, stop them and create a narrative reason why it doesn't work.
+</cheese_and_abuse>
 </constraints>

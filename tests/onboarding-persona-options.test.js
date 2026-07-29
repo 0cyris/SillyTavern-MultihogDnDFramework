@@ -24,4 +24,22 @@ describe('onboarding Player Card and ST persona options', () => {
         expect(html).toContain('same player name');
         expect(html).not.toContain('Create Persona (Recommended)');
     });
+
+    it('requires a rolled name for the Other Ways Custom path', () => {
+        const html = renderMemoAsCards('', null, {});
+
+        expect(html).toContain('id="rt-onboarding-rolled-name" placeholder="Roll or enter a name"');
+        expect(html).toContain('id="rt-onboarding-roll-name"');
+        expect(html).toMatch(/data-archetype="custom" data-name-required="true" disabled/);
+        expect(html).toMatch(/data-archetype="persona">/);
+        expect(html).toMatch(/data-archetype="pc_import">/);
+    });
+
+    it('includes the Discord Extensions subforum in the onboarding help', () => {
+        const html = renderMemoAsCards('', null, {});
+
+        expect(html).toContain('Or head to the Discord, under the Extensions subforum:');
+        expect(html).toContain('href="https://discord.gg/sillytavern"');
+        expect(html).toContain('Hell, head there anyway!');
+    });
 });

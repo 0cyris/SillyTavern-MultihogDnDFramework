@@ -1924,14 +1924,19 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div class="rt-quickstart" id="rt-quickstart">
                     <div class="rt-quickstart-title">⚡ Instant Action</div>
-                    <div class="rt-quickstart-sub">Fully automated — pick a genre and the extension uses your Narrator Configuration, rolls your character, builds a Lorebook Agent Player Card plus a name-only ST persona, then starts the adventure for you.</div>
+                    <div class="rt-quickstart-sub">Choose a genre, roll names until you find one you like, then begin. The extension uses your Narrator Configuration, rolls the rest of your character, builds a Lorebook Agent Player Card plus a name-only ST persona, and starts the adventure.</div>
                     <div class="rt-quickstart-genres" role="group" aria-label="Quick Start genre">
-                        <button type="button" class="rt-quickstart-genre-btn" data-genre="fantasy">⚔️ Fantasy</button>
-                        <button type="button" class="rt-quickstart-genre-btn" data-genre="realistic">🏙️ Modern</button>
-                        <button type="button" class="rt-quickstart-genre-btn" data-genre="scifi">🚀 Sci-Fi</button>
-                        <button type="button" class="rt-quickstart-genre-btn" data-genre="horror">👻 Horror</button>
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="fantasy" aria-pressed="false">⚔️ Fantasy</button>
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="realistic" aria-pressed="false">🏙️ Modern</button>
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="scifi" aria-pressed="false">🚀 Sci-Fi</button>
+                        <button type="button" class="rt-quickstart-genre-btn" data-genre="horror" aria-pressed="false">👻 Horror</button>
                     </div>
-                    <div class="rt-quickstart-status" id="rt-quickstart-status">Ready</div>
+                    <div class="rt-quickstart-name-picker">
+                        <input type="text" class="rt-quickstart-name" id="rt-quickstart-name" placeholder="Roll or enter a name" aria-label="Instant Action character name" autocomplete="off" />
+                        <button type="button" class="rt-quickstart-roll-btn" id="rt-quickstart-roll-name" disabled>🎲 Roll Name</button>
+                    </div>
+                    <button type="button" class="rt-quickstart-begin-btn" id="rt-quickstart-begin" disabled>⚡ Begin Instant Action</button>
+                    <div class="rt-quickstart-status" id="rt-quickstart-status">Select a genre, then roll a name</div>
                 </div>
 
                 <div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-other-drawer">
@@ -1985,6 +1990,11 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         </div>
                     </div>
                     <textarea id="rt-onboarding-custom-instructions" class="text_pole" placeholder="Custom setting/character instructions (e.g. Victorian London, space marine, gritty realism, cyberpunk decker...)" style="width: 100%; min-height: 40px; max-height: 120px; font-size: 11px; padding: 4px 6px; border-radius: 4px; background: var(--black70a); resize: vertical; margin-top: 2px;">${escapeHtml(obSettings.onboardingCustomInstructions || '')}</textarea>
+                    <div class="rt-quickstart-name-picker rt-onboarding-name-picker">
+                        <input type="text" class="rt-quickstart-name" id="rt-onboarding-rolled-name" placeholder="Roll or enter a name" aria-label="Other Ways character name" autocomplete="off" />
+                        <button type="button" class="rt-quickstart-roll-btn" id="rt-onboarding-roll-name">🎲 Roll Name</button>
+                    </div>
+                    <div class="rt-onboarding-name-hint" id="rt-onboarding-name-hint">Roll a genre-matched name before using Custom.</div>
                     <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0; padding:4px 0 2px;">
                         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                             <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em;">
@@ -2015,22 +2025,22 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                 <!-- Archetype Buttons -->
                 <div class="rt-onboarding-buttons rt-fantasy-buttons" style="width: 100%; display: ${onboardingGenre === 'fantasy' ? 'flex' : 'none'}; justify-content: center; gap: 4px; margin: 4px 0; flex-shrink: 0; flex-wrap: wrap;">
                     <button class="rt-random-char-btn" data-archetype="persona">🎭 Persona</button>
-                    <button class="rt-random-char-btn" data-archetype="custom">⚙️ Custom</button>
+                    <button class="rt-random-char-btn" data-archetype="custom" data-name-required="true" disabled>⚙️ Custom</button>
                     <button class="rt-random-char-btn rt-pc-import-trigger" data-archetype="pc_import">📥 Import Card</button>
                 </div>
                 <div class="rt-onboarding-buttons rt-realistic-buttons" style="width: 100%; display: ${onboardingGenre === 'realistic' ? 'flex' : 'none'}; justify-content: center; gap: 4px; margin: 4px 0; flex-shrink: 0; flex-wrap: wrap;">
                     <button class="rt-random-char-btn" data-archetype="persona">🎭 Persona</button>
-                    <button class="rt-random-char-btn" data-archetype="custom">⚙️ Custom</button>
+                    <button class="rt-random-char-btn" data-archetype="custom" data-name-required="true" disabled>⚙️ Custom</button>
                     <button class="rt-random-char-btn rt-pc-import-trigger" data-archetype="pc_import">📥 Import Card</button>
                 </div>
                 <div class="rt-onboarding-buttons rt-scifi-buttons" style="width: 100%; display: ${onboardingGenre === 'scifi' ? 'flex' : 'none'}; justify-content: center; gap: 4px; margin: 4px 0; flex-shrink: 0; flex-wrap: wrap;">
                     <button class="rt-random-char-btn" data-archetype="persona">🎭 Persona</button>
-                    <button class="rt-random-char-btn" data-archetype="custom">⚙️ Custom</button>
+                    <button class="rt-random-char-btn" data-archetype="custom" data-name-required="true" disabled>⚙️ Custom</button>
                     <button class="rt-random-char-btn rt-pc-import-trigger" data-archetype="pc_import">📥 Import Card</button>
                 </div>
                 <div class="rt-onboarding-buttons rt-horror-buttons" style="width: 100%; display: ${onboardingGenre === 'horror' ? 'flex' : 'none'}; justify-content: center; gap: 4px; margin: 4px 0; flex-shrink: 0; flex-wrap: wrap;">
                     <button class="rt-random-char-btn" data-archetype="persona">🎭 Persona</button>
-                    <button class="rt-random-char-btn" data-archetype="custom">⚙️ Custom</button>
+                    <button class="rt-random-char-btn" data-archetype="custom" data-name-required="true" disabled>⚙️ Custom</button>
                     <button class="rt-random-char-btn rt-pc-import-trigger" data-archetype="pc_import">📥 Import Card</button>
                 </div>
                 </div>
@@ -2222,7 +2232,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div class="rt-onboarding-chat-tip" role="note">
                     <div class="rt-onboarding-chat-tip-title">Need help? Open <b>CHAT</b> in the State Tracker header</div>
-                    <div class="rt-onboarding-chat-tip-body">Talk to the <b>Adventure Companion</b> for help with Multihog or to discuss your story. Enable Tutorial Mode in CHAT when you want the full framework guide attached to every request.</div>
+                    <div class="rt-onboarding-chat-tip-body">Talk to the <b>Adventure Companion</b> for help with Multihog or to discuss your story. Enable Tutorial Mode in CHAT when you want the full framework guide attached to every request. Or head to the Discord, under the Extensions subforum: <a href="https://discord.gg/sillytavern" target="_blank" rel="noopener noreferrer">https://discord.gg/sillytavern</a>. Hell, head there anyway!</div>
                 </div>
 
                 <div style="font-size: 13px; opacity: 0.9; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; line-height: 1.4;">

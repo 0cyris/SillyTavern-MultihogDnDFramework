@@ -91,14 +91,18 @@ Turn the extension on in settings. With **Custom Sysprompt Mode** off, the frame
 
 ### Instant Action (fastest path)
 
-On an empty tracker, use Instant Action / Quick Start by genre (**Fantasy**, **Modern**, **Sci-Fi**, **Horror**). The pipeline is sequential:
+On an empty tracker, use Instant Action / Quick Start by genre (**Fantasy**, **Modern**, **Sci-Fi**, **Horror**). Select a genre first, then use **Roll Name** as many times as you like or type/edit a name yourself. Once the displayed name is one you want to keep, choose **Begin Instant Action**. The pipeline is sequential:
 
 1. Applies your current Narrator Configuration (settings + sysprompt).
-2. Picks a random archetype for that genre and generates a character sheet into the State Tracker.
+2. Keeps your selected first-name / surname combination, picks a random archetype from the genre, then generates a character sheet into the State Tracker.
 3. Generates a rich **Player Card** for Lorebook Agent, then creates/selects a SillyTavern persona with the same name and an empty description. The name-only ST persona controls the sender label without duplicating Player Card content in the prompt.
 4. Sends the chat message `Begin the adventure`.
 
-You can also use **Character Creator** with explicit name/class/level/gear, or paste an existing sheet into **Raw View**. Character Creator and **Other Ways to Begin** have separate toggles for a Lorebook Agent Player Card and a name-only ST persona. If formatting doesn’t match what the UI expects, use the tracker’s **💬** button and ask the model to fix it.
+Character-sheet generation sends the model only the active tracker-module instructions as its system prompt. The full State Extractor core prompt is reserved for ordinary tracking and manual tracker commands.
+
+You can also use **Character Creator** with explicit name/class/level/gear, or paste an existing sheet into **Raw View**. In **Other Ways to Begin**, select a genre and use **Roll Name** until you have the name you want — or type/edit it directly — before choosing **Custom**. The **Persona** path keeps the active SillyTavern persona name, while **Import Card** keeps the imported card’s name. Character Creator and Other Ways to Begin have separate toggles for a Lorebook Agent Player Card and a name-only ST persona. If formatting doesn’t match what the UI expects, use the tracker’s **💬** button and ask the model to fix it.
+
+The Character Creator random-name button uses the combined cross-genre name library without genre filtering. Random **Other Ways to Begin** generators use the matching genre pool and pass the selected full name to the character generator.
 
 ### Chat-Linked Mode
 

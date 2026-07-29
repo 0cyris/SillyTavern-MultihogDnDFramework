@@ -1,11 +1,12 @@
 import { getSettings, saveChatState, DEFAULT_PC_SECTIONS } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
-import { buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildOnboardingCustomModuleInstructions, buildCombatAndSkillScalingHint } from './constants.js';
+import { buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint } from './constants.js';
 import { escapeHtml } from './memo-processor.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { saveSettings, sendDirectPrompt, refreshAgentManifestNow, refreshRenderedView, syncTimeFormatSettingsUi } from './src/app/runtime-bridge.js';
 import { openPcSectionEditor } from './ui-editors.js';
 import { buildNameOnlyPersonaIdentity } from './src/state/player-identity.js';
+import { CHARACTER_CREATOR_NAME_ADDITIONS } from './src/state/character-names.js';
 
 const _CR_CLASS_LISTS = {
     fantasy: [
@@ -161,7 +162,6 @@ export function buildCharacterGenerationPrompt(opts) {
     const magicGearHint = buildStartingGearHint(level, genre, hasInventory, gearTier);
 
     const activeBlocks = buildOnboardingActiveBlocks(s);
-    const customModuleInstructions = buildOnboardingCustomModuleInstructions(s);
     const closingTagExamples = activeBlocks.map(b => `[/${b}]`).join(', ');
     const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.\nCRITICAL QUESTS RULE: Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.`;
 
@@ -199,6 +199,7 @@ ${additionalVal ? `Additional:   ${additionalVal}` : ''}
 ${cardSnippet ? `\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : ''}
 
 --- REQUIREMENTS ---
+${nameVal ? `• Use the provided name "${nameVal}" exactly; do not alter or replace it.\n` : ''}
 • Fill every blank field above with creative, setting-appropriate content. No field may be empty, "Unknown", "N/A", or a placeholder.
 • The name must be original and fitting. NEVER write "User" or any variation.
 • Output every currently active state-memo field (enabled stock modules and custom fields): ${blockListStr}.${spellsClause}
@@ -208,14 +209,14 @@ ${cardSnippet ? `\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : ''}
 • If the setting is non-fantasy and no class was specified, create a class that feels natural to the world — not a fantasy D&D class name.
 • All stats, gear, and saves${hasXp ? ', and XP' : ''} must be consistent with Level ${level}.${magicGearHint}
 ${combatSkillHint}
-${CHARACTER_FORMAT_HINT}${customModuleInstructions}${xpHint}${TIME_FORMAT_HINT}${settingHint}`;
+${CHARACTER_FORMAT_HINT}${xpHint}${TIME_FORMAT_HINT}${settingHint}`;
 
     return { prompt, extraHints, cardSnippet };
 }
 
 /**
  * Generate a character sheet for Quick Start (no persona overlay).
- * @param {{ genre: string, className: string, level?: number, gearTier?: string }} opts
+ * @param {{ genre: string, className: string, level?: number, gearTier?: string, nameVal?: string }} opts
  * @returns {Promise<{ charName: string }>}
  */
 export async function generateQuickStartCharacter(opts) {
@@ -228,13 +229,14 @@ export async function generateQuickStartCharacter(opts) {
 
     const memoBefore = s.currentMemo || '';
     const { prompt } = buildCharacterGenerationPrompt({
+        nameVal: opts.nameVal,
         genre,
         level,
         gearTier,
         classRaw: className,
     });
 
-    await sendDirectPrompt(prompt);
+    await sendDirectPrompt(prompt, { systemPromptMode: 'modules_only' });
 
     const s2 = getSettings();
     const memoAfter = s2.currentMemo || '';
@@ -481,15 +483,17 @@ export function showCharacterRollPanel(el) {
                 "Aethelgard", "Elysande", "Ilaria", "Lyari", "Mirelia", "Nesta", "Seraphina", "Thalia", "Valerith", "Zephira",
                 "Aelrin", "Calandil", "Elessar", "Faelan", "Galdor", "Ithilior", "Lorien", "Sylas", "Thandor", "Zoran",
                 "Astrid", "Bregna", "Dagmar", "Freja", "Gunnora", "Hilda", "Kira", "Morgath", "Sigrid", "Yrsa",
-                "Bram", "Cormac", "Drogo", "Fenrir", "Garrick", "Haldor", "Kaelen", "Ragnar", "Thorgar", "Wulfric",
+                "Bram", "Cormac", "Drogo", "Fenrir", "Garrick", "Haldor", "Ragnar", "Thorgar", "Wulfric",
                 "Belial", "Carmilla", "Drusilla", "Lilith", "Malakor", "Morrigan", "Nox", "Sariel", "Vespera", "Xanthia",
-                "Alastor", "Caspian", "Darius", "Kaelen", "Malakai", "Nekros", "Soren", "Valerius", "Vane", "Zarek",
+                "Alastor", "Caspian", "Darius", "Malakai", "Nekros", "Soren", "Zarek",
                 "Astraea", "Celestia", "Elora", "Isra", "Lunaria", "Nova", "Selene", "Solana", "Talia", "Vega",
-                "Aero", "Caelum", "Hyperion", "Orion", "Phobos", "Rigel", "Sirius", "Titan", "Zephyr", "Zion"
+                "Aero", "Caelum", "Hyperion", "Orion", "Phobos", "Rigel", "Sirius", "Titan", "Zephyr", "Zion",
+                ...CHARACTER_CREATOR_NAME_ADDITIONS.firstNames,
             ];
             const lasts = [
-                "Blackwood", "Crownguard", "Ironclad", "Kingsley", "Silverglade", "Stormborn", "Thorne", "Valerius", "Winterborne", "Zephyr",
-                "Barker", "Clay", "Fletcher", "Miller", "Potter", "Smith", "Tanner", "Weaver", "Wood", "Wright"
+                "Blackwood", "Crownguard", "Ironclad", "Kingsley", "Silverglade", "Stormborn", "Winterborne", "Zephyr",
+                "Barker", "Clay", "Fletcher", "Miller", "Potter", "Smith", "Tanner", "Weaver", "Wood", "Wright",
+                ...CHARACTER_CREATOR_NAME_ADDITIONS.surnames,
             ];
             const first = firsts[Math.floor(Math.random() * firsts.length)];
             const last = lasts[Math.floor(Math.random() * lasts.length)];
@@ -674,7 +678,7 @@ async function handleCharRollGenerate(el, panel) {
     if (genBtn) { genBtn.disabled = true; genBtn.textContent = '🎲 Generating...'; }
 
     try {
-        await sendDirectPrompt(prompt);
+        await sendDirectPrompt(prompt, { systemPromptMode: 'modules_only' });
 
         if (wantPlayerCard || wantStPersona) {
             const s2 = getSettings();
@@ -1181,7 +1185,7 @@ ${worldCtx}`;
     toastr['info'](`Importing "${name}" as PC… generating state memo.`, 'PC Import');
     el.querySelectorAll('.rt-random-char-btn').forEach(b => { /** @type {HTMLButtonElement} */ (b).disabled = true; });
 
-    await sendDirectPrompt(memoPrompt);
+    await sendDirectPrompt(memoPrompt, { systemPromptMode: 'modules_only' });
 
     // Sync the card's avatar as the PC portrait globally so both the State Tracker
     // and Campaign Records immediately reflect the newly imported character's image.

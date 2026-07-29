@@ -7,6 +7,7 @@ import {
     activateSillyTavernPersona,
 } from './character-creator.js';
 import { saveSettings, autoApplySysprompt } from './src/app/runtime-bridge.js';
+import { pickGenreCharacterName } from './src/state/character-names.js';
 
 /** @type {boolean} */
 let _quickStartRunning = false;
@@ -53,7 +54,7 @@ function setQuickStartStatus(rootEl, text) {
  */
 function setQuickStartBusy(rootEl, disabled) {
     if (!rootEl) return;
-    rootEl.querySelectorAll('.rt-quickstart-genre-btn, .rt-random-char-btn').forEach((btn) => {
+    rootEl.querySelectorAll('.rt-quickstart button, .rt-random-char-btn').forEach((btn) => {
         /** @type {HTMLButtonElement} */ (btn).disabled = disabled;
     });
     const genBtn = /** @type {HTMLButtonElement|null} */ (rootEl.querySelector('#rt-cr-generate-btn'));
@@ -91,8 +92,9 @@ function sendOutgoingChatMessage(text) {
  * Full Instant Action pipeline for one genre. Steps are strictly sequential.
  * @param {string} genre
  * @param {HTMLElement|null} [rootEl]
+ * @param {string} [selectedName]
  */
-export async function runQuickStart(genre, rootEl = null) {
+export async function runQuickStart(genre, rootEl = null, selectedName = '') {
     if (_quickStartRunning) {
         toastr['info']('Quick Start is already running. Please wait.', 'Quick Start');
         return;
@@ -100,6 +102,11 @@ export async function runQuickStart(genre, rootEl = null) {
 
     const validGenre = ['fantasy', 'realistic', 'scifi', 'horror'].includes(genre) ? genre : 'fantasy';
     const root = rootEl || /** @type {HTMLElement|null} */ (document.querySelector('.rt-empty'));
+    const nameVal = String(selectedName || '').trim();
+    if (!nameVal) {
+        toastr['info']('Roll a character name before starting.', 'Quick Start');
+        return;
+    }
 
     _quickStartRunning = true;
     setQuickStartBusy(root, true);
@@ -119,12 +126,13 @@ export async function runQuickStart(genre, rootEl = null) {
         const wordCount = parseInt(String(s.onboardingPersonaWords || '150'), 10) || 150;
         const genreLabel = GENRE_LABELS[validGenre] || validGenre;
 
-        setQuickStartStatus(root, `Creating character (${genreLabel} · ${className})…`);
+        setQuickStartStatus(root, `Creating character (${genreLabel} · ${className} · ${nameVal})…`);
         const { charName } = await generateQuickStartCharacter({
             genre: validGenre,
             className,
             level,
             gearTier,
+            nameVal,
         });
 
         setQuickStartStatus(root, 'Creating Lorebook Agent Player Card…');
@@ -166,12 +174,55 @@ export function bindQuickStartEvents(rootEl) {
     if (!section || /** @type {any} */ (section)._qsBound) return;
     /** @type {any} */ (section)._qsBound = true;
 
-    section.querySelectorAll('.rt-quickstart-genre-btn').forEach((btn) => {
+    const genreButtons = [...section.querySelectorAll('.rt-quickstart-genre-btn')];
+    const rollButton = /** @type {HTMLButtonElement|null} */ (section.querySelector('#rt-quickstart-roll-name'));
+    const startButton = /** @type {HTMLButtonElement|null} */ (section.querySelector('#rt-quickstart-begin'));
+    const nameInput = /** @type {HTMLInputElement|null} */ (section.querySelector('#rt-quickstart-name'));
+    let selectedGenre = '';
+    let selectedName = '';
+
+    const clearRolledName = () => {
+        selectedName = '';
+        if (nameInput) nameInput.value = '';
+        if (startButton) startButton.disabled = true;
+    };
+
+    genreButtons.forEach((btn) => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const genre = /** @type {HTMLButtonElement} */ (btn).dataset.genre || 'fantasy';
-            void runQuickStart(genre, rootEl);
+            selectedGenre = /** @type {HTMLButtonElement} */ (btn).dataset.genre || 'fantasy';
+            genreButtons.forEach((genreButton) => {
+                const isSelected = genreButton === btn;
+                genreButton.classList.toggle('is-selected', isSelected);
+                genreButton.setAttribute('aria-pressed', String(isSelected));
+            });
+            clearRolledName();
+            if (rollButton) rollButton.disabled = false;
+            setQuickStartStatus(rootEl, `${GENRE_LABELS[selectedGenre] || selectedGenre} selected — roll a name`);
         });
+    });
+
+    rollButton?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!selectedGenre) return;
+        selectedName = pickGenreCharacterName(selectedGenre);
+        if (nameInput) nameInput.value = selectedName;
+        if (startButton) startButton.disabled = false;
+        setQuickStartStatus(rootEl, 'Name ready — reroll or begin');
+    });
+
+    nameInput?.addEventListener('input', () => {
+        selectedName = nameInput.value.trim();
+        if (startButton) startButton.disabled = !selectedName;
+        if (selectedName) setQuickStartStatus(rootEl, 'Name ready — edit, reroll, or begin');
+    });
+
+    startButton?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!selectedGenre || !selectedName) return;
+        void runQuickStart(selectedGenre, rootEl, selectedName);
     });
 }

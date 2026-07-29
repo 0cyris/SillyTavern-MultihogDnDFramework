@@ -2094,10 +2094,77 @@
     background: rgba(120, 80, 220, 0.26);
 }
 
+.rt-quickstart-genre-btn.is-selected {
+    border-color: rgba(210, 185, 255, 0.95);
+    background: rgba(120, 80, 220, 0.42);
+    box-shadow: inset 0 0 0 1px rgba(220, 200, 255, 0.18);
+}
+
 .rt-quickstart-genre-btn:disabled {
     opacity: 0.55;
     cursor: wait;
     transform: none;
+}
+
+.rt-quickstart-name-picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.rt-quickstart-name {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--rt-text, #e8e4f5);
+    font-size: 0.9em;
+    font-weight: 650;
+    text-align: center;
+}
+
+.rt-quickstart-roll-btn,
+.rt-quickstart-begin-btn {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(160, 120, 255, 0.42);
+    background: rgba(120, 80, 220, 0.2);
+    color: var(--rt-text, #e8e4f5);
+    font-family: var(--rt-font);
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.rt-quickstart-begin-btn {
+    background: rgba(120, 80, 220, 0.36);
+}
+
+.rt-quickstart-roll-btn:hover:not(:disabled),
+.rt-quickstart-begin-btn:hover:not(:disabled) {
+    border-color: rgba(196, 160, 255, 0.78);
+    background: rgba(120, 80, 220, 0.5);
+}
+
+.rt-quickstart-roll-btn:disabled,
+.rt-quickstart-begin-btn:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+}
+
+.rt-onboarding-name-picker {
+    margin-top: 2px;
+}
+
+.rt-onboarding-name-hint {
+    margin-top: -2px;
+    text-align: center;
+    font-size: 0.72em;
+    opacity: 0.58;
 }
 
 .rt-quickstart-status {

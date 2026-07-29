@@ -1,4 +1,5 @@
 import { getRuntimeActions, sectionPages } from '../../app/runtime-bridge.js';
+import { pickGenreCharacterName } from '../../state/character-names.js';
 
 export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRefresh = null) {
     const runtime = getRuntimeActions();
@@ -44,6 +45,23 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
         scifi: el.querySelector('.rt-scifi-buttons'),
         horror: el.querySelector('.rt-horror-buttons'),
     };
+    const onboardingRollNameBtn = /** @type {HTMLButtonElement|null} */ (el.querySelector('#rt-onboarding-roll-name'));
+    const onboardingRolledName = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-rolled-name'));
+    const onboardingNameHint = /** @type {HTMLElement|null} */ (el.querySelector('#rt-onboarding-name-hint'));
+    let selectedOnboardingName = '';
+
+    const setNameRequiredButtonsEnabled = (enabled) => {
+        el.querySelectorAll('.rt-random-char-btn[data-name-required="true"]').forEach(button => {
+            /** @type {HTMLButtonElement} */ (button).disabled = !enabled;
+        });
+    };
+    const clearOnboardingName = () => {
+        selectedOnboardingName = '';
+        if (onboardingRolledName) onboardingRolledName.value = '';
+        if (onboardingNameHint) onboardingNameHint.textContent = 'Roll a genre-matched name before using Custom.';
+        setNameRequiredButtonsEnabled(false);
+    };
+
     if (genreSelect) {
         genreSelect.addEventListener('change', () => {
             const val = genreSelect.value;
@@ -52,8 +70,27 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
             Object.entries(genreGroups).forEach(([key, groupEl]) => {
                 if (groupEl) groupEl.style.display = key === val ? 'flex' : 'none';
             });
+            clearOnboardingName();
         });
     }
+    onboardingRollNameBtn?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const genre = genreSelect?.value || getSettings().onboardingGenre || 'fantasy';
+        selectedOnboardingName = pickGenreCharacterName(genre);
+        if (onboardingRolledName) onboardingRolledName.value = selectedOnboardingName;
+        if (onboardingNameHint) onboardingNameHint.textContent = 'Name ready — reroll or choose Custom.';
+        setNameRequiredButtonsEnabled(true);
+    });
+    onboardingRolledName?.addEventListener('input', () => {
+        selectedOnboardingName = onboardingRolledName.value.trim();
+        if (onboardingNameHint) {
+            onboardingNameHint.textContent = selectedOnboardingName
+                ? 'Name ready — edit, reroll, or choose Custom.'
+                : 'Roll a genre-matched name before using Custom.';
+        }
+        setNameRequiredButtonsEnabled(!!selectedOnboardingName);
+    });
 
     // Starting Level change & persistent preference save
     const levelSelect = el.querySelector('#rt-starting-level');
@@ -210,6 +247,11 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
                 showPcImportPanel(el);
                 return;
             }
+            const requiresRolledName = archetype !== 'persona';
+            if (requiresRolledName && !selectedOnboardingName) {
+                toastr['info']('Roll a character name before generating.', 'RPG Tracker');
+                return;
+            }
 
             // Time/date format and initial date are already the single source of truth
             // (kept in sync by setUseDdMmYyFormat/setUseDate24hTime/setInitialDateValue) —
@@ -219,6 +261,8 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
                 ? (getSettings().initialDate && getSettings().initialDate !== 'Day 1' ? getSettings().initialDate : '01/01/2026')
                 : 'Day 1';
             const customInstructions = el.querySelector('#rt-onboarding-custom-instructions')?.value.trim() || '';
+            const selectedName = selectedOnboardingName;
+            const selectedNameInstruction = ` The character's name MUST be "${selectedName}" exactly.`;
             // Gate optional blocks on enabled modules
             const _mods = getSettings().modules || {};
             const _hasXp        = !!_mods['xp'];
@@ -322,13 +366,13 @@ Gear:
                 }
                 el.querySelectorAll('.rt-random-char-btn').forEach(b => b.disabled = true);
                 btn.textContent = labels.custom;
-                let customPrompt = `${levelPrefix} Generate a random Level ${level} character based entirely on these custom instructions: "${customInstructions}". Output ${_blockListStr} blocks${_hasSpells ? " (and [SPELLS] if appropriate for the class, using 'Cantrips:' for level 0 spells)" : ''}. Adapt all attributes, skills, saves, descriptions, and gear to match the setting and instructions perfectly.${CHARACTER_FORMAT_HINT}${xpHint}${TIME_FORMAT_HINT}${magicGearHint}`;
+                let customPrompt = `${levelPrefix} Generate a random Level ${level} character based entirely on these custom instructions: "${customInstructions}".${selectedNameInstruction} Output ${_blockListStr} blocks${_hasSpells ? " (and [SPELLS] if appropriate for the class, using 'Cantrips:' for level 0 spells)" : ''}. Adapt all attributes, skills, saves, descriptions, and gear to match the setting and instructions perfectly.${CHARACTER_FORMAT_HINT}${xpHint}${TIME_FORMAT_HINT}${magicGearHint}`;
                 if (isCalendar) {
                     customPrompt += `\n\nCRITICAL REALISM RULE: This is a realistic/non-fantasy setting. Do NOT output a [SPELLS] block. Use realistic modern/historical currencies instead of GP/SP/CP. Firearms on new gear/NPCs/loot: damage ~2–3× D&D/PF norms by common sense; attack bonuses unchanged (not mid-scene conversion).`;
                 }
                 try {
                     syncOnboardingPersonaPrefsFromDom(el);
-                    await sendDirectPrompt(customPrompt + combatSkillHint);
+                    await sendDirectPrompt(customPrompt + combatSkillHint, { systemPromptMode: 'modules_only' });
                     const personaHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\nAdditional: ${customInstructions}\n`;
                     await maybeCreateOnboardingPersona(personaHints);
                 } finally {
@@ -359,7 +403,7 @@ Gear:
                     personaPrompt += `\n\nAdditional setting/instruction constraints: ${customInstructions}. Adapt the name, attributes, description, gear, and spells (if any) to match this setting/instruction perfectly.`;
                 }
                 syncOnboardingPersonaPrefsFromDom(el);
-                await sendDirectPrompt(personaPrompt + combatSkillHint);
+                await sendDirectPrompt(personaPrompt + combatSkillHint, { systemPromptMode: 'modules_only' });
                 const personaHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\nSource: the previously active SillyTavern persona.${customInstructions ? `\nAdditional: ${customInstructions}` : ''}\n`;
                 await maybeCreateOnboardingPersona(personaHints);
                 return;
@@ -367,13 +411,13 @@ Gear:
 
             el.querySelectorAll('.rt-random-char-btn').forEach(b => b.disabled = true);
             btn.textContent = labels[archetype] || '🎲 Rolling...';
-            let promptText = prompts[archetype];
+            let promptText = prompts[archetype] + selectedNameInstruction;
             if (customInstructions) {
                 promptText += `\n\nAdditional setting/instruction constraints: ${customInstructions}. Adapt the name, attributes, description, gear, and spells (if any) to match this setting/instruction perfectly.`;
             }
             try {
                 syncOnboardingPersonaPrefsFromDom(el);
-                await sendDirectPrompt(promptText + combatSkillHint);
+                await sendDirectPrompt(promptText + combatSkillHint, { systemPromptMode: 'modules_only' });
                 const personaHints = customInstructions
                     ? `\n\n--- PLAYER PREFERENCES & HINTS ---\nAdditional: ${customInstructions}\n`
                     : '';

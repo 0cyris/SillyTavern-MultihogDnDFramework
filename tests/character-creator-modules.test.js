@@ -30,6 +30,13 @@ describe('Character Creator custom tracker modules', () => {
         expect(buildOnboardingActiveBlocks(settings)).not.toContain('INACTIVE_RULE');
     });
 
+    it('never requests an active combat block during character creation', () => {
+        expect(buildOnboardingActiveBlocks({
+            modules: { combat: true },
+            customFields: [{ tag: 'COMBAT', enabled: true }],
+        })).not.toContain('COMBAT');
+    });
+
     it('injects enabled custom module prompts and templates', () => {
         const text = buildOnboardingCustomModuleInstructions(settings);
 
