@@ -22,6 +22,9 @@ describe('Adventure Companion fallback actions', () => {
     it('treats natural requests and underspecified demos as action intent', async () => {
         const { COMPANION_PERSONA, COMPANION_ACTION_TOOLS } = await import('../adventure-companion.js');
 
+        expect(COMPANION_PERSONA).toContain('Actions — these three ONLY (hard limit):');
+        expect(COMPANION_PERSONA).toContain('You have no other action surface.');
+        expect(COMPANION_PERSONA).toContain('never invent a UI workflow');
         expect(COMPANION_PERSONA).toContain('They do not need exact wording, command syntax, magic phrases');
         expect(COMPANION_PERSONA).toContain('A request to demonstrate or test your action capability is authorization.');
         expect(COMPANION_PERSONA).toContain('choose one small, harmless, clearly labeled demo addition');
@@ -29,6 +32,7 @@ describe('Adventure Companion fallback actions', () => {
         expect(COMPANION_ACTION_TOOLS[0].function.description).toContain('ordinary conversational language');
         expect(COMPANION_ACTION_TOOLS[1].function.description).toContain('ordinary conversational language');
         expect(COMPANION_ACTION_TOOLS[2].function.name).toBe('act_for_user');
+        expect(COMPANION_ACTION_TOOLS).toHaveLength(3);
     });
 
     it('extracts State Tracker and Lorebook Agent commands in order', async () => {

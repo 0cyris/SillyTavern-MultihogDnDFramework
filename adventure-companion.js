@@ -47,10 +47,14 @@ Rules:
 - For framework and settings questions, be brief and practical. If the supplied documentation does not cover something, say you are unsure rather than inventing settings, IDs, or behavior.
 - Keep replies engaging but not endless. Match the player's energy.
 
-Actions you can perform:
-- You can send a direct command to the State Tracker to correct or update mechanical campaign state.
-- You can send a direct command to the Lorebook Agent to create or update campaign lore.
-- You can take the player's next turn when they clearly ask you to act, choose, or continue for them.
+Actions — these three ONLY (hard limit):
+1. Send a direct command to the **State Tracker** to correct or update mechanical campaign state (memo / tracked modules).
+2. Send a direct command to the **Lorebook Agent** to create or update campaign lore.
+3. **Act for the player** — submit their next turn (send a chat message for them, or choose a CYOA button when CYOA choices are supplied).
+
+You have no other action surface. You cannot click Multihog UI, open settings drawers, edit relationship bars / NPC cards / inventory panels / module toggles in the interface, or walk the player through invented menu paths. If a change belongs in campaign state or lore, do it via State Tracker or Lorebook Agent commands — never invent a UI workflow. If you do not know how a Multihog screen looks or whether a control exists, say so or use one of the three actions above; do not guess at buttons, tabs, or editors.
+
+Action rules:
 - Act whenever the player's intent to make a change is clear from ordinary conversation. They do not need exact wording, command syntax, magic phrases, or the names "State Tracker" and "Lorebook Agent."
 - Polite questions and indirect but clear requests count as action intent: "Could you add a torch?", "I'd like Marcus remembered as an ally", "show me how this works", and "give me a demo" should be acted on, not answered with instructions for how to ask again.
 - A request to demonstrate or test your action capability is authorization. If a demo omits the exact content, choose one small, harmless, clearly labeled demo addition, execute it, and tell the player what you chose.
@@ -149,7 +153,7 @@ const MAX_COMPANION_AGENT_TURNS = 6;
 
 /** @returns {ModePrefs} */
 function defaultCompanionPrefs() {
-    return { lookback: 5, lookbackAll: true, history: [] };
+    return { lookback: 5, lookbackAll: false, history: [] };
 }
 
 /** @returns {ChatPrefs} */
@@ -365,12 +369,7 @@ function persistCompanionSnapshot(companion) {
  */
 function loadCompanionForChat(chatId) {
     if (!chatId) {
-        _prefs.companion = {
-            ...defaultCompanionPrefs(),
-            lookback: _prefs.companion?.lookback ?? 5,
-            lookbackAll: !!_prefs.companion?.lookbackAll,
-            history: [],
-        };
+        _prefs.companion = defaultCompanionPrefs();
         return;
     }
     const s = getSettings();
@@ -389,12 +388,7 @@ function loadCompanionForChat(chatId) {
     // seed here would copy that conversation into every newly visited ChatID.
     // The only legacy migration is handled by loadPrefs(), before any per-chat
     // Companion session has been loaded.
-    _prefs.companion = {
-        ...defaultCompanionPrefs(),
-        lookback: _prefs.companion?.lookback ?? 5,
-        lookbackAll: !!_prefs.companion?.lookbackAll,
-        history: [],
-    };
+    _prefs.companion = defaultCompanionPrefs();
 }
 
 /**
@@ -1306,7 +1300,7 @@ function welcomeHtml() {
     return `
         <div class="rt-tutorial-msg rt-tutorial-msg-bot rt-tutorial-welcome">
             <div class="rt-tutorial-msg-label">Adventure Companion</div>
-            <div class="rt-tutorial-msg-body">Ask me about Multihog, brainstorm or discuss your adventure, or ask me to update the State Tracker, update the Lorebook Agent, or take your next turn—no special command wording required. Enable Tutorial Mode when you want the framework guide attached to every request.</div>
+            <div class="rt-tutorial-msg-body">Ask me about Multihog, brainstorm or discuss your adventure, or ask me to do one of three things: update the State Tracker, update the Lorebook Agent, or take your next turn (chat message / CYOA)—no special command wording required. I can't operate Multihog UI menus myself. Enable Tutorial Mode when you want the framework guide attached to every request.</div>
         </div>`;
 }
 

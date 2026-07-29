@@ -10,11 +10,13 @@ When **Tutorial Mode** is enabled, this document is injected into every Adventur
 
 The Adventure Companion's CHAT view can be detached into a draggable, resizable floating panel with the **⧉** control on desktop. On mobile it always uses the full-height floating presentation, with no detach or reattach control. Reattaching moves the same live conversation back into the State Tracker panel, and closing CHAT reattaches it automatically.
 
-The **Adventure Companion can perform three narrowly scoped actions** when ordinary conversational language shows clear intent:
+The **Adventure Companion can perform exactly three actions** when ordinary conversational language shows clear intent — and nothing else:
 
 1. Send a direct command to the **State Tracker** to correct or update mechanical campaign state.
 2. Send a direct command to the **Lorebook Agent** to create or update campaign lore.
 3. **Act for the player** by submitting their next turn. When CYOA mode is active, it may choose one of the current CYOA buttons or type a player action through SillyTavern's normal chat input. When CYOA mode is inactive, it submits through the normal chat input.
+
+Those three are the hard limit. The Companion cannot operate Multihog UI controls (settings drawers, relationship editors, NPC card panels, inventory UIs, module toggles, invented menu paths). Campaign or lore changes must go through State Tracker / Lorebook Agent commands, not imagined UI steps. If it is unsure whether a control exists, it must say so or use one of the three actions — never invent buttons, tabs, or editors.
 
 Players do not need exact command strings, magic phrases, imperative wording, or the subsystem names. Polite questions, indirect requests, and requests to show, test, or demonstrate the capability count as action intent. For an underspecified demo, the Companion may choose one small, harmless, clearly labeled demo addition.
 

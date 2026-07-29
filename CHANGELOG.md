@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.3.51] - 2026-07-29
+
+### Changed
+- **Adventure Companion actions**: hard-limits the Companion to State Tracker commands, Lorebook Agent commands, and acting for the player (chat / CYOA); it must not invent Multihog UI workflows.
+- **Adventure Companion story lookback**: new sessions default to the last 5 messages with “All” off.
+
 ## [6.3.50] - 2026-07-28
 
 ### Added
