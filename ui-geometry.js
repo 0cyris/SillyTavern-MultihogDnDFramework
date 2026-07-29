@@ -376,15 +376,21 @@ export function makeResizableBL(panel, handle, customKey = null) {
 /**
  * @param {HTMLElement} panel
  * @param {string|null} [customKey]
+ * @returns {ResizeObserver|null}
  */
 export function setupResizeObserver(panel, customKey = null) {
+    // Older mobile WebViews may not provide ResizeObserver. The panel must still
+    // finish initializing; drag/resize handlers persist geometry independently.
+    const ResizeObserverCtor = globalThis.ResizeObserver;
+    if (typeof ResizeObserverCtor !== 'function') return null;
+
     // Debounced save on resize.
     // Skip the very first callback — it fires immediately on observe() before
     // the panel's restored geometry (from loadPanelGeometry) has been painted,
     // which would cause it to overwrite the saved position with the CSS default.
     let _resizeTimer;
     let _initialFired = false;
-    const ro = new ResizeObserver(() => {
+    const ro = new ResizeObserverCtor(() => {
         if (!_initialFired) { _initialFired = true; return; }
         clearTimeout(_resizeTimer);
         _resizeTimer = setTimeout(() => savePanelGeometry(panel, customKey), 300);

@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.4.3] - 2026-07-29
+
+### Fixed
+- **Older mobile WebView initialization**: missing `ResizeObserver` support no longer aborts State Tracker panel setup and leaves a visible but non-interactive panel.
+
 ## [6.4.0] - 2026-07-29
 
 ### Added
