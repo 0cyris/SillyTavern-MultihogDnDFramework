@@ -1183,11 +1183,27 @@ export function refreshOrderList() {
         if (!isStock && field) {
             const scope = getChatSetupItemScope(s, 'customField', field);
             const bypassed = !s.chatLinkEnabled || !s.chatSetupLinkEnabled;
-            if (linkedGameSystem) {
+            if (isWizardField) {
                 scopeControl = document.createElement('span');
+                scopeControl.className = 'rt-module-wizard-scope';
                 scopeControl.textContent = scope === 'global' ? 'GLOBAL' : 'CHAT-BOUND';
-                scopeControl.title = `${scope === 'global' ? 'Global' : 'Chat-bound'} scope inherited from Game System "${linkedGameSystem.name || 'Unnamed'}". Change it in Manage Game Systems.${bypassed ? ' The master setup link is currently bypassing per-item scopes.' : ''}`;
-                scopeControl.style.cssText = 'font-size:9px;padding:2px 5px;border-radius:3px;white-space:nowrap;background:rgba(180,100,255,0.13);color:#c9a0ff;border:1px solid rgba(180,100,255,0.25);';
+                scopeControl.title = `${scope === 'global' ? 'Global' : 'Chat-bound'} scope inherited from Game System "${linkedGameSystem?.name || 'Unnamed'}". Click for instructions.${bypassed ? ' The master setup link is currently bypassing per-item scopes.' : ''}`;
+                scopeControl.setAttribute('role', 'button');
+                scopeControl.setAttribute('tabindex', '0');
+                scopeControl.style.cssText = 'font-size:9px;padding:2px 5px;border-radius:3px;white-space:nowrap;background:rgba(180,100,255,0.13);color:#c9a0ff;border:1px solid rgba(180,100,255,0.25);cursor:pointer;';
+                const showWizardScopeRedirect = () => {
+                    toastr['info'](
+                        'This module belongs to a Wizard-created Game System bundle. Open Manage Game Systems to make the bundle GLOBAL or CHAT-BOUND.',
+                        'RPG Tracker',
+                        { timeOut: 6000 },
+                    );
+                };
+                scopeControl.onclick = showWizardScopeRedirect;
+                scopeControl.onkeydown = (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    showWizardScopeRedirect();
+                };
             } else {
                 scopeControl = document.createElement('select');
                 scopeControl.className = 'text_pole rt-module-scope';

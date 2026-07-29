@@ -2,7 +2,7 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
-## [Unreleased]
+## [6.4.0] - 2026-07-29
 
 ### Added
 - **Genre-aware character names**: Instant Action and Other Ways to Begin now use genre-specific first-name / surname pools, with reroll controls and editable name fields. The Character Creator random-name button includes the combined library.
@@ -15,6 +15,7 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 
 ### Fixed
 - **Instant Action name propagation**: the accepted name is now passed through to character generation instead of being independently re-invented by the model.
+- **Wizard module scope guidance**: clicking GLOBAL / CHAT-BOUND on a Wizard-created tracker module now explains that bundle scope is controlled from Manage Game Systems.
 
 ## [6.3.60] - 2026-07-29
 
