@@ -2,6 +2,14 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.5.30] - 2026-07-30
+
+### Changed
+- **CYOA settings scope**: choice composition and behavior remain per-chat, while visual theme settings are shared globally.
+
+### Fixed
+- **CYOA migration**: legacy per-chat snapshots retain their choice setup while no longer overriding the global visual theme.
+
 ## [6.5.10] - 2026-07-30
 
 ### Added

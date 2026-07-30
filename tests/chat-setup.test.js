@@ -41,6 +41,88 @@ describe('per-chat Control Room and tracker setup', () => {
         expect(settings.customFields[0].enabled).toBe(false);
     });
 
+    it('keeps CYOA choices per-chat while preserving one global visual theme', () => {
+        const settings = buildDefaultSettings();
+        migrateChatSetupCatalogs(settings);
+        settings.cyoaConfig = {
+            ...settings.cyoaConfig,
+            slots: [{ type: 'custom', text: 'Chat A choice' }],
+            presets: { ChatA: [{ type: 'narrative' }] },
+            useEmojis: false,
+            useButtonTags: true,
+            buttonColor: '#123456',
+            mechBgOpacity: 0.42,
+        };
+
+        const chatA = snapshotChatSetup(settings);
+        expect(chatA.cyoaConfig.slots[0].text).toBe('Chat A choice');
+        expect(chatA.cyoaConfig.presets).toHaveProperty('ChatA');
+        expect(chatA.cyoaConfig.useEmojis).toBe(false);
+        expect(chatA.cyoaConfig.useButtonTags).toBe(true);
+        expect(chatA.cyoaConfig.buttonColor).toBeUndefined();
+        expect(chatA.cyoaConfig.mechBgOpacity).toBeUndefined();
+
+        settings.cyoaConfig.slots = [{ type: 'custom', text: 'Chat B choice' }];
+        settings.cyoaConfig.presets = { ChatB: [{ type: 'custom', text: 'B' }] };
+        settings.cyoaConfig.useEmojis = true;
+        settings.cyoaConfig.useButtonTags = false;
+        settings.cyoaConfig.buttonColor = '#abcdef';
+        settings.cyoaConfig.mechBgOpacity = 0.77;
+        const chatB = snapshotChatSetup(settings);
+
+        expect(applyChatSetup(settings, chatA)).toBe(true);
+        expect(settings.cyoaConfig.slots[0].text).toBe('Chat A choice');
+        expect(settings.cyoaConfig.presets).toHaveProperty('ChatA');
+        expect(settings.cyoaConfig.useEmojis).toBe(false);
+        expect(settings.cyoaConfig.useButtonTags).toBe(true);
+        expect(settings.cyoaConfig.buttonColor).toBe('#abcdef');
+        expect(settings.cyoaConfig.mechBgOpacity).toBe(0.77);
+
+        expect(applyChatSetup(settings, chatB)).toBe(true);
+        expect(settings.cyoaConfig.slots[0].text).toBe('Chat B choice');
+        expect(settings.cyoaConfig.presets).toHaveProperty('ChatB');
+        expect(settings.cyoaConfig.useEmojis).toBe(true);
+        expect(settings.cyoaConfig.useButtonTags).toBe(false);
+        expect(settings.cyoaConfig.buttonColor).toBe('#abcdef');
+        expect(settings.cyoaConfig.mechBgOpacity).toBe(0.77);
+    });
+
+    it('migrates visual fields out of legacy per-chat CYOA copies', () => {
+        const settings = buildDefaultSettings();
+        settings.chatSetupCatalogVersion = 2;
+        settings.cyoaConfig.buttonColor = '#abcdef';
+        settings.chatStates = {
+            alpha: {
+                setup: {
+                    cyoaConfig: {
+                        slots: [{ type: 'custom', text: 'Alpha choice' }],
+                        presets: { Alpha: [{ type: 'narrative' }] },
+                        buttonColor: '#111111',
+                    },
+                },
+            },
+            beta: {
+                setup: {
+                    cyoaConfig: {
+                        slots: [{ type: 'custom', text: 'Beta choice' }],
+                        presets: { Beta: [{ type: 'narrative' }] },
+                        buttonColor: '#222222',
+                    },
+                },
+            },
+        };
+
+        expect(migrateChatSetupCatalogs(settings)).toBe(true);
+        expect(settings.chatSetupCatalogVersion).toBe(3);
+        expect(settings.cyoaConfig.buttonColor).toBe('#abcdef');
+        expect(settings.chatStates.alpha.setup.cyoaConfig.slots[0].text).toBe('Alpha choice');
+        expect(settings.chatStates.alpha.setup.cyoaConfig.presets).toHaveProperty('Alpha');
+        expect(settings.chatStates.alpha.setup.cyoaConfig.buttonColor).toBeUndefined();
+        expect(settings.chatStates.beta.setup.cyoaConfig.slots[0].text).toBe('Beta choice');
+        expect(settings.chatStates.beta.setup.cyoaConfig.presets).toHaveProperty('Beta');
+        expect(settings.chatStates.beta.setup.cyoaConfig.buttonColor).toBeUndefined();
+    });
+
     it('resets setup fields to stock while keeping catalog items inactive', () => {
         const settings = buildDefaultSettings();
         migrateChatSetupCatalogs(settings);

@@ -62,6 +62,10 @@ describe('saveChatState', () => {
         expect(setup.syspromptSnippetStates.law).toBe(false);
         expect(setup.syspromptSectionOrder).toEqual(['lib:law']);
         expect(setup.systemPromptTemplate).toBe('Per-chat extractor');
+        expect(setup.cyoaConfig.slots).toBeDefined();
+        expect(setup.cyoaConfig.presets).toBeDefined();
+        expect(setup.cyoaConfig.buttonColor).toBeUndefined();
+        expect(setup.cyoaConfig.mechBgOpacity).toBeUndefined();
         expect(s.trackerModuleDatabase[0].tag).toBe('REPUTATION');
         expect(s.syspromptSnippetDatabase[0].content).toBe('Custom law');
     });

@@ -8,14 +8,31 @@
 
 import { buildDefaultSettings } from './defaults.js';
 
-export const CHAT_SETUP_CATALOG_VERSION = 2;
+export const CHAT_SETUP_CATALOG_VERSION = 3;
 export const CHAT_SETUP_SCOPE_CHAT = 'chat';
 export const CHAT_SETUP_SCOPE_GLOBAL = 'global';
+
+/** CYOA theme fields are global; choice composition and behavior remain per-chat. */
+export const CYOA_VISUAL_CONFIG_KEYS = Object.freeze([
+    'buttonColor',
+    'buttonOpacity',
+    'buttonTextColor',
+    'buttonBorderColor',
+    'choiceAccentColor',
+    'mechColor',
+    'mechBgOpacity',
+    'dcColor',
+    'modColor',
+    'tagColor',
+    'mechAccentColor',
+]);
 
 export const CHAT_SETUP_KEYS = Object.freeze([
     // System Prompt Control Room (custom definitions live in the snippet catalog)
     'syspromptSectionOrder',
     'syspromptModules',
+    // Choice slots, presets, prompt, and behavior are per-chat. Visual fields
+    // inside cyoaConfig are filtered out and preserved globally.
     'cyoaConfig',
     'narrativePacing',
     'npcRelationshipBars',
@@ -38,6 +55,21 @@ export const CHAT_SETUP_KEYS = Object.freeze([
 
 function clone(value) {
     return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function stripCyoaVisualConfig(config) {
+    const copy = clone(config || {});
+    for (const key of CYOA_VISUAL_CONFIG_KEYS) delete copy[key];
+    return copy;
+}
+
+function getCyoaVisualConfig(config, fallback = {}) {
+    const result = {};
+    for (const key of CYOA_VISUAL_CONFIG_KEYS) {
+        const source = Object.prototype.hasOwnProperty.call(config || {}, key) ? config : fallback;
+        if (Object.prototype.hasOwnProperty.call(source || {}, key)) result[key] = clone(source[key]);
+    }
+    return result;
 }
 
 function customFieldKey(item) {
@@ -279,6 +311,11 @@ function upgradeLegacySetup(setup) {
     delete setup.customFields;
     delete setup.customSyspromptLibrary;
     delete setup.gameSystems;
+    // Visual theme fields used to ride inside each per-chat CYOA snapshot.
+    // Choice composition remains in the partition; only its theme is stripped.
+    if (setup.cyoaConfig && typeof setup.cyoaConfig === 'object') {
+        setup.cyoaConfig = stripCyoaVisualConfig(setup.cyoaConfig);
+    }
     setup.version = 3;
 }
 
@@ -362,7 +399,11 @@ export function snapshotChatSetup(settings) {
         syspromptSnippetStates: stateMap(settings?.customSyspromptLibrary, snippetKey),
         gameSystemStates: stateMap(settings?.gameSystems, gameSystemKey),
     };
-    for (const key of CHAT_SETUP_KEYS) setup[key] = clone(settings?.[key]);
+    for (const key of CHAT_SETUP_KEYS) {
+        setup[key] = key === 'cyoaConfig'
+            ? stripCyoaVisualConfig(settings?.cyoaConfig)
+            : clone(settings?.[key]);
+    }
     return setup;
 }
 
@@ -377,9 +418,12 @@ export function applyChatSetup(settings, setup) {
     upgradeLegacySetup(setup);
 
     const defaults = buildDefaultSettings();
+    const globalCyoaVisuals = getCyoaVisualConfig(settings.cyoaConfig, defaults.cyoaConfig);
     for (const key of CHAT_SETUP_KEYS) {
         const value = Object.prototype.hasOwnProperty.call(setup, key) ? setup[key] : defaults[key];
-        settings[key] = clone(value);
+        settings[key] = key === 'cyoaConfig'
+            ? { ...stripCyoaVisualConfig(value), ...globalCyoaVisuals }
+            : clone(value);
     }
 
     settings.gameSystems = hydrateCatalog(settings.gameSystemDatabase, setup.gameSystemStates, gameSystemKey);
