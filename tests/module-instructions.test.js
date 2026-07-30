@@ -12,8 +12,16 @@ import {
     adjustPromptTimestamps,
 } from '../state-manager.js';
 import { testExtensionSettings } from './setup.js';
+import { DEFAULT_STOCK_PROMPTS } from '../constants.js';
 
 describe('module instruction builders', () => {
+    it('includes the multi-level SPELLS block example in the stock prompt', () => {
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain('[SPELLS]');
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain("Level 1 (4/4): Hunter's Mark, Longstrider, Detect Magic");
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain('Level 2 (3/3): Pass Without Trace, Lesser Restoration');
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain('[/SPELLS]');
+    });
+
     it('buildNpcInstruction includes CORE_FORMAT and {{user}} rules', () => {
         const text = buildNpcInstruction(25, 15, true);
         expect(text).toContain('<CORE_FORMAT — NPC only>');

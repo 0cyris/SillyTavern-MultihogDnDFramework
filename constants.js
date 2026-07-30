@@ -193,6 +193,7 @@ Rules:
   Boss: Attack +11–15 | Spell DC 23–28
   Legendary: Attack +16–20+ | Spell DC 28–33+
 - Firearms (new combatant damage — including enemies you invent when the GM didn't supply stats): ~2–3× typical D&D/PF firearm dice for lethality. Reasonable pistol baseline: 2d8+1 (not 1d8+2); rifle/shotgun higher. Attack bonuses stay normal — only damage scales. Never convert mid-fight.
+- DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.
 
 You MUST output \`[COMBAT]END_COMBAT[/COMBAT]\` when the narrative ends combat. Do not put members of [PARTY] into [COMBAT]`,
   inventory: `Items, loot, equipment, and wealth. You MAY create this section if loot is found and it doesn't currently exist.
@@ -225,7 +226,13 @@ Other Items:
   abilities: `Non-spell class features and active abilities ONLY (e.g. Lay on Hands, Action Surge). NEVER mix these with spells. Format each entry as: \`Ability Name (brief description)\`.
 
 Every ability that is use-limited must have its uses in the parentheses, for example: "Silver-Tongued Pivot (Allows the reroll of a failed social check by seamlessly shifting the narrative framing, 1/1 per rest)". At-will / passive abilities omit a uses count.`,
-  spells: "Spell slots and spells known, grouped by level. Format each line as: `Level N (avail/max): Spell1, Spell2`. For cantrips, use `Cantrips: Spell1, Spell2`. Track slot usage accurately. NEVER mix these with abilities.",
+  spells: `Spell slots and spells known, grouped by level. Format each line as: \`Level N (avail/max): Spell1, Spell2\`. For cantrips, use \`Cantrips: Spell1, Spell2\`. Track slot usage accurately. NEVER mix these with abilities.
+
+Example:
+[SPELLS]
+Level 1 (4/4): Hunter's Mark, Longstrider, Detect Magic
+Level 2 (3/3): Pass Without Trace, Lesser Restoration
+[/SPELLS]`,
   time: `Current time and day grabbed from the status footer. Also track time of the last rest (only on Long Rest, e.g. 'Last Rest: 10:00 PM, Day 0'). Use this to track out-of-combat buff durations by comparing to the PRIOR MEMO's time.
 
 Format:
@@ -450,7 +457,9 @@ Travel/time-skips only, not spammed. Pop a number: ≥14 = event occurs. If even
 </random_events>
 
 <xp_system>
-Award XP inline right after the trigger: *(+[X] XP — [reason])*. Reserve meaningful gains for quest/mission completions or high-impact actions; don't over-award — XP must be earned. Post-combat gains should reflect the encounter's challenge.
+- Award XP inline right after the trigger: *(+[X] XP — [reason])*. Reserve meaningful gains for quest/mission completions or high-impact actions; don't over-award — XP must be earned.
+- Quest XP rewards should reflect the difficulty/complexity of the quest.
+- Post-combat gains should reflect the encounter's challenge.
 
 LEVEL THRESHOLDS: 1–0 | 2–300 | 3–900 | 4–2,700 | 5–6,500 | 6–14,000 | 7–23,000 | 8–34,000 | 9–48,000 | 10–64,000, etc. Level cap is 20 per D&D.
 </xp_system>
@@ -489,8 +498,9 @@ Never auto-resolve or narrate past a pending level-up.
 </level_up_protocol>
 
 <narrative>
-Simulate realistic time passage; world events progress independent of {{user}}; multiple skill checks per output are fine.
-NPCs are autonomous with their own agendas — {{user}} isn't default leader unless established. High-competence/alpha NPCs (e.g. Jack Bauer types) dictate tactics on their own judgment; {{user}}'s agency comes from reacting/executing/leveraging skills within that frame, not commanding it. NPCs can express opinions or leave over serious value conflicts. NPCs only know what they'd realistically know.
+- Simulate realistic time passage; advance the time in the status footer accordingly.
+- Multiple skill checks per output are fine when appropriate.
+- NPCs are autonomous with their own agendas — {{user}} isn't default leader unless established. High-competence/alpha NPCs (e.g. Jack Bauer types) dictate tactics on their own judgment; {{user}}'s agency comes from reacting/executing/leveraging skills within that frame, not commanding it. NPCs can express opinions or leave over serious value conflicts. NPCs only know what they'd realistically know.
 Voice: may paraphrase {{user}}'s dialogue/actions consistent with their character, lightly expanding as needed.
 </narrative>
 
@@ -742,7 +752,9 @@ Travel/time-skips only, not spammed. Pop a number: ≥14 = event occurs. If even
 </random_events>
 
 <xp_system>
-Award XP inline right after the trigger: *(+[X] XP — [reason])*. Reserve meaningful gains for quest/mission completions or high-impact actions; don't over-award — XP must be earned. Post-combat gains should reflect the encounter's challenge.
+- Award XP inline right after the trigger: *(+[X] XP — [reason])*. Reserve meaningful gains for quest/mission completions or high-impact actions; don't over-award — XP must be earned.
+- Quest XP rewards should reflect the difficulty/complexity of the quest.
+- Post-combat gains should reflect the encounter's challenge.
 
 LEVEL THRESHOLDS: 1–0 | 2–300 | 3–900 | 4–2,700 | 5–6,500 | 6–14,000 | 7–23,000 | 8–34,000 | 9–48,000 | 10–64,000, etc. Level cap is 20 per D&D.
 </xp_system>
@@ -781,8 +793,9 @@ Never auto-resolve or narrate past a pending level-up.
 </level_up_protocol>
 
 <narrative>
-Simulate realistic time passage; world events progress independent of {{user}}; multiple skill checks per output are fine.
-NPCs are autonomous with their own agendas — {{user}} isn't default leader unless established. High-competence/alpha NPCs (e.g. Jack Bauer types) dictate tactics on their own judgment; {{user}}'s agency comes from reacting/executing/leveraging skills within that frame, not commanding it. NPCs can express opinions or leave over serious value conflicts. NPCs only know what they'd realistically know.
+- Simulate realistic time passage; advance the time in the status footer accordingly.
+- Multiple skill checks per output are fine when appropriate.
+- NPCs are autonomous with their own agendas — {{user}} isn't default leader unless established. High-competence/alpha NPCs (e.g. Jack Bauer types) dictate tactics on their own judgment; {{user}}'s agency comes from reacting/executing/leveraging skills within that frame, not commanding it. NPCs can express opinions or leave over serious value conflicts. NPCs only know what they'd realistically know.
 Voice: may paraphrase {{user}}'s dialogue/actions consistent with their character, lightly expanding as needed.
 </narrative>
 

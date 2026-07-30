@@ -13,6 +13,7 @@ describe('saveChatState', () => {
         const s = getSettings();
         s.chatLinkEnabled = true;
         s.currentMemo = 'test-memo';
+        s.combatDefeatedUi = [{ name: 'Bandit', content: 'Bandit: 0/18 HP\nStatus: Defeated' }];
         s.modules = { character: true };
         s.stockPrompts = { character: 'custom prompt' };
 
@@ -20,6 +21,8 @@ describe('saveChatState', () => {
 
         const part = getSettings().chatStates['vitest-chat'];
         expect(part.currentMemo).toBe('test-memo');
+        expect(part.combatDefeatedUi).toEqual(s.combatDefeatedUi);
+        expect(part.combatDefeatedUi).not.toBe(s.combatDefeatedUi);
         expect(part.stockPrompts.character).toBe('custom prompt');
         // merged with defaults — more keys than the one override
         expect(Object.keys(part.stockPrompts).length).toBeGreaterThan(1);

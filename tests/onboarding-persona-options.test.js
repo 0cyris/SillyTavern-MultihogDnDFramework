@@ -42,4 +42,12 @@ describe('onboarding Player Card and ST persona options', () => {
         expect(html).toContain('href="https://discord.gg/sillytavern"');
         expect(html).toContain('Hell, head there anyway!');
     });
+
+    it('links the startup welcome note to the GitHub releases page', () => {
+        const html = renderMemoAsCards('', null, {});
+
+        expect(html).toContain('Welcome to Multihog D&D Framework!');
+        expect(html).toContain('href="https://github.com/MultihogAurelius/SillyTavern-MultihogDnDFramework/releases"');
+        expect(html).toContain('Releases section of the GitHub page');
+    });
 });

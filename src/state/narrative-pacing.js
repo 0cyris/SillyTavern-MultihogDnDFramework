@@ -1,4 +1,5 @@
-const SHARED_NARRATIVE_RULES = `- Simulate realistic time passage; world events progress independent of {{user}}; multiple skill checks per output are fine.
+const SHARED_NARRATIVE_RULES = `- Simulate realistic time passage; advance the time in the status footer accordingly.
+- Multiple skill checks per output are fine when appropriate.
 - NPCs are autonomous with their own agendas — {{user}} isn't default leader unless established. High-competence/alpha NPCs (e.g. Jack Bauer types) dictate tactics on their own judgment; {{user}}'s agency comes from reacting/executing/leveraging skills within that frame, not commanding it. NPCs can express opinions or leave over serious value conflicts. NPCs only know what they'd realistically know.`;
 
 /** @param {string} pacing */

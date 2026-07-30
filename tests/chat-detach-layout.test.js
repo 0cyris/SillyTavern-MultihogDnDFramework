@@ -25,7 +25,8 @@ describe('Adventure Companion layout', () => {
         expect(source).not.toContain(['Tutorial', 'Bot'].join(' '));
         expect(source).not.toContain("mode === 'companion'");
         expect(markup).toContain('id="rt-adventure-companion-header"');
-        expect(markup).toContain('<span>Adventure Companion: Agentic Sidekick and Guide</span>');
+        expect(markup).toContain('<span>Adventure Companion</span>');
+        expect(source).toContain("const COMPANION_HEADER_TITLE = 'Adventure Companion'");
         expect(css).toMatch(/\.rt-adventure-companion-header\s*\{[^}]*font-size:\s*0\.9em;[^}]*text-transform:\s*none;/s);
         expect(source).toContain("trackerTab.style.display = 'none'");
         expect(source).toContain("companionHeader.style.display = 'flex'");
@@ -51,5 +52,13 @@ describe('Adventure Companion layout', () => {
         expect(css).toContain('#rpg-tracker-adventure-companion.rt-detached-panel');
         expect(css).toContain('#rt-chat-detach-btn,');
         expect(css).toContain('#rt-chat-reattach-btn');
+        expect(source).toContain('id="rt-chat-collapse-btn"');
+        expect(source).toContain("const CHAT_COLLAPSED_KEY = 'rpg_tracker_adventure_companion_collapsed'");
+        expect(source).toContain('toggleDetachedChatCollapse()');
+        expect(source).toContain('syncMobileDetachedMainPanelVisibility()');
+        expect(source).toContain("rt-chat-mobile-detached-owner");
+        expect(css).toContain('.rpg-tracker-panel.rt-panel-collapsed .rt-chat-detached-body');
+        expect(css).toContain('#rpg-tracker-adventure-companion.rt-detached-panel.rt-panel-collapsed');
+        expect(css).toContain('#rpg-tracker-panel.rt-chat-mobile-detached-owner');
     });
 });

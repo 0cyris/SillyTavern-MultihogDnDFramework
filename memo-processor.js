@@ -11,6 +11,12 @@
 
 import { getSettings } from './state-manager.js';
 import { DEFAULT_STOCK_PROMPTS, resolveTimePromptKey } from './constants.js';
+import {
+    partitionResolvedCombatants,
+    stripResolvedCombatantsFromMemo,
+} from './src/state/combat-persistence.js';
+
+const DEFEATED_COMBATANTS_PROMPT_RULE = '- DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.';
 
 // ── String utilities ──────────────────────────────────────────────────────────
 
@@ -402,6 +408,18 @@ export function mergeMemo(currentMemo, aiOutput) {
         const isRemoval = /^(?:REMOVED|EXPIRED|CLEARED|NONE|END_COMBAT)$/i.test(newContent);
 
         const escapedTag = escapeRegex(tag);
+        let mergedContent = newContent;
+        if (tag.toUpperCase() === 'COMBAT') {
+            if (isRemoval) {
+                settings.combatDefeatedUi = [];
+            } else {
+                const hadActiveCombat = /\[COMBAT\][\s\S]*?\[\/COMBAT\]/i.test(memo);
+                const priorArchive = hadActiveCombat ? settings.combatDefeatedUi : [];
+                const partitioned = partitionResolvedCombatants(newContent, priorArchive);
+                mergedContent = partitioned.activeContent;
+                settings.combatDefeatedUi = partitioned.defeatedCombatants;
+            }
+        }
         const existingPattern = new RegExp(
             `\\s*\\[${escapedTag}\\][\\s\\S]*?\\[\\/${escapedTag}\\]`,
             'i'
@@ -415,7 +433,7 @@ export function mergeMemo(currentMemo, aiOutput) {
             memo = memo.replace(existingPattern, "").trim();
             if (settings.debugMode) console.log(`[RPG Tracker] mergeMemo: [${tag}] REMOVED`);
         } else {
-            const fullBlock = `[${tag}]\n${newContent}\n[/${tag}]`;
+            const fullBlock = `[${tag}]\n${mergedContent}\n[/${tag}]`;
             const before = memo;
             memo = memo.replace(existingPattern, () => '\n\n' + fullBlock);
             if (memo !== before) {
@@ -799,7 +817,7 @@ function replaceMemoBlock(memo, tag, innerContent) {
 // as a member boundary instead of silently vanishing from the parsed roster.
 const PARTY_MEMBER_MARKER_TOKEN = '(?:\\(\\([^)]*\\)\\)\\s*)*';
 const PARTY_MEMBER_HEADER_RX = new RegExp(
-    `^\\s*[-*+•–—]?(?:\\s+)?(.+?):\\s*${PARTY_MEMBER_MARKER_TOKEN}([\\d,]+)(?:\\/([\\d,]+))?\\s*HP\\b`,
+    `^\\s*[-*+•–—]?(?:\\s+)?(.+?):\\s*${PARTY_MEMBER_MARKER_TOKEN}([+-]?[\\d,]+)(?:\\/([\\d,]+))?\\s*HP\\b`,
     'i',
 );
 const PARTY_MEMBER_COMPACT_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?):\s*(Benched\s*\([^)]*\)|Benched\b.*)$/i;
@@ -979,7 +997,8 @@ export function hydratePartyRelocationStats(priorMemo, mergedMemo) {
  * @returns {string}
  */
 export function memoForTrackerContext(memo) {
-    return compactBenchedPartyForContext(stripCompletedQuestsFromMemo(memo || ''));
+    const activeMemo = stripResolvedCombatantsFromMemo(memo || '');
+    return compactBenchedPartyForContext(stripCompletedQuestsFromMemo(activeMemo));
 }
 
 /**
@@ -996,7 +1015,8 @@ export function memoForTrackerContext(memo) {
  * @returns {string}
  */
 export function memoForGmContext(memo) {
-    const stripped = (memo || '').replace(/\[QUESTS\][\s\S]*?\[\/QUESTS\]/gi, '').trim();
+    const activeMemo = stripResolvedCombatantsFromMemo(memo || '');
+    const stripped = activeMemo.replace(/\[QUESTS\][\s\S]*?\[\/QUESTS\]/gi, '').trim();
     const noMarkers = stripped
         .replace(/\(\([^)]*\)\)/g, '')
         .replace(/ {2,}/g, ' ');
@@ -1618,6 +1638,12 @@ export function buildModulesInstructionText(settings) {
                 if (timeKey !== 'time') {
                     p = promptsMap[timeKey] || DEFAULT_STOCK_PROMPTS[timeKey];
                 }
+            }
+
+            // This is a state-transport invariant, not theme text. Keep it active
+            // for legacy and customized COMBAT prompts without modifying the saved prompt.
+            if (key === 'combat' && !/\bDEFEATED COMBATANTS\s*:/i.test(p)) {
+                p = `${p}\n${DEFEATED_COMBATANTS_PROMPT_RULE}`;
             }
 
             modulesText += `- [${key.toUpperCase()}]: ${p}\n`;

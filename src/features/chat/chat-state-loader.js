@@ -39,6 +39,10 @@ export function createChatStateLoader({
     }
 
     s.currentMemo = saved.currentMemo ?? '';
+    s.combatDefeatedUi = JSON.parse(JSON.stringify(saved.combatDefeatedUi || []));
+    if (!/\[COMBAT\][\s\S]*?\[\/COMBAT\]/i.test(s.currentMemo)) {
+        s.combatDefeatedUi = [];
+    }
     s.memoHistory = saved.memoHistory ?? [];
     s.lastDelta = saved.lastDelta ?? '';
     // Legacy Chat Link keeps these presentation fields at the partition root.

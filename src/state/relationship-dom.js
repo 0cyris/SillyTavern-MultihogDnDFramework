@@ -41,7 +41,8 @@ function releaseRelFloatSlot(slot) {
 
 /**
  * Show an RPG-style floating graphic when Friendship/Affection points change.
- * Floats upward and fades out inside the State Tracker panel (right edge).
+ * Floats upward from the State Tracker's right edge without being clipped by
+ * the panel shell. The transient layer is portalled to document.body.
  * Concurrent awards are staggered in time and spread across vertical/horizontal slots.
  *
  * @param {{ npc: string, field: 'friendship'|'affection', delta: number }} opts
@@ -71,17 +72,16 @@ function spawnRelationshipFloat({ npc, field, delta }) {
     const icon = isFriendship ? '🤝' : '💗';
     const label = isFriendship ? 'Friendship' : 'Affection';
 
-    let layer = host.querySelector('#rt-rel-float-layer');
+    let layer = document.getElementById('rt-rel-float-layer');
     if (!layer) {
-        // Drop any leftover body-level layer from older builds
-        document.getElementById('rt-rel-float-layer')?.remove();
         layer = document.createElement('div');
         layer.id = 'rt-rel-float-layer';
         layer.className = 'rt-rel-float-layer';
         layer.setAttribute('aria-live', 'polite');
         layer.setAttribute('aria-atomic', 'false');
-        host.appendChild(layer);
+        document.body.appendChild(layer);
     }
+    positionRelationshipFloatLayer(layer, host);
 
     const slot = claimRelFloatSlot();
     // Positive X = further left from the right edge; Y = higher start within the panel
@@ -126,5 +126,23 @@ function spawnRelationshipFloat({ npc, field, delta }) {
     };
     el.addEventListener('animationend', cleanup);
     // Fallback if animationend never fires (e.g. reduced-motion / display:none)
-    window.setTimeout(cleanup, 3200 + Math.min(slot, 4) * REL_FLOAT_STAGGER_MS);
+    window.setTimeout(cleanup, 4600 + Math.min(slot, 4) * REL_FLOAT_STAGGER_MS);
+}
+
+/**
+ * Align the body-level feedback portal with the tracker without inheriting the
+ * tracker's overflow clipping. Recomputed for every spawn so panel moves and
+ * resizes are reflected in the next award.
+ *
+ * @param {HTMLElement} layer
+ * @param {HTMLElement} host
+ */
+function positionRelationshipFloatLayer(layer, host) {
+    const rect = host.getBoundingClientRect();
+    const hostZ = Number.parseInt(globalThis.getComputedStyle?.(host)?.zIndex || '', 10);
+    layer.style.left = `${rect.left}px`;
+    layer.style.top = `${rect.top}px`;
+    layer.style.width = `${rect.width}px`;
+    layer.style.height = `${rect.height}px`;
+    layer.style.zIndex = String((Number.isFinite(hostZ) ? hostZ : 2000) + 40);
 }

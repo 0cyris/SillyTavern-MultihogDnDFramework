@@ -1,7 +1,7 @@
 /**
  * adventure-companion.js — Multihog D&D Framework in-panel CHAT.
  * One Adventure Companion, with optional Tutorial Mode documentation injection.
- * Morphs the State Tracker body into a multi-turn chat. LLM: State Tracker connection.
+ * Morphs the State Tracker body into a multi-turn chat with its own LLM connection.
  */
 import { sendAgentTurn } from './llm-client.js';
 import { getSettings } from './state-manager.js';
@@ -35,7 +35,8 @@ const SHELL_VERSION = '8';
 const DETACHED_CHAT_KEY = 'rpg_tracker_adventure_companion_detached';
 const DETACHED_CHAT_GEO_KEY = 'rpg_tracker_geometry_adventure_companion';
 const CHAT_OPEN_KEY = 'rpg_tracker_adventure_companion_open';
-const COMPANION_HEADER_TITLE = 'Adventure Companion: Agentic Sidekick and Guide';
+const CHAT_COLLAPSED_KEY = 'rpg_tracker_adventure_companion_collapsed';
+const COMPANION_HEADER_TITLE = 'Adventure Companion';
 
 export const COMPANION_PERSONA = `You are the Adventure Companion — a witty, imaginative friend sitting beside the player of a Multihog D&D Framework campaign in SillyTavern.
 
@@ -266,6 +267,7 @@ function savePrefs(prefs) {
         console.warn('[CHAT] Could not persist prefs:', err);
     }
     persistCompanionSnapshot(prefs.companion);
+    syncCompanionSettingsDrawerUi(prefs);
 }
 
 /**
@@ -485,6 +487,103 @@ let _detachedChatPanel = null;
 let _destroyChatDraggable = null;
 let _chatResizeBound = false;
 let _mobileForcedDetach = false;
+
+/**
+ * Maps Adventure Companion connection preferences onto the request shape used
+ * by llm-client without mutating the shared State Tracker settings.
+ *
+ * @param {Record<string, any>} [baseSettings]
+ * @returns {Record<string, any>}
+ */
+export function getAdventureCompanionRequestSettings(baseSettings = getSettings()) {
+    const settings = baseSettings || {};
+    return {
+        ...settings,
+        connectionSource: settings.adventureCompanionConnectionSource || 'default',
+        connectionProfileId: settings.adventureCompanionConnectionProfileId || '',
+        completionPresetId: settings.adventureCompanionCompletionPresetId || '',
+        ollamaUrl: settings.adventureCompanionOllamaUrl || 'http://localhost:11434',
+        ollamaModel: settings.adventureCompanionOllamaModel || '',
+        openaiUrl: settings.adventureCompanionOpenaiUrl || '',
+        openaiKey: settings.adventureCompanionOpenaiKey || '',
+        openaiModel: settings.adventureCompanionOpenaiModel || '',
+        maxTokens: Number(settings.adventureCompanionMaxTokens) || 0,
+    };
+}
+
+/** @returns {{tutorialMode:boolean, injectLore:boolean, injectMemo:boolean, lookback:number, lookbackAll:boolean}} */
+export function getAdventureCompanionPreferences() {
+    return {
+        tutorialMode: !!_prefs.tutorialMode,
+        injectLore: !!_prefs.injectLore,
+        injectMemo: !!_prefs.injectMemo,
+        lookback: _prefs.companion.lookback,
+        lookbackAll: !!_prefs.companion.lookbackAll,
+    };
+}
+
+/**
+ * Update the global Companion preferences shared by its in-chat gear menu and
+ * the main extension settings drawer.
+ *
+ * @param {Partial<ReturnType<typeof getAdventureCompanionPreferences>>} patch
+ */
+export function updateAdventureCompanionPreferences(patch = {}) {
+    if (typeof patch.tutorialMode === 'boolean') _prefs.tutorialMode = patch.tutorialMode;
+    if (typeof patch.injectLore === 'boolean') _prefs.injectLore = patch.injectLore;
+    if (typeof patch.injectMemo === 'boolean') _prefs.injectMemo = patch.injectMemo;
+    if (typeof patch.lookbackAll === 'boolean') _prefs.companion.lookbackAll = patch.lookbackAll;
+    if (patch.lookback !== undefined) {
+        let lookback = parseInt(String(patch.lookback), 10);
+        if (!Number.isFinite(lookback) || lookback < 0) lookback = 0;
+        _prefs.companion.lookback = Math.min(100, lookback);
+    }
+    savePrefs(_prefs);
+    syncChromeFromPrefs();
+    if (_prefs.tutorialMode) void loadDocumentation();
+}
+
+/** @param {ChatPrefs} [prefs] */
+function syncCompanionSettingsDrawerUi(prefs = _prefs) {
+    if (typeof document === 'undefined' || !prefs) return;
+    const tutorial = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_adventure_companion_tutorial_mode'));
+    const lore = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_adventure_companion_inject_lore'));
+    const memo = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_adventure_companion_inject_memo'));
+    const lookback = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_adventure_companion_lookback'));
+    const lookbackAll = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_adventure_companion_lookback_all'));
+    if (tutorial) tutorial.checked = !!prefs.tutorialMode;
+    if (lore) lore.checked = !!prefs.injectLore;
+    if (memo) memo.checked = !!prefs.injectMemo;
+    if (lookbackAll) lookbackAll.checked = !!prefs.companion.lookbackAll;
+    if (lookback) {
+        lookback.value = String(prefs.companion.lookback);
+        lookback.disabled = !!prefs.companion.lookbackAll;
+    }
+}
+
+/** Bind the Adventure Companion preference mirror in the extension settings drawer. */
+export function bindAdventureCompanionSettingsDrawer() {
+    if (typeof document === 'undefined') return;
+    const bindCheckbox = (id, key) => {
+        const input = /** @type {HTMLInputElement|null} */ (document.getElementById(id));
+        if (!input || input.dataset.rtCompanionSettingsBound) return;
+        input.dataset.rtCompanionSettingsBound = '1';
+        input.addEventListener('change', () => updateAdventureCompanionPreferences({ [key]: input.checked }));
+    };
+    bindCheckbox('rpg_adventure_companion_tutorial_mode', 'tutorialMode');
+    bindCheckbox('rpg_adventure_companion_inject_lore', 'injectLore');
+    bindCheckbox('rpg_adventure_companion_inject_memo', 'injectMemo');
+    bindCheckbox('rpg_adventure_companion_lookback_all', 'lookbackAll');
+
+    const lookback = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_adventure_companion_lookback'));
+    if (lookback && !lookback.dataset.rtCompanionSettingsBound) {
+        lookback.dataset.rtCompanionSettingsBound = '1';
+        const commit = () => updateAdventureCompanionPreferences({ lookback: lookback.value });
+        lookback.addEventListener('change', commit);
+        lookback.addEventListener('blur', commit);
+    }
+    syncCompanionSettingsDrawerUi();
+}
 
 function chatUiRoot() {
     return _detachedChatPanel || _panel;
@@ -1056,7 +1155,7 @@ export function formatPlayerTurnCommentary(action, modelText = '', completedActi
  * @returns {Promise<string>}
  */
 export async function runCompanionAgentLoop(messages, signal) {
-    const settings = getSettings();
+    const settings = getAdventureCompanionRequestSettings(getSettings());
     let actionCount = 0;
     const completedActions = [];
 
@@ -1496,8 +1595,48 @@ function updateChatDetachButton() {
     button.setAttribute('aria-label', button.title);
 }
 
+function isDetachedChatCollapsed() {
+    return localStorage.getItem(CHAT_COLLAPSED_KEY) === 'true';
+}
+
+function syncDetachedChatCollapseUi() {
+    if (!_detachedChatPanel) return;
+    const collapsed = isDetachedChatCollapsed();
+    _detachedChatPanel.classList.toggle('rt-panel-collapsed', collapsed);
+    const button = _detachedChatPanel.querySelector('#rt-chat-collapse-btn');
+    const icon = button?.querySelector('i');
+    if (icon instanceof HTMLElement) {
+        icon.className = `fa-solid ${collapsed ? 'fa-chevron-down' : 'fa-chevron-up'}`;
+    }
+    if (button instanceof HTMLElement) {
+        const label = collapsed ? 'Expand Adventure Companion' : 'Collapse Adventure Companion';
+        button.title = label;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('aria-expanded', String(!collapsed));
+    }
+}
+
+function toggleDetachedChatCollapse() {
+    if (!_detachedChatPanel) return;
+    const collapsed = !isDetachedChatCollapsed();
+    localStorage.setItem(CHAT_COLLAPSED_KEY, String(collapsed));
+    syncDetachedChatCollapseUi();
+    if (!collapsed) applyDetachedChatGeometry();
+}
+
+/**
+ * The mobile Companion float fully owns the tracker surface. Keep the tracker
+ * underneath hidden so collapsing CHAT reveals the SillyTavern page, not a
+ * mismatched State Tracker body beneath the still-visible Companion header.
+ */
+function syncMobileDetachedMainPanelVisibility() {
+    if (!_panel) return;
+    _panel.classList.toggle('rt-chat-mobile-detached-owner', !!_detachedChatPanel && isMobileLayout());
+}
+
 function applyDetachedChatGeometry() {
     if (!_detachedChatPanel) return;
+    syncMobileDetachedMainPanelVisibility();
     if (isMobileLayout()) {
         _detachedChatPanel.style.top = '44px';
         _detachedChatPanel.style.left = '3vw';
@@ -1543,7 +1682,7 @@ export function detachAdventureCompanion({ persist = true } = {}) {
 
     const floating = document.createElement('div');
     floating.id = 'rpg-tracker-adventure-companion';
-    floating.className = `rpg-tracker-panel rt-detached-panel rt-adventure-companion-detached ${getSettings().trackerTheme || 'rt-theme-native'}`;
+    floating.className = `rpg-tracker-panel rt-detached-panel rt-adventure-companion-detached ${isDetachedChatCollapsed() ? 'rt-panel-collapsed ' : ''}${getSettings().trackerTheme || 'rt-theme-native'}`;
     floating.innerHTML = `
         <div class="rpg-tracker-header rt-chat-detached-header" id="rt-chat-detached-header">
             <div class="rpg-tracker-header-left">
@@ -1551,6 +1690,7 @@ export function detachAdventureCompanion({ persist = true } = {}) {
                 <span>${COMPANION_HEADER_TITLE}</span>
             </div>
             <div class="rpg-tracker-header-right">
+                <button type="button" class="rpg-tracker-icon-btn" id="rt-chat-collapse-btn" title="Collapse Adventure Companion" aria-label="Collapse Adventure Companion" aria-expanded="true"><i class="fa-solid fa-chevron-up"></i></button>
                 <button type="button" class="rpg-tracker-icon-btn" id="rt-chat-reattach-btn" title="Re-attach Adventure Companion" aria-label="Re-attach Adventure Companion">↓</button>
             </div>
         </div>
@@ -1577,8 +1717,13 @@ export function detachAdventureCompanion({ persist = true } = {}) {
         event.stopPropagation();
         reattachAdventureCompanion();
     });
+    floating.querySelector('#rt-chat-collapse-btn')?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleDetachedChatCollapse();
+    });
 
     applyDetachedChatGeometry();
+    syncDetachedChatCollapseUi();
     updateChatDetachButton();
     applyMorph(true);
     syncChromeFromPrefs();
@@ -1604,6 +1749,7 @@ export function reattachAdventureCompanion({ refresh = true, force = false } = {
     }
     floating.remove();
     _detachedChatPanel = null;
+    syncMobileDetachedMainPanelVisibility();
     localStorage.setItem(DETACHED_CHAT_KEY, 'false');
     _mobileForcedDetach = false;
     if (_panel.style.display === 'none') {
@@ -1769,7 +1915,7 @@ async function sendMessage() {
             const msg = err?.message || String(err);
             mp.history.push({
                 role: 'assistant',
-                content: `I could not reach the model. Check State Tracker connection settings.\n\n${msg}`,
+                content: `I could not reach the model. Check Adventure Companion connection settings.\n\n${msg}`,
             });
             toastr['error']('CHAT request failed — see conversation.', 'CHAT');
         }
@@ -1927,9 +2073,7 @@ function bindAdventureCompanionControls(panel) {
     if (tutorialToggle instanceof HTMLInputElement && !tutorialToggle.dataset.rtTutorialBound) {
         tutorialToggle.dataset.rtTutorialBound = '1';
         tutorialToggle.addEventListener('change', () => {
-            _prefs.tutorialMode = tutorialToggle.checked;
-            savePrefs(_prefs);
-            if (_prefs.tutorialMode) void loadDocumentation();
+            updateAdventureCompanionPreferences({ tutorialMode: tutorialToggle.checked });
         });
     }
 
@@ -1971,8 +2115,7 @@ function bindAdventureCompanionControls(panel) {
     if (loreChk instanceof HTMLInputElement && !loreChk.dataset.rtTutorialBound) {
         loreChk.dataset.rtTutorialBound = '1';
         loreChk.addEventListener('change', () => {
-            _prefs.injectLore = !!loreChk.checked;
-            savePrefs(_prefs);
+            updateAdventureCompanionPreferences({ injectLore: loreChk.checked });
         });
     }
 
@@ -1980,8 +2123,7 @@ function bindAdventureCompanionControls(panel) {
     if (memoChk instanceof HTMLInputElement && !memoChk.dataset.rtTutorialBound) {
         memoChk.dataset.rtTutorialBound = '1';
         memoChk.addEventListener('change', () => {
-            _prefs.injectMemo = !!memoChk.checked;
-            savePrefs(_prefs);
+            updateAdventureCompanionPreferences({ injectMemo: memoChk.checked });
         });
     }
 

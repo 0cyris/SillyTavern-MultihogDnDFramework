@@ -67,7 +67,7 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
                 <div class="rt-panel-mode-switch-wrap" id="rt-panel-mode-switch-wrap">
                     <div class="rt-adventure-companion-header" id="rt-adventure-companion-header" style="display:none;" aria-hidden="true">
                         <i class="fa-solid fa-compass" aria-hidden="true"></i>
-                        <span>Adventure Companion: Agentic Sidekick and Guide</span>
+                        <span>Adventure Companion</span>
                     </div>
                     <div class="rt-agent-view-mode-switch rt-panel-mode-switch" id="rt-panel-mode-switch" role="tablist" aria-label="Panel content mode">
                         <button type="button" id="rt-panel-mode-tracker" class="rt-agent-view-mode-btn rt-agent-view-mode-btn-active" role="tab" aria-selected="true">State Tracker</button>

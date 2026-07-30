@@ -1,5 +1,5 @@
 import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped } from './constants.js';
-import { MODULE_NAME, DEFAULT_MODULES, getSettings, getBarBackground, migrateCustomFields, saveChatState, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
+import { MODULE_NAME, DEFAULT_MODULES, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
 import { resetChatSetupToStock, snapshotChatSetup, chatSetupsMatch, syncChatSetupCatalogs, removeChatSetupCatalogEntries } from './src/state/chat-setup.js';
 import { buildDirectPromptSystemPrompt, DIRECT_PROMPT_SYSTEM_MODES } from './src/state/direct-prompt-system.js';
 import { diffTextLines, diffHasChanges } from './prompt-diff.js';
@@ -19,7 +19,7 @@ import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, mak
 import { applyCustomTheme, openThemeWizard, refreshSavedThemesList, handleRecolor, undoThemeChange } from './theme-manager.js';
 import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenerate, generatePersonaBio, showPersonaConfirmOverlay, extractCharNameFromMemo, activateSillyTavernPersona } from './character-creator.js';
 import { bindQuickStartEvents } from './quickstart.js';
-import { bindAdventureCompanion, openAdventureCompanion, closeAdventureCompanion } from './adventure-companion.js';
+import { bindAdventureCompanion, bindAdventureCompanionSettingsDrawer, openAdventureCompanion, closeAdventureCompanion } from './adventure-companion.js';
 import { handleCategorySettings, openCustomFieldEditor, openPromptEditor, refreshOrderList, exportModules, importModulesFromJson, openNpcSectionEditor, openPcSectionEditor } from './ui-editors.js';
 import { openGameSystemWizard, openManageGameSystems, openSystemPromptControlRoom, syncAllNarratorTogglesForUnlockState, extractTopLevelSections, normalizeSectionOrder, getSectionRowDescriptor, transformBaseSectionContent, isBlankSectionContent, isSectionUnlocked, isEffectiveSectionEnabled } from './game-systems.js';
 import { openManageGameCartridges, promptAndSaveCurrentAsCartridge } from './game-cartridges.js';
@@ -32,6 +32,8 @@ import { runtimeState } from './src/app/runtime-state.js';
 import { createPanel as buildPanel } from './src/ui/panel/panel-builder.js';
 import { createChatStateLoader } from './src/features/chat/chat-state-loader.js';
 import { restoreEscapedCyoaChoiceMarkup } from './src/ui/panel/cyoa-markup.js';
+import { captureXpGainAnimationState, playXpGainAnimation } from './src/ui/panel/xp-gain-animation.js';
+import { buildCombatDisplayMemo } from './src/state/combat-persistence.js';
 import { isRealtimeVisualizationDisabled } from './src/state/realtime-visualization-guard.js';
 
 export { RENDERING_TAGS_LIBRARY };
@@ -1430,6 +1432,7 @@ const loadChatState = createChatStateLoader({
 function resetUnseenChatState(s) {
     if (s.chatSetupLinkEnabled) resetChatSetupToStock(s);
     s.currentMemo = '';
+    s.combatDefeatedUi = [];
     s.prevMemo1 = '';
     s.prevMemo2 = '';
     s.memoHistory = [];
@@ -3643,6 +3646,10 @@ export function refreshRenderedView() {
     const memo = runtimeState.historyViewIndex === -1
         ? s.currentMemo
         : (s.memoHistory[runtimeState.historyViewIndex] ?? '');
+    const displayMemo = runtimeState.historyViewIndex === -1
+        ? buildCombatDisplayMemo(memo, s.combatDefeatedUi)
+        : memo;
+    const xpAnimationContext = `${getActiveChatId() || 'global'}::${runtimeState.historyViewIndex === -1 ? 'live' : `history-${runtimeState.historyViewIndex}`}`;
 
     const collapsed = loadCollapsed();
     const detached = loadDetached();
@@ -3653,14 +3660,15 @@ export function refreshRenderedView() {
 
     const el = document.getElementById('rpg-tracker-render');
     if (el) {
+        const capturedXp = captureXpGainAnimationState(el, xpAnimationContext);
         const questsEnabled = s.syspromptModules?.quests !== false && !!(memo && memo.trim());
         let html;
 
         if (s.panelLayoutMode === 'tabs') {
             const questsCtx = questsEnabled ? { quests: getDisplayQuests(memo), currentTime } : null;
-            html = renderTabModeView(memo, _sectionPages, questsCtx);
+            html = renderTabModeView(displayMemo, _sectionPages, questsCtx);
         } else {
-            html = renderMemoAsCards(memo, null, _sectionPages);
+            html = renderMemoAsCards(displayMemo, null, _sectionPages);
             // Append quest log section if module is enabled and we are not on the onboarding screen
             if (questsEnabled) {
                 html += renderQuestLog(getDisplayQuests(memo), currentTime, collapsed, detached);
@@ -3668,6 +3676,7 @@ export function refreshRenderedView() {
         }
 
         el.innerHTML = html;
+        playXpGainAnimation(el, capturedXp, xpAnimationContext);
         bindRenderedCardEvents(el, memo, false);
 
         // Restore Character Creator panel if it was open before the DOM swap (onboarding screen only)
@@ -3710,11 +3719,13 @@ export function refreshRenderedView() {
         if (panel) {
             const body = panel.querySelector('.rpg-tracker-detached-body');
             if (body) {
+                const capturedXp = captureXpGainAnimationState(body, xpAnimationContext);
                 if (tag === 'QUESTS') {
                     body.innerHTML = renderQuestLog(getDisplayQuests(memo), currentTime, collapsed, detached, 'QUESTS');
                 } else {
-                    body.innerHTML = renderMemoAsCards(memo, tag, _sectionPages);
+                    body.innerHTML = renderMemoAsCards(displayMemo, tag, _sectionPages);
                 }
+                playXpGainAnimation(body, capturedXp, xpAnimationContext);
                 bindRenderedCardEvents(body, memo, true);
             }
         } else {
@@ -4317,6 +4328,153 @@ function tryBindConnectionProfileDropdown(selector, initialProfileId, onProfileI
     }
 }
 
+/**
+ * Bind one feature-specific connection drawer to the standard request settings
+ * shape without coupling that feature to the State Tracker connection.
+ *
+ * @param {{uiPrefix:string, keyPrefix:string, settings:Record<string, any>, presetManager:any}} options
+ */
+async function bindFeatureConnectionSettings(options) {
+    const { uiPrefix, keyPrefix, settings, presetManager } = options;
+    const source = $(`#${uiPrefix}_connection_source`);
+    if (!source.length) return;
+
+    const key = (suffix) => `${keyPrefix}${suffix}`;
+    const profileGroup = $(`#${uiPrefix}_profile_group`);
+    const profileSelect = $(`#${uiPrefix}_connection_profile`);
+    const ollamaGroup = $(`#${uiPrefix}_ollama_group`);
+    const ollamaUrl = $(`#${uiPrefix}_ollama_url`);
+    const ollamaModel = $(`#${uiPrefix}_ollama_model`);
+    const openaiGroup = $(`#${uiPrefix}_openai_group`);
+    const openaiUrl = $(`#${uiPrefix}_openai_url`);
+    const openaiKey = $(`#${uiPrefix}_openai_key`);
+    const openaiModel = $(`#${uiPrefix}_openai_model`);
+    const openaiManual = $(`#${uiPrefix}_openai_model_manual`);
+    const presetSelect = $(`#${uiPrefix}_completion_preset`);
+
+    const updatePanels = () => {
+        const value = source.val();
+        profileGroup.toggle(value === 'profile');
+        ollamaGroup.toggle(value === 'ollama');
+        openaiGroup.toggle(value === 'openai');
+    };
+
+    source.val(settings[key('ConnectionSource')] || 'default').on('change', function () {
+        settings[key('ConnectionSource')] = String($(this).val() || 'default');
+        updatePanels();
+        saveSettings();
+    });
+    updatePanels();
+
+    ollamaUrl.val(settings[key('OllamaUrl')] || 'http://localhost:11434').on('input', function () {
+        settings[key('OllamaUrl')] = String($(this).val() || '');
+        saveSettings();
+    });
+    const savedOllamaModel = String(settings[key('OllamaModel')] || '');
+    ollamaModel.empty().append('<option value="">-- Select Model --</option>');
+    if (savedOllamaModel) {
+        ollamaModel.append($('<option></option>').val(savedOllamaModel).text(savedOllamaModel));
+    }
+    ollamaModel.val(savedOllamaModel).on('change', function () {
+        settings[key('OllamaModel')] = String($(this).val() || '');
+        saveSettings();
+    });
+    $(`#${uiPrefix}_ollama_refresh`).on('click', async function () {
+        const url = String(ollamaUrl.val() || '');
+        if (!url) return toastr['info']('Please enter an Ollama URL first.');
+        try {
+            toastr['info']('Fetching Ollama models...');
+            const models = await fetchOllamaModels(url);
+            ollamaModel.empty().append('<option value="">-- Select Model --</option>');
+            models.forEach((model) => {
+                ollamaModel.append($('<option></option>').val(model.name).text(model.name));
+            });
+            ollamaModel.val(settings[key('OllamaModel')] || '');
+            toastr['success']('Ollama models updated.');
+        } catch (error) {
+            console.error(`[RPG Tracker] ${keyPrefix} Ollama fetch failed:`, error);
+            toastr['error']('Failed to fetch Ollama models. Check console.');
+        }
+    });
+
+    openaiUrl.val(settings[key('OpenaiUrl')] || '').on('input', function () {
+        settings[key('OpenaiUrl')] = String($(this).val() || '');
+        saveSettings();
+    });
+    openaiKey.val(settings[key('OpenaiKey')] || '').on('input', function () {
+        settings[key('OpenaiKey')] = String($(this).val() || '');
+        saveSettings();
+    });
+    openaiManual.val(settings[key('OpenaiModel')] || '');
+    openaiModel.on('change', function () {
+        const value = String($(this).val() || '');
+        if (value) openaiManual.val('');
+        settings[key('OpenaiModel')] = value || String(openaiManual.val() || '').trim();
+        saveSettings();
+    });
+    openaiManual.on('input', function () {
+        const value = String($(this).val() || '').trim();
+        if (value) openaiModel.val('');
+        settings[key('OpenaiModel')] = value || String(openaiModel.val() || '');
+        saveSettings();
+    });
+    $(`#${uiPrefix}_openai_refresh`).on('click', async function () {
+        const url = String(openaiUrl.val() || '');
+        const apiKey = String(openaiKey.val() || '');
+        if (!url) return toastr['info']('Please enter an Endpoint URL first.');
+        try {
+            toastr['info']('Fetching models from endpoint...');
+            const models = await fetchOpenAIModels(url, apiKey);
+            openaiModel.empty().append('<option value="">-- Select Model --</option>');
+            models.forEach((model) => {
+                const id = typeof model === 'string' ? model : (model.id || model.name);
+                if (id) openaiModel.append($('<option></option>').val(id).text(id));
+            });
+            openaiModel.val(settings[key('OpenaiModel')] || '');
+            toastr['success']('Models updated.');
+        } catch (_) {
+            toastr['warning']('Cannot auto-detect models. Type the model name manually.');
+        }
+    });
+
+    const profileSelector = `#${uiPrefix}_connection_profile`;
+    const profileKey = key('ConnectionProfileId');
+    if (!tryBindConnectionProfileDropdown(profileSelector, settings[profileKey] || '', (id) => {
+        settings[profileKey] = id;
+        saveSettings();
+    })) {
+        let profiles = [];
+        try {
+            profiles = await getConnectionProfiles();
+        } catch (error) {
+            console.warn(`[RPG Tracker] Could not load ${keyPrefix} connection profiles:`, error);
+        }
+        profileSelect.empty().append('<option value="">-- No Profile Selected --</option>');
+        profiles.forEach((profile) => profileSelect.append($('<option></option>').val(profile).text(profile)));
+        profileSelect.val(settings[profileKey] || '').on('change', function () {
+            settings[profileKey] = String($(this).val() || '');
+            saveSettings();
+        });
+    }
+
+    presetSelect.empty().append('<option value="">-- Use Current Settings --</option>');
+    if (presetManager && typeof presetManager.getAllPresets === 'function') {
+        presetManager.getAllPresets().forEach((preset) => {
+            presetSelect.append($('<option></option>').val(preset).text(preset));
+        });
+    }
+    const presetKey = key('CompletionPresetId');
+    const savedPreset = String(settings[presetKey] || '');
+    const hasSavedPreset = presetSelect.find('option').toArray().some((option) => option.value === savedPreset);
+    if (savedPreset && !hasSavedPreset) {
+        presetSelect.append($('<option></option>').val(savedPreset).text(savedPreset));
+    }
+    presetSelect.val(savedPreset).on('change', function () {
+        settings[presetKey] = String($(this).val() || '');
+        saveSettings();
+    });
+}
+
 let _portraitMigrationDone = false;
 
 /** One-time migration of legacy base64 portraits to disk. Runs after chat bootstrap. */
@@ -4489,6 +4647,13 @@ async function runPortraitMigrationIfNeeded() {
         });
 
         const settings = getSettings();
+        bindAdventureCompanionSettingsDrawer();
+        await bindFeatureConnectionSettings({
+            uiPrefix: 'rpg_adventure_companion',
+            keyPrefix: 'adventureCompanion',
+            settings,
+            presetManager: pm,
+        });
 
 
         /**

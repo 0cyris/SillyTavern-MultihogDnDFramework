@@ -2385,6 +2385,41 @@
     margin-bottom: 4px;
 }
 
+.rt-combatant-defeated {
+    position: relative;
+    padding-top: 22px;
+    opacity: 0.58;
+    filter: grayscale(0.72) saturate(0.35);
+}
+
+.rt-combatant-defeated::after {
+    content: 'DEFEATED';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 2;
+    padding: 1px 6px;
+    border: 1px solid rgba(248, 113, 113, 0.5);
+    border-radius: 999px;
+    background: rgba(127, 29, 29, 0.3);
+    color: #fca5a5;
+    font-size: 0.66em;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    line-height: 1.4;
+}
+
+.rt-combatant-defeated .rt-entity-name {
+    padding-right: 72px;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+}
+
+.rt-combatant-defeated .rt-entity-portrait,
+.rt-combatant-defeated .rt-entity-portrait-placeholder {
+    opacity: 0.45;
+}
+
 .rt-slot-pips {
     display: inline-flex;
     align-items: center;
@@ -3065,7 +3100,13 @@
 
 /* XP Bar */
 .rt-xp-row {
+    position: relative;
     padding: 4px 0;
+    transition: padding-top 0.18s ease;
+}
+
+.rt-xp-row.rt-xp-gain-active {
+    padding-top: 30px;
 }
 
 .rt-xp-label {
@@ -3091,6 +3132,57 @@
     border-radius: 4px;
     transition: width 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
     box-shadow: 0 0 10px rgba(0, 136, 255, 0.4);
+}
+
+.rt-xp-gain-floater {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    z-index: 2;
+    color: #29b6ff;
+    font-size: 1.08em;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    text-shadow:
+        0 0 7px rgba(0, 180, 255, 0.65),
+        0 2px 4px rgba(0, 0, 0, 0.72);
+    pointer-events: none;
+}
+
+.rt-xp-gain-floater.rt-xp-gain-trickling {
+    animation: rt-xp-gain-dump var(--rt-xp-trickle-duration, 2640ms) linear forwards;
+}
+
+.rt-xp-gain-floater.rt-xp-gain-complete {
+    opacity: 0;
+}
+
+@keyframes rt-xp-gain-dump {
+    0%, 72% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, 25px) scale(0.72);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rt-xp-row,
+    .rt-xp-bar {
+        transition: none;
+    }
+
+    .rt-xp-gain-floater.rt-xp-gain-trickling {
+        animation-name: rt-xp-gain-fade;
+    }
+
+    @keyframes rt-xp-gain-fade {
+        0%, 72% { opacity: 1; }
+        100% { opacity: 0; }
+    }
 }
 
 /* Character KV pairs */
@@ -3587,6 +3679,12 @@
 
 /* Mobile UI overrides */
 @media screen and (max-width: 800px) {
+    /* A floating mobile CHAT replaces the tracker surface. Hiding the panel
+       underneath prevents its State Tracker body from appearing when CHAT is collapsed. */
+    #rpg-tracker-panel.rt-chat-mobile-detached-owner {
+        display: none !important;
+    }
+
     /* CHAT always uses its floating, full-height presentation on mobile. */
     #rt-chat-detach-btn,
     #rt-chat-reattach-btn {
@@ -3757,7 +3855,8 @@
 
     /* Make collapse button much larger and add separation from close button */
     #rpg-tracker-collapse-btn,
-    #rt-agent-router-collapse-btn {
+    #rt-agent-router-collapse-btn,
+    #rt-chat-collapse-btn {
         font-size: 1.4em !important;
         padding: 4px 10px !important;
         margin-right: 10px !important;
@@ -5316,6 +5415,7 @@ textarea.rt-cr-input {
 }
 
 .rpg-tracker-panel.rt-panel-collapsed .rpg-tracker-content,
+.rpg-tracker-panel.rt-panel-collapsed .rt-chat-detached-body,
 .rpg-tracker-panel.rt-panel-collapsed .rpg-tracker-delta-panel,
 .rpg-tracker-panel.rt-panel-collapsed .rpg-tracker-delta-resize-handle,
 .rpg-tracker-panel.rt-panel-collapsed .rpg-tracker-footer {
@@ -5371,6 +5471,14 @@ textarea.rt-cr-input {
 #rpg-tracker-agent.rt-panel-collapsed .rpg-tracker-prompt-bar,
 #rpg-tracker-agent.rt-panel-collapsed .rpg-tracker-footer {
     display: none !important;
+}
+
+@media screen and (max-width: 800px) {
+    #rpg-tracker-adventure-companion.rt-detached-panel.rt-panel-collapsed {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+    }
 }
 
 
@@ -5804,12 +5912,9 @@ textarea.rt-cr-input {
 
 /* ── Relationship float feedback (Friendship / Affection awards) ── */
 .rt-rel-float-layer {
-    position: absolute;
-    inset: 0;
+    position: fixed;
     pointer-events: none;
-    z-index: 40;
-    overflow: hidden;
-    border-radius: inherit;
+    overflow: visible;
 }
 .rt-rel-float {
     position: absolute;
@@ -5820,7 +5925,7 @@ textarea.rt-cr-input {
     align-items: baseline;
     justify-content: flex-end;
     gap: 5px;
-    max-width: calc(100% - 20px);
+    max-width: none;
     font-weight: 800;
     font-size: 15px;
     letter-spacing: 0.2px;
@@ -5829,7 +5934,8 @@ textarea.rt-cr-input {
     text-shadow:
         0 0 10px currentColor,
         0 2px 6px rgba(0, 0, 0, 0.75);
-    animation: rt-rel-float-up 2.6s ease-out forwards;
+    /* 20% larger relationship award feedback, shown for four seconds. */
+    animation: rt-rel-float-up 4s ease-out forwards;
     will-change: transform, opacity;
 }
 .rt-rel-float-icon {
@@ -5853,9 +5959,9 @@ textarea.rt-cr-input {
     font-size: 11px;
     font-weight: 600;
     opacity: 0.72;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: 0 0 auto;
+    overflow: visible;
+    text-overflow: clip;
 }
 .rt-rel-float-npc::before {
     content: '·';
@@ -5874,24 +5980,24 @@ textarea.rt-cr-input {
 @keyframes rt-rel-float-up {
     0% {
         opacity: 0;
-        transform: translateY(calc(-50% + 18px)) scale(0.88);
+        transform: translateY(calc(-50% + 18px)) scale(1.056);
     }
     12% {
         opacity: 1;
-        transform: translateY(-50%) scale(1);
+        transform: translateY(-50%) scale(1.2);
     }
     70% {
         opacity: 1;
     }
     100% {
         opacity: 0;
-        transform: translateY(calc(-50% - 110px)) scale(1);
+        transform: translateY(calc(-50% - 110px)) scale(1.2);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .rt-rel-float {
-        animation: rt-rel-float-fade 2.2s ease-out forwards;
+        animation: rt-rel-float-fade 4s ease-out forwards;
     }
     @keyframes rt-rel-float-fade {
         0% { opacity: 0; transform: translateY(-50%); }

@@ -2,6 +2,24 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.5.0] - 2026-07-30
+
+### Added
+- **Adventure Companion connections and settings**: Adventure Companion now has its own connection configuration and a mirrored settings drawer, including Tutorial Mode.
+- **XP gain animation**: gained XP now visibly trickles from a glowing blue award into the XP bar.
+- **Combat defeat presentation**: explicitly defeated combatants remain visually marked until combat ends, with negative HP values supported by combat and party renderers.
+- **Onboarding releases link**: the startup screen now links to the GitHub Releases page as the project development blog.
+- **SPELLS example**: the stock SPELLS module prompt now demonstrates multi-level spell-slot formatting.
+
+### Changed
+- **Adventure Companion mobile behavior**: its header now keeps the standard collapse control available on mobile for quick minimize/maximize access.
+- **Relationship award feedback**: Friendship and Affection floaters are larger, last four seconds, and may extend beyond the tracker edge so long NPC names remain visible.
+- **Narrator and combat prompts**: refined realistic time-passage, XP, spell, and defeated-combatant instructions.
+
+### Fixed
+- **Adventure Companion collapse**: collapsing the Companion no longer flips the tracker view while leaving the Companion header behind.
+- **Combat parsing**: negative current HP such as `-4/15 HP` now renders as a structured combatant instead of unformatted text.
+
 ## [6.4.3] - 2026-07-29
 
 ### Fixed

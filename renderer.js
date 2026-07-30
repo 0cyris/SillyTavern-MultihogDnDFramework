@@ -2,6 +2,7 @@ import { getSettings, getBarBackground, getBarShowAsPercentage } from './state-m
 import { lookupCustomPortraitSrc } from './portrait-storage.js';
 import { escapeHtml, decodeHtml, highlightParens, highlightNumbers, parseInWorldTime, isRestTimeUnset, formatTimeDiff, isArchivedQuestStatus, questHasEffectiveDeadline, isEmergentQuest } from './memo-processor.js';
 import { BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, renderStartingGearTierOptions } from './constants.js';
+import { isResolvedCombatantStatusLine } from './src/state/combat-persistence.js';
 
 // ── Renderer module: pure HTML string producers, localStorage helpers ──
 // No live DOM mutations. All functions return strings or void (localStorage).
@@ -233,7 +234,8 @@ export function renderDayNightBadge(str) {
                     const cur = parseInt(xm[1].replace(/,/g, ''), 10);
                     const max = parseInt(xm[2].replace(/,/g, ''), 10);
                     const pct = max > 0 ? Math.max(0, Math.min(100, (cur / max) * 100)) : 0;
-                    const levelStr = lm ? `<span style="font-size:0.8em; opacity:0.75;">Lv ${lm[1]}</span> ` : '';
+                    const level = lm?.[1] || '';
+                    const levelStr = level ? `<span style="font-size:0.8em; opacity:0.75;">Lv ${level}</span> ` : '';
                     let barBg = rule.color ? rule.color : DEFAULT_XP_COLOR;
                     if (barId) barBg = getBarBackground(barId, barBg, pct);
 
@@ -243,12 +245,12 @@ export function renderDayNightBadge(str) {
                     const dispCur = showAsPct ? Math.round(pct) : xm[1];
                     const dispMax = showAsPct ? 100 : xm[2];
 
-                    return `<div class="rt-entity-sub-line" style="gap:6px;">
+                    return `<div class="rt-entity-sub-line rt-xp-row" data-xp-current="${cur}" data-xp-max="${max}" data-xp-level="${level}" data-xp-show-percentage="${showAsPct}" style="gap:6px;">
                         ${labelHtml}
                         <div class="rt-xp-bar-wrap"${recolorData} style="flex:1; height:12px;">
                             <div class="rt-xp-bar" style="width:${pct.toFixed(1)}%; background:${barBg};"></div>
                         </div>
-                        <span style="font-size:0.82em; opacity:0.85; white-space:nowrap;">${levelStr}${dispCur}/${dispMax}</span>
+                        <span style="font-size:0.82em; opacity:0.85; white-space:nowrap;">${levelStr}<span class="rt-xp-current">${dispCur}</span>/<span class="rt-xp-max">${dispMax}</span></span>
                     </div>`;
                 }
                 return `<div class="rt-entity-sub-line">${labelHtml} ${escapeHtmlWithColor(value)}</div>`;
@@ -1392,6 +1394,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
             case 'BENCHED PARTY':
             case 'CHARACTER': {
                 const results = [];
+                const defeatedCombatants = new Set();
                 let lastEntityIdx = -1;
                 let currentEntity = '';
 
@@ -1439,19 +1442,19 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     }
 
                     // 2. Entity anchor: classic "Name: X/Y HP ..." or explicit ((HP)) marker
-                    let hpMatch = line.match(/^(.+?):\s*([\d,]+)(?:\/([\d,]+))?\s*HP\s*[:|,]?\s*(.*)$/i);
+                    let hpMatch = line.match(/^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?\s*HP\s*[:|,]?\s*(.*)$/i);
                     const isHpMarker = (markerCode === 'HP' || markerCode === 'HPB' || markerCode === 'HPBAR');
 
                     // If marker is specifically ((HP)), try a more relaxed regex (optional HP suffix)
                     if (!hpMatch && isHpMarker) {
-                        hpMatch = line.match(/^(.+?):\s*([\d,]+)(?:\/([\d,]+))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
+                        hpMatch = line.match(/^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
                     }
 
                     // Inline-marker fallback: line was rewritten to just the value portion
                     // (e.g. "HP: 20/20" or bare "20/20"). Use a flexible regex that makes the
                     // label prefix ("HP:") optional so both forms parse correctly.
                     if (!hpMatch && inlineEntityName) {
-                        hpMatch = line.match(/^(?:(.+?):\s*)?(\d[\d,]*)(?:\/(\d[\d,]*))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
+                        hpMatch = line.match(/^(?:(.+?):\s*)?([+-]?\d[\d,]*)(?:\/(\d[\d,]*))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
                     }
 
                     if (hpMatch) {
@@ -1500,6 +1503,9 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                                 } else if (part.toLowerCase().startsWith('saves:')) {
                                     results[lastEntityIdx] += `<div class="rt-entity-sub-line"><span class="rt-entity-sub-label">Saves:</span> ${highlightParens(escapeHtmlWithColor(part.substring(6).trim()))}</div>`;
                                 } else if (part.toLowerCase().startsWith('status:')) {
+                                    if (tag === 'COMBAT' && isResolvedCombatantStatusLine(part)) {
+                                        defeatedCombatants.add(currentEntity.toLocaleLowerCase());
+                                    }
                                     results[lastEntityIdx] += `<div class="rt-entity-sub-line rt-units-container"><span class="rt-entity-sub-label">Status:</span> ${renderPills(part.substring(7).trim())}</div>`;
                                 } else if (part.toLowerCase().startsWith('other:') || part.toLowerCase().startsWith('res:')) {
                                     const lbl = part.toLowerCase().startsWith('res:') ? 'Res:' : 'Other:';
@@ -1548,6 +1554,9 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     // 3. Sub-field Logic (Sticky Context)
 
                     if (lastEntityIdx !== -1) {
+                        if (tag === 'COMBAT' && isResolvedCombatantStatusLine(line)) {
+                            defeatedCombatants.add(currentEntity.toLocaleLowerCase());
+                        }
                         results[lastEntityIdx] += renderLineInEntityContext(tag, line, currentEntity, rawLine);
                     } else {
                         // No active entity: render as a standalone card line
@@ -1561,7 +1570,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     // Extract entity name from the first rt-entity-name span
                     const nameMatch = html.match(/class="rt-entity-name"[^>]*>([^<]+)</);
                     if (!nameMatch) return html;
-                    return wrapEntityHtml(decodeHtml(nameMatch[1].trim()), html);
+                    const entityName = decodeHtml(nameMatch[1].trim());
+                    const wrapped = wrapEntityHtml(entityName, html);
+                    if (tag === 'COMBAT' && defeatedCombatants.has(entityName.toLocaleLowerCase())) {
+                        return `<div class="rt-combatant-defeated" data-defeated-combatant="${escapeHtml(entityName)}">${wrapped}</div>`;
+                    }
+                    return wrapped;
                 });
             }
 
@@ -1626,8 +1640,8 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         const dispCur = showAsPct ? Math.round(pct) : curRaw;
                         const dispMax = showAsPct ? 100 : maxRaw;
 
-                        return `<div class="rt-xp-row">
-                            <div class="rt-xp-label"><span>Level ${level}</span><span>XP: ${dispCur} / ${dispMax}</span></div>
+                        return `<div class="rt-xp-row" data-xp-current="${cur}" data-xp-max="${max}" data-xp-level="${level}" data-xp-show-percentage="${showAsPct}">
+                            <div class="rt-xp-label"><span>Level ${level}</span><span>XP: <span class="rt-xp-current">${dispCur}</span> / <span class="rt-xp-max">${dispMax}</span></span></div>
                             <div class="rt-xp-bar-wrap" title="Click to recolor XP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}">
                                 <div class="rt-xp-bar" style="width:${pct.toFixed(1)}%; background:${barBg};"></div>
                             </div>
@@ -1649,8 +1663,8 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         const dispCur = showAsPct ? Math.round(pct) : curRaw;
                         const dispMax = showAsPct ? 100 : maxRaw;
 
-                        return `<div class="rt-xp-row">
-                            <div class="rt-xp-label">${levelHtml}<span>XP: ${dispCur} / ${dispMax}</span></div>
+                        return `<div class="rt-xp-row" data-xp-current="${cur}" data-xp-max="${max}" data-xp-level="${level || ''}" data-xp-show-percentage="${showAsPct}">
+                            <div class="rt-xp-label">${levelHtml}<span>XP: <span class="rt-xp-current">${dispCur}</span> / <span class="rt-xp-max">${dispMax}</span></span></div>
                             <div class="rt-xp-bar-wrap" title="Click to recolor XP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}">
                                 <div class="rt-xp-bar" style="width:${pct.toFixed(1)}%; background:${barBg};"></div>
                             </div>
@@ -1915,6 +1929,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         <span class="rt-onboarding-crest-fencer rt-onboarding-crest-fencer-mirrored" aria-hidden="true">🤺</span>
                     </div>
                     <div style="font-size: 16px; font-weight: bold; color: var(--rt-text);">Multihog D&D Framework</div>
+                    <div style="margin: 8px auto 0; max-width: 520px; color: var(--rt-text-muted); font-size: 0.9em; line-height: 1.4;">Welcome to Multihog D&D Framework! To see the latest significant additions, check out the <a href="https://github.com/MultihogAurelius/SillyTavern-MultihogDnDFramework/releases" target="_blank" rel="noopener noreferrer" style="color: var(--rt-accent);">Releases section of the GitHub page</a>, which I treat as a kind of dev blog.</div>
                 </div>
 
                 <div class="rt-onboarding-hero">
@@ -2540,7 +2555,7 @@ function extractPartyVitals(content) {
     const results = [];
     for (const rawLine of lines) {
         const line = rawLine.replace(/^\s*[-*+•–—](?:\s+|(?=[A-Za-z]))/, '');
-        const hpMatch = line.match(/^(.+?):\s*([\d,]+)(?:\/([\d,]+))?\s*HP\s*[:|,]?\s*/i);
+        const hpMatch = line.match(/^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?\s*HP\s*[:|,]?\s*/i);
         if (!hpMatch) continue;
         const [, nameRaw, curRaw, maxRaw] = hpMatch;
         const name = nameRaw.trim();
@@ -2608,7 +2623,7 @@ function extractBenchedRoster(content) {
     let current = null;
     for (const rawLine of lines) {
         const line = rawLine.replace(/^\s*[-*+•–—](?:\s+|(?=[A-Za-z]))/, '');
-        const hpMatch = line.match(/^(.+?):\s*[\d,]+(?:\/[\d,]+)?\s*HP/i);
+        const hpMatch = line.match(/^(.+?):\s*[+-]?[\d,]+(?:\/[\d,]+)?\s*HP/i);
         if (hpMatch) {
             if (current) results.push(current);
             current = { name: hpMatch[1].trim(), status: '' };

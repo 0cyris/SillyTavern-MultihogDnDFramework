@@ -121,3 +121,70 @@ describe('Adventure Companion chat partitions', () => {
         });
     });
 });
+
+describe('Adventure Companion settings', () => {
+    it('maps its dedicated connection without inheriting the State Tracker connection', async () => {
+        const companion = await import('../adventure-companion.js');
+        const requestSettings = companion.getAdventureCompanionRequestSettings({
+            connectionSource: 'profile',
+            connectionProfileId: 'state-profile',
+            completionPresetId: 'state-preset',
+            ollamaUrl: 'http://state-ollama',
+            openaiModel: 'state-model',
+            adventureCompanionConnectionSource: 'openai',
+            adventureCompanionConnectionProfileId: 'companion-profile',
+            adventureCompanionCompletionPresetId: 'companion-preset',
+            adventureCompanionOllamaUrl: 'http://companion-ollama',
+            adventureCompanionOllamaModel: 'companion-ollama-model',
+            adventureCompanionOpenaiUrl: 'https://companion.example/v1',
+            adventureCompanionOpenaiKey: 'companion-key',
+            adventureCompanionOpenaiModel: 'companion-model',
+            adventureCompanionMaxTokens: 1234,
+        });
+
+        expect(requestSettings).toMatchObject({
+            connectionSource: 'openai',
+            connectionProfileId: 'companion-profile',
+            completionPresetId: 'companion-preset',
+            ollamaUrl: 'http://companion-ollama',
+            ollamaModel: 'companion-ollama-model',
+            openaiUrl: 'https://companion.example/v1',
+            openaiKey: 'companion-key',
+            openaiModel: 'companion-model',
+            maxTokens: 1234,
+        });
+    });
+
+    it('persists settings-drawer changes to the same preferences used by CHAT', async () => {
+        const companion = await import('../adventure-companion.js');
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+            ok: true,
+            text: async () => '# Multihog',
+        });
+        try {
+            companion.updateAdventureCompanionPreferences({
+                tutorialMode: true,
+                injectLore: true,
+                injectMemo: true,
+                lookback: 17,
+                lookbackAll: true,
+            });
+
+            expect(companion.getAdventureCompanionPreferences()).toEqual({
+                tutorialMode: true,
+                injectLore: true,
+                injectMemo: true,
+                lookback: 17,
+                lookbackAll: true,
+            });
+            expect(JSON.parse(localStorage.getItem('rpg_tracker_chat_prefs_v1'))).toMatchObject({
+                tutorialMode: true,
+                injectLore: true,
+                injectMemo: true,
+                companion: { lookback: 17, lookbackAll: true },
+            });
+        } finally {
+            fetchSpy.mockRestore();
+        }
+    });
+});

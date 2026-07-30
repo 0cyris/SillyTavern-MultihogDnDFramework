@@ -62,4 +62,15 @@ describe('mergeMemo + hydratePartyRelocationStats — custom marker [PARTY] head
 
         expect(result).toContain('Elara (Ranger): 30/45 HP');
     });
+
+    it('recognizes a party member whose current HP is negative', () => {
+        const priorMemo = '[PARTY]\nElara (Ranger): 2/45 HP\nStatus: Bloodied\n[/PARTY]';
+        const mergedMemo = '[PARTY]\nElara (Ranger): -6/45 HP\nStatus: Dying (Death Saves 0/3)\n[/PARTY]';
+
+        const result = hydratePartyRelocationStats(priorMemo, mergedMemo);
+
+        expect(result).toContain('Elara (Ranger): -6/45 HP');
+        expect(result).toContain('Status: Dying (Death Saves 0/3)');
+        expect(result).not.toMatch(/\[PARTY\]\s*\[\/PARTY\]/);
+    });
 });

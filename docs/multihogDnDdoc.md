@@ -8,7 +8,9 @@ This document is written so the Adventure Companion (or a new player) can explai
 
 When **Tutorial Mode** is enabled, this document is injected into every Adventure Companion request as its source of truth for explaining the framework. Tutorial Mode does not create a separate bot or remove the Companion's other capabilities.
 
-The Adventure Companion's CHAT view can be detached into a draggable, resizable floating panel with the **⧉** control on desktop. On mobile it always uses the full-height floating presentation, with no detach or reattach control. Reattaching moves the same live conversation back into the State Tracker panel, and closing CHAT reattaches it automatically.
+The Adventure Companion's CHAT view can be detached into a draggable, resizable floating panel with the **⧉** control on desktop. On mobile it always uses the full-height floating presentation, with no detach or reattach control. Its header keeps the same collapse/expand arrow used by the main tracker, so the player can minimize CHAT without leaving it. Reattaching moves the same live conversation back into the State Tracker panel, and closing CHAT reattaches it automatically.
+
+Adventure Companion has its own **Connection Settings** drawer and can use Main API, a Connection **Profile**, or dedicated Ollama/OpenAI endpoints independently from State Tracker. The same drawer mirrors all CHAT options: Tutorial Mode, story lookback count / All, Lorebook Agent lore injection, and State Tracker memo injection.
 
 The **Adventure Companion can perform exactly three actions** when ordinary conversational language shows clear intent — and nothing else:
 
@@ -358,6 +360,8 @@ With Deadlines + Frustration enabled, overdue NPC quests decay giver mood via `F
 ### Connection settings
 
 State Tracker can use Main API, a Connection **Profile**, or dedicated Ollama/OpenAI endpoints. Its **Core Prompt** is the tracker system prompt — separate from the narrator Quick Prompt.
+
+Adventure Companion has a separate connection selector with the same Main API / Profile / Ollama / OpenAI choices, so changing the Companion model does not change State Tracker.
 
 **Combat API Override** switches the **main narrator** connection profile (not the State Extractor) while combat is active, then restores the baseline when combat ends.
 

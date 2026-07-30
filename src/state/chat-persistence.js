@@ -311,6 +311,7 @@ export function saveChatState(chatId, opts = {}) {
     const existing = s.chatStates[chatId] || {};
     s.chatStates[chatId] = {
         currentMemo:  s.currentMemo,
+        combatDefeatedUi: JSON.parse(JSON.stringify(s.combatDefeatedUi || [])),
         memoPersistedAt,
         memoPersistedBy: s.memoPersistedBy || null,
         memoHistory:  JSON.parse(JSON.stringify(s.memoHistory)),
