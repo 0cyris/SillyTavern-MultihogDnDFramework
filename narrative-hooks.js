@@ -12,7 +12,7 @@
  * circular import. This will be cleaned up when index.js is split.
  */
 
-import { getSettings, hydrateWorldProgressionFromChatState, persistWorldProgressionTimer, persistRouterLastRunWatermark, getNpcRelationshipMax, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, applyRelTierBadgeElement, showRelationshipFloatFeedback, saveChatState, getActiveChatId, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
+import { getSettings, hydrateWorldProgressionFromChatState, persistWorldProgressionTimer, persistRouterLastRunWatermark, getNpcRelationshipMax, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, applyRelTierBadgeElement, showRelationshipFloatFeedback, saveChatState, getActiveChatId, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, shouldProcessRegexRelationshipUpdates } from './state-manager.js';
 import { syncCombatProfile, isCombatActive } from './llm-client.js';
 import { parseQuestsFromMemo, extractCurrentTimeStr, cleanMessageContent, formatInWorldTime, memoForGmContext } from './memo-processor.js';
 import { runRouterPass, saveSceneToLorebook, scanAssistantOutputForKeywords, parseInWorldMinutes, runWorldProgressionPass, updateLorebookEntry, getLorebookManifest, rollbackRouterPass, isRouterRunning } from './router.js';
@@ -2227,9 +2227,9 @@ export async function onGenerationEnded() {
 
     const isStateRunning = typeof globalThis._rpgStateModelRunning === 'function' && globalThis._rpgStateModelRunning();
     const routerActive = !!settings.routerEnabled;
-    if ((!settings.enabled && !routerActive) || settings.paused || isStateRunning) {
+    if ((!settings.enabled && !routerActive) || isStateRunning) {
         recordSchedulerEvent('generation_ended_aborted', {
-            reason: (!settings.enabled && !routerActive) ? 'disabled' : settings.paused ? 'paused' : 'state_running',
+            reason: (!settings.enabled && !routerActive) ? 'disabled' : 'state_running',
             generationType: _lastGenerationType ?? null,
         });
         return;
@@ -2281,6 +2281,22 @@ export async function onGenerationEnded() {
         return;
     }
 
+    // Narrator-regex relationship awards are read directly from chat and do not
+    // require either agent to run. Apply them before the shared pause boundary.
+    if (shouldProcessRegexRelationshipUpdates(settings)) {
+        await handleRelationshipSwipeChange();
+    }
+
+    // Pausing still suppresses State Tracker, Lorebook Agent, keyword scanning,
+    // world progression, and their tracker-based relationship command path.
+    if (settings.paused) {
+        recordSchedulerEvent('generation_ended_aborted', {
+            reason: 'paused',
+            generationType: currentType ?? null,
+        });
+        return;
+    }
+
     // Real-Time Visualization: scene art every-N / location-change (independent of router throttle).
     // Defer one tick so the new assistant message is in chat before we count outputs.
     setTimeout(() => {
@@ -2313,10 +2329,6 @@ export async function onGenerationEnded() {
     }
 
     if (settings.enabled) {
-        if (settings.npcRelationshipBars && getRelationshipUpdateMode(settings) === RELATIONSHIP_UPDATE_MODES.REGEX) {
-            await handleRelationshipSwipeChange();
-        }
-
         // State Tracker pass — throttled by stateTrackerRunEvery.
         const stateRunEvery = settings.stateTrackerRunEvery || 1;
         _stateTrackerAutoTick++;

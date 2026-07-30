@@ -20,6 +20,18 @@ export function getRelationshipUpdateMode(settings) {
         : RELATIONSHIP_UPDATE_MODES.REGEX;
 }
 
+/**
+ * Chat-regex relationship awards come directly from narrator output and do not
+ * depend on a State Tracker or Lorebook Agent pass. Their pause flags must not
+ * suppress this path.
+ * @param {any} settings
+ */
+export function shouldProcessRegexRelationshipUpdates(settings) {
+    return !!settings?.enabled
+        && !!settings?.npcRelationshipBars
+        && getRelationshipUpdateMode(settings) === RELATIONSHIP_UPDATE_MODES.REGEX;
+}
+
 export function buildNpcRelationshipInstruction(max) {
     const m = max ?? getNpcRelationshipMax();
     const p = (f) => relPctOfMax(f, m);

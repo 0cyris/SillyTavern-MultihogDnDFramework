@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.5.35] - 2026-07-30
+
+### Fixed
+- **Paused relationship regex updates**: chat-regex Friendship/Affection awards continue to process while the State Tracker or Lorebook Agent is paused, while tracker/LLM relationship commands remain pause-gated.
+- **Regression coverage**: automated tests now protect the pause-boundary behavior.
+
 ## [6.5.30] - 2026-07-30
 
 ### Changed
