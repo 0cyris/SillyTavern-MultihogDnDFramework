@@ -35,6 +35,7 @@ import { restoreEscapedCyoaChoiceMarkup } from './src/ui/panel/cyoa-markup.js';
 import { captureXpGainAnimationState, playXpGainAnimation } from './src/ui/panel/xp-gain-animation.js';
 import { buildCombatDisplayMemo } from './src/state/combat-persistence.js';
 import { isRealtimeVisualizationDisabled } from './src/state/realtime-visualization-guard.js';
+import { normalizeActivePersonaIdentity } from './src/state/player-identity.js';
 
 export { RENDERING_TAGS_LIBRARY };
 export { bindRenderedCardEvents };
@@ -2303,13 +2304,14 @@ async function resolveActivePersonaDescription() {
         const descriptor = power_user.persona_descriptions?.[user_avatar];
         const description = (descriptor?.description ?? power_user.persona_description ?? '').trim();
         const name = (power_user.personas?.[user_avatar] ?? '').trim();
-        if (!description) return null;
+        const identity = normalizeActivePersonaIdentity(name, description);
+        if (!identity) return null;
 
         if (descriptor && power_user.persona_description !== descriptor.description) {
             power_user.persona_description = descriptor.description ?? '';
         }
 
-        return { name, description };
+        return identity;
     } catch (e) {
         console.warn('[RPG Tracker] Could not resolve active persona:', e);
         return null;
@@ -3568,14 +3570,15 @@ function syncOnboardingPersonaPrefsFromDom(el) {
  * Persona-derived onboarding preserves the active source Persona description.
  * Uses settings (not DOM) because sendDirectPrompt → refreshRenderedView removes the onboarding UI.
  * @param {string} [extraHints]
- * @param {{ preserveActivePersona?: boolean }} [options]
+ * @param {{ preserveActivePersona?: boolean, preferredName?: string }} [options]
  */
 async function maybeCreateOnboardingPersona(extraHints = '', options = {}) {
     const s = getSettings();
     const createPlayerCard = !!s.onboardingCreatePersona;
     const createStPersona = s.onboardingCreateSillyTavernPersona !== false;
     if (!createPlayerCard && !createStPersona) return;
-    const charName = extractCharNameFromMemo(s.currentMemo) || 'My Character';
+    const preferredName = String(options.preferredName || '').trim();
+    const charName = preferredName || extractCharNameFromMemo(s.currentMemo) || 'My Character';
     if (createStPersona) {
         try {
             await activateSillyTavernPersona(charName, {

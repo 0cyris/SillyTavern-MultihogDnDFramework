@@ -40,11 +40,13 @@ describe('onboarding Player Card and ST persona options', () => {
         const cardEventsSource = readFileSync(new URL('../src/ui/panel/card-events.js', import.meta.url), 'utf8');
         const indexSource = readFileSync(new URL('../index.js', import.meta.url), 'utf8');
 
-        expect(cardEventsSource).toContain(
-            'await maybeCreateOnboardingPersona(personaHints, { preserveActivePersona: true });',
-        );
+        expect(cardEventsSource).toContain("const requiresRolledName = archetype !== 'persona';");
+        expect(cardEventsSource).toContain('preferredName: personaName');
         expect(indexSource).toContain(
             'preserveExistingDescription: !!options.preserveActivePersona',
+        );
+        expect(indexSource).toContain(
+            "const charName = preferredName || extractCharNameFromMemo(s.currentMemo) || 'My Character';",
         );
     });
 

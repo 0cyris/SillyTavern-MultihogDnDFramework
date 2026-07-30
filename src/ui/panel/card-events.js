@@ -247,6 +247,8 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
                 showPcImportPanel(el);
                 return;
             }
+            // Persona derives its identity from the active ST Persona and never
+            // requires the separate rolled-name field.
             const requiresRolledName = archetype !== 'persona';
             if (requiresRolledName && !selectedOnboardingName) {
                 toastr['info']('Roll a character name before generating.', 'RPG Tracker');
@@ -405,7 +407,10 @@ Gear:
                 syncOnboardingPersonaPrefsFromDom(el);
                 await sendDirectPrompt(personaPrompt + combatSkillHint, { systemPromptMode: 'modules_only' });
                 const personaHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\nSource: the previously active SillyTavern persona.${customInstructions ? `\nAdditional: ${customInstructions}` : ''}\n`;
-                await maybeCreateOnboardingPersona(personaHints, { preserveActivePersona: true });
+                await maybeCreateOnboardingPersona(personaHints, {
+                    preserveActivePersona: true,
+                    preferredName: personaName,
+                });
                 return;
             }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildNameOnlyPersonaIdentity,
+    normalizeActivePersonaIdentity,
     resolveActivatedPersonaDescription,
 } from '../src/state/player-identity.js';
 import { buildDefaultSettings } from '../src/state/defaults.js';
@@ -26,5 +27,17 @@ describe('SillyTavern player identity', () => {
         expect(resolveActivatedPersonaDescription('Rich source Persona', true)).toBe('Rich source Persona');
         expect(resolveActivatedPersonaDescription('Rich source Persona', false)).toBe('');
         expect(resolveActivatedPersonaDescription(undefined, true)).toBe('');
+    });
+
+    it('recognizes a selected name-only Persona as an active identity', () => {
+        expect(normalizeActivePersonaIdentity('Ashley Gallagher', '')).toEqual({
+            name: 'Ashley Gallagher',
+            description: '',
+        });
+        expect(normalizeActivePersonaIdentity('', 'Description only')).toEqual({
+            name: '',
+            description: 'Description only',
+        });
+        expect(normalizeActivePersonaIdentity('', '')).toBeNull();
     });
 });
