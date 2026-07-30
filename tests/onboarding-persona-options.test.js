@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { testExtensionSettings } from './setup.js';
 
 vi.mock('../portrait-storage.js', () => ({
@@ -33,6 +34,18 @@ describe('onboarding Player Card and ST persona options', () => {
         expect(html).toMatch(/data-archetype="custom" data-name-required="true" disabled/);
         expect(html).toMatch(/data-archetype="persona">/);
         expect(html).toMatch(/data-archetype="pc_import">/);
+    });
+
+    it('preserves the active Persona when deriving a character from it', () => {
+        const cardEventsSource = readFileSync(new URL('../src/ui/panel/card-events.js', import.meta.url), 'utf8');
+        const indexSource = readFileSync(new URL('../index.js', import.meta.url), 'utf8');
+
+        expect(cardEventsSource).toContain(
+            'await maybeCreateOnboardingPersona(personaHints, { preserveActivePersona: true });',
+        );
+        expect(indexSource).toContain(
+            'preserveExistingDescription: !!options.preserveActivePersona',
+        );
     });
 
     it('includes the Discord Extensions subforum in the onboarding help', () => {

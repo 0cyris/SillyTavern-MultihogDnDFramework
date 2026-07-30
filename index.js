@@ -3565,9 +3565,12 @@ function syncOnboardingPersonaPrefsFromDom(el) {
 /**
  * After a quick onboarding generate, optionally create a Lorebook Player Card
  * and/or a name-only SillyTavern persona.
+ * Persona-derived onboarding preserves the active source Persona description.
  * Uses settings (not DOM) because sendDirectPrompt → refreshRenderedView removes the onboarding UI.
+ * @param {string} [extraHints]
+ * @param {{ preserveActivePersona?: boolean }} [options]
  */
-async function maybeCreateOnboardingPersona(extraHints = '') {
+async function maybeCreateOnboardingPersona(extraHints = '', options = {}) {
     const s = getSettings();
     const createPlayerCard = !!s.onboardingCreatePersona;
     const createStPersona = s.onboardingCreateSillyTavernPersona !== false;
@@ -3575,7 +3578,9 @@ async function maybeCreateOnboardingPersona(extraHints = '') {
     const charName = extractCharNameFromMemo(s.currentMemo) || 'My Character';
     if (createStPersona) {
         try {
-            await activateSillyTavernPersona(charName);
+            await activateSillyTavernPersona(charName, {
+                preserveExistingDescription: !!options.preserveActivePersona,
+            });
         } catch (error) {
             console.error('[RPG Tracker] Could not create name-only ST persona:', error);
             toastr['warning'](`Character created, but the ST persona for "${charName}" could not be created.`, 'RPG Tracker');

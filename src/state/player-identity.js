@@ -5,3 +5,8 @@ export function buildNameOnlyPersonaIdentity(name) {
         description: '',
     };
 }
+
+/** Preserve a source Persona description only for Persona-derived onboarding. */
+export function resolveActivatedPersonaDescription(existingDescription, preserveExistingDescription = false) {
+    return preserveExistingDescription ? String(existingDescription || '') : '';
+}

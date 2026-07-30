@@ -405,7 +405,7 @@ Gear:
                 syncOnboardingPersonaPrefsFromDom(el);
                 await sendDirectPrompt(personaPrompt + combatSkillHint, { systemPromptMode: 'modules_only' });
                 const personaHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\nSource: the previously active SillyTavern persona.${customInstructions ? `\nAdditional: ${customInstructions}` : ''}\n`;
-                await maybeCreateOnboardingPersona(personaHints);
+                await maybeCreateOnboardingPersona(personaHints, { preserveActivePersona: true });
                 return;
             }
 

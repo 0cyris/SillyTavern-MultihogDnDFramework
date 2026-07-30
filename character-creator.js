@@ -5,7 +5,10 @@ import { escapeHtml } from './memo-processor.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { saveSettings, sendDirectPrompt, refreshAgentManifestNow, refreshRenderedView, syncTimeFormatSettingsUi } from './src/app/runtime-bridge.js';
 import { openPcSectionEditor } from './ui-editors.js';
-import { buildNameOnlyPersonaIdentity } from './src/state/player-identity.js';
+import {
+    buildNameOnlyPersonaIdentity,
+    resolveActivatedPersonaDescription,
+} from './src/state/player-identity.js';
 import { CHARACTER_CREATOR_NAME_ADDITIONS } from './src/state/character-names.js';
 
 const _CR_CLASS_LISTS = {
@@ -784,7 +787,7 @@ async function uploadDefaultPersonaAvatar(url, avatarId, refreshAvatars) {
     await refreshAvatars(true, data?.path || avatarId);
 }
 
-async function injectAsSillyTavernPersona(name) {
+async function injectAsSillyTavernPersona(name, options = {}) {
     const [
         { initPersona, setUserAvatar, getUserAvatars, setPersonaDescription, user_avatar, persona_description_positions },
         { findPersona },
@@ -799,14 +802,25 @@ async function injectAsSillyTavernPersona(name) {
 
     const identity = buildNameOnlyPersonaIdentity(name);
     const trimmedName = identity.name;
-    const existing = findPersona({ name: trimmedName, preferCurrentPersona: false, quiet: true });
+    const preserveExistingDescription = !!options.preserveExistingDescription;
+    const existing = findPersona({
+        name: trimmedName,
+        preferCurrentPersona: preserveExistingDescription,
+        quiet: true,
+    });
 
     let avatarId;
     if (existing) {
         avatarId = existing.avatar;
+        const storedDescription = power_user.persona_descriptions?.[avatarId]?.description
+            ?? (user_avatar === avatarId ? power_user.persona_description : '');
+        const nextDescription = resolveActivatedPersonaDescription(
+            storedDescription,
+            preserveExistingDescription,
+        );
         if (!power_user.persona_descriptions[avatarId]) {
             power_user.persona_descriptions[avatarId] = {
-                description: '',
+                description: nextDescription,
                 position: persona_description_positions.IN_PROMPT,
                 depth: 4,
                 role: 0,
@@ -815,9 +829,9 @@ async function injectAsSillyTavernPersona(name) {
                 title: '',
             };
         }
-        power_user.persona_descriptions[avatarId].description = identity.description;
+        power_user.persona_descriptions[avatarId].description = nextDescription;
         if (user_avatar === avatarId) {
-            power_user.persona_description = identity.description;
+            power_user.persona_description = nextDescription;
         }
     } else {
         avatarId = `${Date.now()}-${trimmedName.replace(/[^a-zA-Z0-9]/g, '')}.png`;
@@ -833,15 +847,17 @@ async function injectAsSillyTavernPersona(name) {
 }
 
 /**
- * Create/update a name-only SillyTavern persona, select it, and lock it to the
- * chat. Its description stays empty so the Lorebook Agent Player Card remains
- * the sole rich character biography in prompt context.
+ * Create/update a SillyTavern persona, select it, and lock it to the chat.
+ * Normally its description is cleared so the Lorebook Agent Player Card remains
+ * the sole rich biography. Persona-derived onboarding may preserve the existing
+ * source description.
  * @param {string} name
+ * @param {{ preserveExistingDescription?: boolean }} [options]
  * @returns {Promise<string>} avatarId
  */
-export async function activateSillyTavernPersona(name) {
+export async function activateSillyTavernPersona(name, options = {}) {
     const identity = buildNameOnlyPersonaIdentity(name);
-    const avatarId = await injectAsSillyTavernPersona(identity.name);
+    const avatarId = await injectAsSillyTavernPersona(identity.name, options);
 
     try {
         const ctx = SillyTavern.getContext();
