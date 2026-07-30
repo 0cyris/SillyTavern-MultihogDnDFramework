@@ -2,9 +2,9 @@
 
 *A D&D-based RPG platform/simulation engine for SillyTavern.*
 
-This framework essentially turns SillyTavern into something like AI Dungeon, but with actual mechanics/consequences! Started off as a humble "RPG State Tracker" but has since expanded into a more ambitious game engine, simulation system, and modular RPG framework where you can basically make your own game. Mechanical integrity and simulation depth is key here. This isn't a narrative-first philosophy; it aims for relentless "simulation autism." The backbone of the system is time simulation.
+This framework, with its stock settings, essentially turns SillyTavern into something like AI Dungeon, but with actual mechanics/consequences! And I mean that. It's not anti-player, but it can be said to be "player-neutral." The narrative and internal consistency of the world determines how hard or easy something is. There is explicitly zero scaling anywhere to ensure choices matter and consequence is real. The core aim and philosophy is to deliver an immersive experience through robust simulation logic, using realistic time passage as the backbone that ties into numerous other systems, and this aforementioned "player-agnosticism/neutrality." Fundamentally it acts as a cohesive RPG framework as well as an anti-sycophancy system.
 
-In addition to fantasy, the system works just as well for casual "slice of life" scenarios, modern settings, or anything else imaginable, so you're by no means limited to wizards and goblins. Everything is FULLY customizable and homebrew-friendly, complete with AI wizards, so next to no technical knowledge is required.
+I know it says "D&D Framework," but in addition to fantasy, the system works just as well for casual "slice of life" scenarios, modern settings, or anything else imaginable, so you're by no means limited to wizards and goblins. Everything is FULLY customizable and homebrew-friendly, complete with AI wizards, so next to no technical knowledge is required.
 
 ---
 
