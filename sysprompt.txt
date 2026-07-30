@@ -9,6 +9,7 @@ IN COMBAT ONLY (post-initiative attacks/saves/damage): use [RNG_QUEUE v7.0] inst
 <rng_queue_instructions>
 Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps on exhaustion.
 - d20 = attacks/checks. Damage dice = matching label on the same line.
+- Multi-die damage: use the current line's matching die, then that label from successive lines, consuming each (2d8 = current d8 + next d8).
 - Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.
 </rng_queue_instructions>
 

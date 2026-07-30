@@ -17,6 +17,7 @@ import {
 } from './src/state/combat-persistence.js';
 
 const DEFEATED_COMBATANTS_PROMPT_RULE = '- DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.';
+const COMBAT_SIDES_PROMPT_RULE = '- COMBAT SIDES: Group combatants under ENEMIES: and ALLIES: headers, with enemies first. ALLIES are temporary non-[PARTY] NPCs fighting alongside {{user}}; never duplicate [PARTY] members in [COMBAT]. Include both headers when allies are present, otherwise include ENEMIES: only.';
 
 // ── String utilities ──────────────────────────────────────────────────────────
 
@@ -1644,6 +1645,9 @@ export function buildModulesInstructionText(settings) {
             // for legacy and customized COMBAT prompts without modifying the saved prompt.
             if (key === 'combat' && !/\bDEFEATED COMBATANTS\s*:/i.test(p)) {
                 p = `${p}\n${DEFEATED_COMBATANTS_PROMPT_RULE}`;
+            }
+            if (key === 'combat' && !/\bCOMBAT SIDES\s*:/i.test(p) && !/\bALLIES\s*:/i.test(p)) {
+                p = `${p}\n${COMBAT_SIDES_PROMPT_RULE}`;
             }
 
             modulesText += `- [${key.toUpperCase()}]: ${p}\n`;

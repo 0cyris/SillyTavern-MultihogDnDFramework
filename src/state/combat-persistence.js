@@ -1,5 +1,15 @@
 const COMBATANT_HP_RX = /^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?\s*HP\b(.*)$/i;
 const RESOLVED_STATUS_RX = /(?:^|\|)\s*Status\s*:\s*(?:(?:\(\([^)]*\)\)|\([^)]*\))\s*)*(?:defeated|dead)\b/i;
+const COMBAT_SIDE_HEADER_RX = /^(ENEMIES|ALLIES)\s*:?\s*$/i;
+
+/**
+ * @param {string} line
+ * @returns {'enemies'|'allies'|null}
+ */
+export function parseCombatSideHeader(line) {
+    const match = String(line || '').trim().match(COMBAT_SIDE_HEADER_RX);
+    return match ? /** @type {'enemies'|'allies'} */ (match[1].toLocaleLowerCase()) : null;
+}
 
 /**
  * @param {string} line
@@ -11,33 +21,46 @@ export function isResolvedCombatantStatusLine(line) {
 
 /**
  * @param {string} content
- * @returns {{ preamble: string[], entities: { name: string, lines: string[] }[] }}
+ * @returns {{
+ *   tokens: ({ type: 'line', line: string }|{ type: 'header', line: string, side: 'enemies'|'allies' }|{ type: 'entity', entity: { name: string, side: 'enemies'|'allies', lines: string[] } })[],
+ *   entities: { name: string, side: 'enemies'|'allies', lines: string[] }[]
+ * }}
  */
 function parseCombatLayout(content) {
-    const preamble = [];
+    const tokens = [];
     const entities = [];
     let current = null;
+    /** Headerless combat remains backward-compatible and defaults to enemies. */
+    let currentSide = /** @type {'enemies'|'allies'} */ ('enemies');
 
     for (const rawLine of String(content || '').split(/\r?\n/)) {
         const line = rawLine.trim();
         if (!line) continue;
+        const side = parseCombatSideHeader(line);
+        if (side) {
+            current = null;
+            currentSide = side;
+            tokens.push({ type: 'header', line: `${side.toLocaleUpperCase()}:`, side });
+            continue;
+        }
         const hpMatch = line.match(COMBATANT_HP_RX);
         if (hpMatch) {
-            current = { name: hpMatch[1].trim(), lines: [line] };
+            current = { name: hpMatch[1].trim(), side: currentSide, lines: [line] };
             entities.push(current);
+            tokens.push({ type: 'entity', entity: current });
         } else if (current) {
             current.lines.push(line);
         } else {
-            preamble.push(line);
+            tokens.push({ type: 'line', line });
         }
     }
 
-    return { preamble, entities };
+    return { tokens, entities };
 }
 
 /**
  * @param {string} content
- * @returns {{ name: string, lines: string[] }[]}
+ * @returns {{ name: string, side: 'enemies'|'allies', lines: string[] }[]}
  */
 export function parseCombatants(content) {
     return parseCombatLayout(content).entities;
@@ -53,13 +76,15 @@ export function parseCombatants(content) {
  * @returns {{ activeContent: string, defeatedCombatants: { name: string, content: string }[] }}
  */
 export function partitionResolvedCombatants(content, previousArchive = []) {
-    const { preamble, entities } = parseCombatLayout(content);
+    const { tokens, entities } = parseCombatLayout(content);
     const active = [];
     const resolved = [];
 
     for (const entity of entities) {
         const entityContent = entity.lines.join('\n');
-        if (entity.lines.some(isResolvedCombatantStatusLine)) {
+        // The UI-only archive is specifically for defeated enemies. Temporary
+        // allies remain in the active memo even if their status says defeated.
+        if (entity.side === 'enemies' && entity.lines.some(isResolvedCombatantStatusLine)) {
             resolved.push({ name: entity.name, content: entityContent });
         } else {
             active.push(entity);
@@ -79,10 +104,10 @@ export function partitionResolvedCombatants(content, previousArchive = []) {
     }
 
     return {
-        activeContent: [
-            ...preamble,
-            ...active.flatMap(entity => entity.lines),
-        ].join('\n').trim(),
+        activeContent: tokens.flatMap(token => {
+            if (token.type === 'line' || token.type === 'header') return [token.line];
+            return active.includes(token.entity) ? token.entity.lines : [];
+        }).join('\n').trim(),
         defeatedCombatants: [...archiveByName.values()],
     };
 }
@@ -127,6 +152,11 @@ export function buildCombatDisplayMemo(memo, archive) {
             .filter(entry => !activeNames.has(String(entry.name).trim().toLocaleLowerCase()))
             .map(entry => String(entry.content).trim());
         if (!uiEntries.length) return fullBlock;
-        return `[COMBAT]\n${[String(content).trim(), ...uiEntries].filter(Boolean).join('\n')}\n[/COMBAT]`;
+
+        const lines = String(content).trim().split(/\r?\n/);
+        const firstAlliesHeader = lines.findIndex(line => parseCombatSideHeader(line) === 'allies');
+        const insertionIndex = firstAlliesHeader >= 0 ? firstAlliesHeader : lines.length;
+        lines.splice(insertionIndex, 0, ...uiEntries.flatMap(entry => entry.split(/\r?\n/)));
+        return `[COMBAT]\n${lines.filter(Boolean).join('\n')}\n[/COMBAT]`;
     });
 }

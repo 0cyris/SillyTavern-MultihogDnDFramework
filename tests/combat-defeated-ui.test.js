@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 vi.mock('../portrait-storage.js', () => ({
     lookupCustomPortraitSrc: () => '',
@@ -6,6 +7,7 @@ vi.mock('../portrait-storage.js', () => ({
 
 import {
     buildCombatDisplayMemo,
+    parseCombatants,
     partitionResolvedCombatants,
 } from '../src/state/combat-persistence.js';
 import { getSettings } from '../state-manager.js';
@@ -16,6 +18,8 @@ import {
     mergeMemo,
 } from '../memo-processor.js';
 import { blockToItems } from '../renderer.js';
+
+const styles = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
 
 const ACTIVE_COMBAT = `[COMBAT]
 COMBAT ROUND 1
@@ -82,6 +86,56 @@ Status: Defeated`,
         expect(html).toContain('width:0.0%');
     });
 
+    it('parses optional enemy and temporary-ally sections without crossing entity boundaries', () => {
+        const content = `COMBAT ROUND 3
+ENEMIES:
+Cultist: 0/15 HP
+Status: Defeated
+ALLIES:
+City Guard: 0/22 HP
+Status: Defeated`;
+
+        expect(parseCombatants(content).map(({ name, side }) => ({ name, side }))).toEqual([
+            { name: 'Cultist', side: 'enemies' },
+            { name: 'City Guard', side: 'allies' },
+        ]);
+
+        const partitioned = partitionResolvedCombatants(content);
+        expect(partitioned.activeContent).toContain('ENEMIES:');
+        expect(partitioned.activeContent).not.toContain('Cultist:');
+        expect(partitioned.activeContent).toContain('ALLIES:\nCity Guard: 0/22 HP');
+        expect(partitioned.defeatedCombatants.map(entry => entry.name)).toEqual(['Cultist']);
+
+        const display = buildCombatDisplayMemo(
+            `[COMBAT]\n${partitioned.activeContent}\n[/COMBAT]`,
+            partitioned.defeatedCombatants,
+        );
+        expect(display.indexOf('Cultist: 0/15 HP')).toBeLessThan(display.indexOf('ALLIES:'));
+    });
+
+    it('renders red ENEMIES and blue ALLIES headers while retaining headerless compatibility', () => {
+        const groupedHtml = blockToItems('COMBAT', `COMBAT ROUND 1
+ENEMIES:
+Bandit: 10/10 HP
+Status: Healthy
+ALLIES
+Town Guard: 12/12 HP
+Status: Healthy`).join('');
+
+        expect(groupedHtml).toContain('rt-combat-side-header--enemies">ENEMIES</div>');
+        expect(groupedHtml).toContain('rt-combat-side-header--allies">ALLIES</div>');
+        expect(groupedHtml).toContain('Bandit');
+        expect(groupedHtml).toContain('Town Guard');
+        expect(styles).toMatch(/\.rt-combat-side-header--enemies\s*\{[^}]*color:\s*#f87171/s);
+        expect(styles).toMatch(/\.rt-combat-side-header--allies\s*\{[^}]*color:\s*#60a5fa/s);
+
+        const headerlessHtml = blockToItems('COMBAT', `COMBAT ROUND 1
+Bandit: 10/10 HP
+Status: Healthy`).join('');
+        expect(headerlessHtml).toContain('class="rt-entity-name">Bandit</div>');
+        expect(headerlessHtml).not.toContain('rt-combat-side-header');
+    });
+
     it('strips resolved enemies from model state while retaining them in the display memo', () => {
         const merged = mergeMemo(ACTIVE_COMBAT, `[COMBAT]
 COMBAT ROUND 2
@@ -138,6 +192,7 @@ Status: Dead
         expect(settings.stockPrompts.combat).toBe(customCombatPrompt);
         expect(instructions).toContain(customCombatPrompt);
         expect(instructions).toContain('DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.');
+        expect(instructions).toContain('COMBAT SIDES: Group combatants under ENEMIES: and ALLIES: headers');
     });
 
     it('keeps the UI archive across rounds, removes revived names, and clears it at END_COMBAT', () => {

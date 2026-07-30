@@ -2,7 +2,7 @@ import { getSettings, getBarBackground, getBarShowAsPercentage } from './state-m
 import { lookupCustomPortraitSrc } from './portrait-storage.js';
 import { escapeHtml, decodeHtml, highlightParens, highlightNumbers, parseInWorldTime, isRestTimeUnset, formatTimeDiff, isArchivedQuestStatus, questHasEffectiveDeadline, isEmergentQuest } from './memo-processor.js';
 import { BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, renderStartingGearTierOptions } from './constants.js';
-import { isResolvedCombatantStatusLine } from './src/state/combat-persistence.js';
+import { isResolvedCombatantStatusLine, parseCombatSideHeader } from './src/state/combat-persistence.js';
 
 // ── Renderer module: pure HTML string producers, localStorage helpers ──
 // No live DOM mutations. All functions return strings or void (localStorage).
@@ -1438,6 +1438,16 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     if (tag === 'COMBAT' && /Combat Round\s*\d+/i.test(line)) {
                         results.push(`<div class="rt-combat-round">${escapeHtmlWithColor(line)}</div>`);
                         lastEntityIdx = -1;
+                        continue;
+                    }
+
+                    // Optional combat-side headers. Headerless blocks continue to
+                    // parse exactly as before, with combatants treated as enemies.
+                    const combatSide = tag === 'COMBAT' ? parseCombatSideHeader(line) : null;
+                    if (combatSide) {
+                        results.push(`<div class="rt-combat-side-header rt-combat-side-header--${combatSide}">${combatSide.toLocaleUpperCase()}</div>`);
+                        lastEntityIdx = -1;
+                        currentEntity = '';
                         continue;
                     }
 

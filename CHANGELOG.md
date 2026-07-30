@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.5.10] - 2026-07-30
+
+### Added
+- **Temporary combat allies**: `[COMBAT]` now supports optional `ENEMIES:` and `ALLIES:` sections with red and blue UI headers.
+- **RNG multi-die guidance**: queue prompts now specify how additional matching damage dice consume successive queue lines, including a `2d8` example.
+
+### Fixed
+- **Combat section parsing**: `ALLIES:` boundaries no longer get absorbed into the preceding enemy entry, while headerless combat remains backward-compatible.
+
 ## [6.5.0] - 2026-07-30
 
 ### Added

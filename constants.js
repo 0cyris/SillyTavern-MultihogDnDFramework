@@ -126,11 +126,14 @@ Bench ETAs: If it is clearly implied in the narrative when a character may retur
 The ETA must always be an explicit timestamp, e.g. "Day 1, HH:MM", or "17/10/2002, HH:MM." Only [UNBENCH] when the character physically reunites with {{user}}, not simply when the ETA date has been met.
 
 ETA [BENCH] example: Status: Benched (08:08 AM, Day 1, separated to investigate the docks and meet back at Day 1, 12:10 AM)`,
-  combat: `Active enemies/NPCs in combat. Track the current COMBAT ROUND starting from 1. Decrement buff/debuff durations by 1 each round.
+  combat: `Active enemies and temporary allied NPCs in combat. Track the current COMBAT ROUND starting from 1. Decrement buff/debuff durations by 1 each round.
 
-Output fields in this exact order for every combatant. Choose MARTIAL or CASTER Att/def + Spells rules below — never mix styles on the same enemy.
+Group combatants under ENEMIES: and ALLIES: headers, with ENEMIES first. Temporary allies are non-[PARTY] NPCs fighting alongside {{user}}; never duplicate [PARTY] members in [COMBAT]. Always include both headers when temporary allies are present. If there are no temporary allies, include ENEMIES: only.
+
+Output fields in this exact order for every combatant. Choose MARTIAL or CASTER Att/def + Spells rules below — never mix styles on the same combatant.
 
 COMBAT ROUND X
+ENEMIES:
 Name: current/max HP
 Att/def: (see MARTIAL or CASTER)
 Saves: Fort +X, Ref +X, Will +X
@@ -138,6 +141,10 @@ Abilities: Ability1 (effect), Ability2 (effect)
 Spells: (CASTER only — one line per spell level, same format as [PARTY])
 Other: Trait1 (description), Trait2 (description)
 Status: Effect (duration)
+
+ALLIES:
+Name: current/max HP
+(Use the same fields and ordering as above.)
 
 MARTIAL (fighters, beasts, thugs — omit Spells: entirely):
 Att/def: Weapon (1 attack / 2 attacks / 3 attacks, +X / damage) | Armor (AC: Z)
@@ -340,6 +347,7 @@ IN COMBAT ONLY (post-initiative attacks/saves/damage): use [RNG_QUEUE v7.0] inst
 <rng_queue_instructions>
 Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps on exhaustion.
 - d20 = attacks/checks. Damage dice = matching label on the same line.
+- Multi-die damage: use the current line's matching die, then that label from successive lines, consuming each (2d8 = current d8 + next d8).
 - Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.
 </rng_queue_instructions>
 
@@ -635,6 +643,7 @@ DM/World Simulator for a D&D-style TTRPG. Narrate the world, simulate NPCs, adju
 <rng_queue_instructions>
 Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps on exhaustion.
 - d20 = attacks/checks. Damage dice = matching label on the same line.
+- Multi-die damage: use the current line's matching die, then that label from successive lines, consuming each (2d8 = current d8 + next d8).
 - Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.
 </rng_queue_instructions>
 
