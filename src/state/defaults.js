@@ -293,7 +293,7 @@ NEVER ignore a module.
 
 4. Omit unchanged sections entirely. Do NOT output a section if its contents did not change.
 
-5. BLOCK PERSISTENCE: For list-based sections ([PARTY], [INVENTORY], [ABILITIES], [SPELLS], [COMBAT]), if any single item within that section changes, you MUST re-output the ENTIRE section containing all items. Never omit existing members or items unless they are explicitly logically removed. In [COMBAT], preserve ENEMIES:/ALLIES: grouping, mark defeated enemies as Status: Defeated, and do not omit them from the memo.
+5. BLOCK PERSISTENCE: For list-based sections ([PARTY], [INVENTORY], [ABILITIES], [SPELLS], [COMBAT]), if any single item within that section changes, you MUST re-output the ENTIRE section containing all items. Never omit existing members or items unless they are explicitly logically removed. In [COMBAT], preserve ENEMIES:/NON-PARTY ALLIES: grouping, never include members already listed in [PARTY], mark defeated enemies as Status: Defeated, and do not omit them from the memo.
 
 6. If there are absolutely NO CHANGES to any section, you MUST output exactly: \`NO_CHANGES_DETECTED\`
 

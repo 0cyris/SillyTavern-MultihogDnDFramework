@@ -1,6 +1,6 @@
 const COMBATANT_HP_RX = /^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?\s*HP\b(.*)$/i;
 const RESOLVED_STATUS_RX = /(?:^|\|)\s*Status\s*:\s*(?:(?:\(\([^)]*\)\)|\([^)]*\))\s*)*(?:defeated|dead)\b/i;
-const COMBAT_SIDE_HEADER_RX = /^(ENEMIES|ALLIES)\s*:?\s*$/i;
+const COMBAT_SIDE_HEADER_RX = /^(ENEMIES|(?:NON[-\s]+PARTY\s+)?ALLIES)\s*:?\s*$/i;
 
 /**
  * @param {string} line
@@ -8,7 +8,8 @@ const COMBAT_SIDE_HEADER_RX = /^(ENEMIES|ALLIES)\s*:?\s*$/i;
  */
 export function parseCombatSideHeader(line) {
     const match = String(line || '').trim().match(COMBAT_SIDE_HEADER_RX);
-    return match ? /** @type {'enemies'|'allies'} */ (match[1].toLocaleLowerCase()) : null;
+    if (!match) return null;
+    return /\bALLIES\b/i.test(match[1]) ? 'allies' : 'enemies';
 }
 
 /**
@@ -40,7 +41,11 @@ function parseCombatLayout(content) {
         if (side) {
             current = null;
             currentSide = side;
-            tokens.push({ type: 'header', line: `${side.toLocaleUpperCase()}:`, side });
+            tokens.push({
+                type: 'header',
+                line: side === 'allies' ? 'NON-PARTY ALLIES:' : 'ENEMIES:',
+                side,
+            });
             continue;
         }
         const hpMatch = line.match(COMBATANT_HP_RX);

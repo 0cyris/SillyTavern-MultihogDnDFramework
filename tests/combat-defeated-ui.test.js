@@ -91,7 +91,7 @@ Status: Defeated`,
 ENEMIES:
 Cultist: 0/15 HP
 Status: Defeated
-ALLIES:
+NON-PARTY ALLIES:
 City Guard: 0/22 HP
 Status: Defeated`;
 
@@ -103,14 +103,14 @@ Status: Defeated`;
         const partitioned = partitionResolvedCombatants(content);
         expect(partitioned.activeContent).toContain('ENEMIES:');
         expect(partitioned.activeContent).not.toContain('Cultist:');
-        expect(partitioned.activeContent).toContain('ALLIES:\nCity Guard: 0/22 HP');
+        expect(partitioned.activeContent).toContain('NON-PARTY ALLIES:\nCity Guard: 0/22 HP');
         expect(partitioned.defeatedCombatants.map(entry => entry.name)).toEqual(['Cultist']);
 
         const display = buildCombatDisplayMemo(
             `[COMBAT]\n${partitioned.activeContent}\n[/COMBAT]`,
             partitioned.defeatedCombatants,
         );
-        expect(display.indexOf('Cultist: 0/15 HP')).toBeLessThan(display.indexOf('ALLIES:'));
+        expect(display.indexOf('Cultist: 0/15 HP')).toBeLessThan(display.indexOf('NON-PARTY ALLIES:'));
     });
 
     it('renders red ENEMIES and blue ALLIES headers while retaining headerless compatibility', () => {
@@ -118,7 +118,7 @@ Status: Defeated`;
 ENEMIES:
 Bandit: 10/10 HP
 Status: Healthy
-ALLIES
+NON-PARTY ALLIES:
 Town Guard: 12/12 HP
 Status: Healthy`).join('');
 
@@ -134,6 +134,12 @@ Bandit: 10/10 HP
 Status: Healthy`).join('');
         expect(headerlessHtml).toContain('class="rt-entity-name">Bandit</div>');
         expect(headerlessHtml).not.toContain('rt-combat-side-header');
+
+        const legacyAlliesHtml = blockToItems('COMBAT', `COMBAT ROUND 1
+ALLIES:
+Town Guard: 12/12 HP
+Status: Healthy`).join('');
+        expect(legacyAlliesHtml).toContain('rt-combat-side-header--allies">ALLIES</div>');
     });
 
     it('strips resolved enemies from model state while retaining them in the display memo', () => {
@@ -192,7 +198,13 @@ Status: Dead
         expect(settings.stockPrompts.combat).toBe(customCombatPrompt);
         expect(instructions).toContain(customCombatPrompt);
         expect(instructions).toContain('DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.');
-        expect(instructions).toContain('COMBAT SIDES: Group combatants under ENEMIES: and ALLIES: headers');
+        expect(instructions).toContain('COMBAT SIDES: Group combatants under ENEMIES: and NON-PARTY ALLIES: headers');
+        expect(instructions).toContain('Never put any [PARTY] member in [COMBAT].');
+
+        settings.stockPrompts.combat = 'Group combatants under ENEMIES: and ALLIES:.';
+        const migratedInstructions = buildModulesInstructionText(settings);
+        expect(migratedInstructions).toContain('Group combatants under ENEMIES: and ALLIES:.');
+        expect(migratedInstructions).toContain('COMBAT SIDES: Group combatants under ENEMIES: and NON-PARTY ALLIES: headers');
     });
 
     it('keeps the UI archive across rounds, removes revived names, and clears it at END_COMBAT', () => {

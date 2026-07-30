@@ -17,7 +17,7 @@ import {
 } from './src/state/combat-persistence.js';
 
 const DEFEATED_COMBATANTS_PROMPT_RULE = '- DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.';
-const COMBAT_SIDES_PROMPT_RULE = '- COMBAT SIDES: Group combatants under ENEMIES: and ALLIES: headers, with enemies first. ALLIES are temporary non-[PARTY] NPCs fighting alongside {{user}}; never duplicate [PARTY] members in [COMBAT]. Include both headers when allies are present, otherwise include ENEMIES: only.';
+const COMBAT_SIDES_PROMPT_RULE = '- COMBAT SIDES: Group combatants under ENEMIES: and NON-PARTY ALLIES: headers, with enemies first. NON-PARTY ALLIES are allied combatants who are NOT listed in [PARTY]. Never put any [PARTY] member in [COMBAT]. Include both headers when non-party allies are present; otherwise include ENEMIES: only.';
 
 // ── String utilities ──────────────────────────────────────────────────────────
 
@@ -1646,7 +1646,7 @@ export function buildModulesInstructionText(settings) {
             if (key === 'combat' && !/\bDEFEATED COMBATANTS\s*:/i.test(p)) {
                 p = `${p}\n${DEFEATED_COMBATANTS_PROMPT_RULE}`;
             }
-            if (key === 'combat' && !/\bCOMBAT SIDES\s*:/i.test(p) && !/\bALLIES\s*:/i.test(p)) {
+            if (key === 'combat' && !/\bNON-PARTY\s+ALLIES\b/i.test(p)) {
                 p = `${p}\n${COMBAT_SIDES_PROMPT_RULE}`;
             }
 

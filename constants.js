@@ -128,7 +128,7 @@ The ETA must always be an explicit timestamp, e.g. "Day 1, HH:MM", or "17/10/200
 ETA [BENCH] example: Status: Benched (08:08 AM, Day 1, separated to investigate the docks and meet back at Day 1, 12:10 AM)`,
   combat: `Active enemies and temporary allied NPCs in combat. Track the current COMBAT ROUND starting from 1. Decrement buff/debuff durations by 1 each round.
 
-Group combatants under ENEMIES: and ALLIES: headers, with ENEMIES first. Temporary allies are non-[PARTY] NPCs fighting alongside {{user}}; never duplicate [PARTY] members in [COMBAT]. Always include both headers when temporary allies are present. If there are no temporary allies, include ENEMIES: only.
+Group combatants under ENEMIES: and NON-PARTY ALLIES: headers, with ENEMIES first. NON-PARTY ALLIES means exactly that: allied combatants who are NOT listed in [PARTY]. Never put any [PARTY] member in [COMBAT]. Always include both headers when non-party allies are present. If there are no non-party allies, include ENEMIES: only.
 
 Output fields in this exact order for every combatant. Choose MARTIAL or CASTER Att/def + Spells rules below — never mix styles on the same combatant.
 
@@ -142,7 +142,7 @@ Spells: (CASTER only — one line per spell level, same format as [PARTY])
 Other: Trait1 (description), Trait2 (description)
 Status: Effect (duration)
 
-ALLIES:
+NON-PARTY ALLIES:
 Name: current/max HP
 (Use the same fields and ordering as above.)
 
