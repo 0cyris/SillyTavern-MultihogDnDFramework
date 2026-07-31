@@ -223,6 +223,7 @@ export function handleRecolor(barId, currentBg, targetEl) {
     document.getElementById('rt-recolor-popup')?.remove();
 
     const s = getSettings();
+    const supportsChangeAnimation = !!targetEl?.matches?.('.rt-hp-bar-wrap, .rt-progress-bar-wrap, .rt-weight-bar-wrap, .rt-battery-wrap, .rt-barrel-color-control');
     const initialCfg = s.barColors?.[barId] ? JSON.parse(JSON.stringify(s.barColors[barId])) : null;
 
     let cfg = s.barColors?.[barId];
@@ -262,7 +263,7 @@ export function handleRecolor(barId, currentBg, targetEl) {
     const renderContent = () => {
         popup.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:12px;">
-                    <div style="font-size:0.85em; font-weight:bold; opacity:0.8; letter-spacing:0.05em; text-transform:uppercase;">Recolor Bar</div>
+                    <div style="font-size:0.85em; font-weight:bold; opacity:0.8; letter-spacing:0.05em; text-transform:uppercase;">Bar Settings</div>
                     
                     <div style="display:flex; background:rgba(0,0,0,0.3); border-radius:6px; padding:2px;">
                         <button class="mode-btn" data-mode="solid" style="flex:1; border:none; background:${cfg.mode === 'solid' ? 'rgba(255,255,255,0.15)' : 'transparent'}; color:white; font-size:0.75em; padding:4px; border-radius:4px; cursor:pointer;">Solid</button>
@@ -287,6 +288,11 @@ export function handleRecolor(barId, currentBg, targetEl) {
                         <span>Show as Percentage</span>
                     </label>
 
+                    ${supportsChangeAnimation ? `<label style="display:flex; align-items:center; gap:8px; font-size:0.8em; opacity:0.85; cursor:pointer; user-select:none; margin-top:-6px; margin-bottom:4px;">
+                        <input id="animate-bar-changes" type="checkbox" ${cfg.animateChanges ? 'checked' : ''} style="margin:0; cursor:pointer;" />
+                        <span>Animate Changes</span>
+                    </label>` : ''}
+
                     <div style="display:flex; gap:6px; margin-top:4px;">
                         <button id="recolor-ok" style="flex:1.5; padding:6px; border-radius:6px; border:none; background:var(--rt-accent-bg, #00ffaa); color:#000; font-weight:bold; cursor:pointer; font-size:0.85em;">OK</button>
                         <button id="recolor-cancel" style="flex:1; padding:6px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:white; cursor:pointer; font-size:0.85em;">Cancel</button>
@@ -307,10 +313,18 @@ export function handleRecolor(barId, currentBg, targetEl) {
         const c1 = popup.querySelector('#color1');
         const c2 = popup.querySelector('#color2');
         const pctCheckbox = popup.querySelector('#show-as-percentage');
+        const animationCheckbox = popup.querySelector('#animate-bar-changes');
 
         if (pctCheckbox) {
             pctCheckbox.addEventListener('change', (e) => {
                 cfg.showAsPercentage = /** @type {HTMLInputElement} */ (e.target).checked;
+                applyLive();
+            });
+        }
+
+        if (animationCheckbox) {
+            animationCheckbox.addEventListener('change', (e) => {
+                cfg.animateChanges = /** @type {HTMLInputElement} */ (e.target).checked;
                 applyLive();
             });
         }

@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.5.75] - 2026-07-31
+
+### Added
+- **Universal custom-bar trickle animations**: opted-in `((BAR))` and `((BARREL))` changes now transfer progressively, with timing scaled to the percentage of the bar changed. Equivalent proportional changes take the same amount of time regardless of the bar's numeric scale.
+- **Enabled by default**: universal custom-bar animations are now on by default, while remaining user-toggleable.
+
 ## [6.5.35] - 2026-07-30
 
 ### Fixed

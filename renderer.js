@@ -1,4 +1,4 @@
-import { getSettings, getBarBackground, getBarShowAsPercentage } from './state-manager.js';
+import { getSettings, getBarBackground, getBarShowAsPercentage, getBarAnimateChanges } from './state-manager.js';
 import { lookupCustomPortraitSrc } from './portrait-storage.js';
 import { escapeHtml, decodeHtml, highlightParens, highlightNumbers, parseInWorldTime, isRestTimeUnset, formatTimeDiff, isArchivedQuestStatus, questHasEffectiveDeadline, isEmergentQuest } from './memo-processor.js';
 import { BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, renderStartingGearTierOptions } from './constants.js';
@@ -21,6 +21,13 @@ function makeBarrelValueStyle(background) {
         return `background:${background};-webkit-background-clip:text;background-clip:text;color:transparent;`;
     }
     return `color:${background};`;
+}
+
+/** Machine-readable state used to animate a bar across full DOM refreshes. */
+function makeBarAnimationData(barId, current, max, kind = 'linear', animateOverride = null) {
+    if (!barId || !Number.isFinite(current) || !Number.isFinite(max) || max <= 0) return '';
+    const animate = animateOverride === null ? getBarAnimateChanges(barId) : !!animateOverride;
+    return ` data-rt-bar-id="${escapeHtml(barId)}" data-rt-bar-current="${current}" data-rt-bar-max="${max}" data-rt-bar-kind="${kind}" data-rt-bar-animate="${animate}"`;
 }
 
 /**
@@ -115,7 +122,7 @@ export function renderDayNightBadge(str) {
         'ac': 'text'
     };
 
-    export function renderSubFieldByRule(rule, line, barId = null) {
+    export function renderSubFieldByRule(rule, line, barId = null, options = {}) {
         const colonIdx = line.indexOf(':');
         // If there's no colon, the whole line is the value (no label)
         const hasLabel = colonIdx !== -1;
@@ -181,7 +188,7 @@ export function renderDayNightBadge(str) {
 
                         return `<div class="rt-entity-sub-line rt-barrel-row">
                             ${labelHtml}
-                            <div class="rt-barrel-track" aria-label="${escapeHtml(`${labelText || 'Value'} ${displayValue}`)}">
+                            <div class="rt-barrel-track"${makeBarAnimationData(barId, clamped, rangeMax, 'barrel', getBarAnimateChanges(positiveBarId) || getBarAnimateChanges(negativeBarId) || (options.customMarker && !!getSettings().animateAllCustomBarChanges))} aria-label="${escapeHtml(`${labelText || 'Value'} ${displayValue}`)}">
                                 <div class="rt-barrel-color-control rt-barrel-negative-control"${negativeRecolorData}></div>
                                 <div class="rt-barrel-color-control rt-barrel-positive-control"${positiveRecolorData}></div>
                                 <div class="rt-barrel-center-marker"></div>
@@ -217,7 +224,7 @@ export function renderDayNightBadge(str) {
 
                     return `<div class="rt-entity-sub-line" style="gap:6px;">
                         ${labelHtml}
-                        <div class="rt-hp-bar-wrap"${recolorData} style="flex:1; position:relative; height:14px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.1);">
+                        <div class="rt-hp-bar-wrap"${recolorData}${makeBarAnimationData(barId, cur, max, 'linear', getBarAnimateChanges(barId) || (options.customMarker && !!getSettings().animateAllCustomBarChanges))} style="flex:1; position:relative; height:14px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.1);">
                             <div class="rt-hp-bar" style="width:${pct.toFixed(1)}%; height:100%; border-radius:4px; background:${barBg}; transition:width 0.3s;"></div>
                         </div>
                         <span style="font-size:0.82em; opacity:0.85; white-space:nowrap;">${dispCur}/${dispMax}${extra ? ' ' + escapeHtml(extra) : ''}</span>
@@ -288,7 +295,7 @@ export function renderDayNightBadge(str) {
                     const recolorData = barId ? ` data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}" title="Click to recolor"` : '';
 
                     return `<div class="rt-entity-sub-line rt-progress-row">${labelHtml}
-                        <div class="rt-progress-bar-wrap"${recolorData}>
+                        <div class="rt-progress-bar-wrap"${recolorData}${makeBarAnimationData(barId, cur, max)}>
                             <div class="rt-progress-bar" style="width:${pct.toFixed(1)}%;background:${barBg};"></div>
                         </div>
                         <span class="rt-progress-label">${cur}/${max}${extra ? ' ' + escapeHtml(extra) : ''}</span>
@@ -342,7 +349,7 @@ export function renderDayNightBadge(str) {
 
                     return `<div class="rt-entity-sub-line rt-weight-row">${labelHtml}
                         <span class="rt-weight-icon">⚖️</span>
-                        <div class="rt-weight-bar-wrap"${recolorData}>
+                        <div class="rt-weight-bar-wrap"${recolorData}${makeBarAnimationData(barId, cur, max)}>
                             <div class="rt-weight-bar" style="width:${pct.toFixed(1)}%;background:${barBg};"></div>
                         </div>
                         <span class="rt-weight-label">${cur}/${max}${extra ? ' ' + escapeHtml(extra) : ''}</span>
@@ -469,7 +476,7 @@ export function renderDayNightBadge(str) {
                     if (barId) barBg = getBarBackground(barId, barBg, pct);
                     const recolorData = barId ? ` data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}" title="Click to recolor"` : '';
                     
-                    const chargeHtml = `<div class="rt-battery-wrap ${isLow && cur === 0 ? 'empty-flash' : ''}"${recolorData} style="border-color:${barBg};">
+                    const chargeHtml = `<div class="rt-battery-wrap ${isLow && cur === 0 ? 'empty-flash' : ''}"${recolorData}${makeBarAnimationData(barId, cur, max)} style="border-color:${barBg};">
                         <div class="rt-battery-fill" style="width:${pct}%;background:${barBg};"></div>
                         <div class="rt-battery-nub" style="background:${barBg};"></div>
                     </div>`;
@@ -842,7 +849,9 @@ export function renderDayNightBadge(str) {
             barId = `${tag}:${entityName}:${labelText}${ctxSuffix}`;
         }
 
-        return renderSubFieldByRule(rule, reconstructedContent, barId);
+        return renderSubFieldByRule(rule, reconstructedContent, barId, {
+            customMarker: rule.renderType === 'hp_bar' || rule.renderType === 'barrel',
+        });
     }
 
 
@@ -1495,13 +1504,13 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         if (inlineEntityName) {
                             results.push(`<div class="rt-entity-row" style="display:block; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:6px;">
                                 <div class="rt-entity-name" style="font-size:1.1em; margin-bottom:6px;">${escapeHtmlWithColor(currentEntity)}</div>
-                                <div class="rt-hp-bar-wrap" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}" style="position:relative; height:14px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.1); margin-bottom:4px; width:100%;">
+                                <div class="rt-hp-bar-wrap" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}"${hasMax ? makeBarAnimationData(barId, cur, max) : ''} style="position:relative; height:14px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.1); margin-bottom:4px; width:100%;">
                                     <div class="rt-hp-bar" style="width:${pct.toFixed(1)}%; height:100%; border-radius:4px; background:${barBg}; transition:width 0.3s;"></div>
                                 </div>
                                 <span class="rt-hp-label" style="display:block; font-size:0.82em; opacity:0.85; text-align:left; line-height:1.2;">${label}</span>
                             </div>`);
                         } else {
-                            results.push(`<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div><div class="rt-hp-bar-wrap" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}"><div class="rt-hp-bar" style="width:${pct.toFixed(1)}%;background:${barBg};"></div></div><span class="rt-hp-label">${label}</span></div>`);
+                            results.push(`<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div><div class="rt-hp-bar-wrap" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}"${hasMax ? makeBarAnimationData(barId, cur, max) : ''}><div class="rt-hp-bar" style="width:${pct.toFixed(1)}%;background:${barBg};"></div></div><span class="rt-hp-label">${label}</span></div>`);
                         }
 
                         if (status) {

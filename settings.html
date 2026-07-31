@@ -808,6 +808,11 @@
                             <span class="rt-tag-library-sparkle" aria-hidden="true">✦</span>
                         </button>
                     </div>
+                    <label class="checkbox_label" style="margin-top: 5px;" title="Animate gains and losses on every custom ((BAR)) and ((BARREL)) marker. Individual bar animation settings still work when this is off.">
+                        <input id="rpg_tracker_animate_all_custom_bars" type="checkbox" />
+                        <span>Animate all custom BAR and BARREL changes</span>
+                        <i class="fa-solid fa-circle-question interactable" title="Shows a green positive value or red negative value and highlights the changed segment for all custom ((BAR)) and ((BARREL)) markers. Does not change XP or native relationship animations."></i>
+                    </label>
                     <div class="flex-container gap-1" style="margin-top: 4px;">
                         <button id="rpg_tracker_export_all_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Export</button>
                         <button id="rpg_tracker_import_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Import</button>
@@ -876,89 +881,6 @@
                     </div>
 
 
-                </div>
-            </div>
-
-            <!-- SUB-DRAWER: ADVENTURE COMPANION -->
-            <div class="inline-drawer">
-                <div class="inline-drawer-toggle inline-drawer-header">
-                    <i class="fa-solid fa-compass" style="margin-right: 8px; opacity: 0.7;"></i>
-                    <b>Adventure Companion</b>
-                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-                </div>
-                <div class="inline-drawer-content">
-                    <div class="flex-container flexFlowColumn gap-1">
-                        <label class="checkbox_label" title="Attach the Multihog guide to every Adventure Companion request.">
-                            <input id="rpg_adventure_companion_tutorial_mode" type="checkbox" />
-                            <span>TUTORIAL MODE</span>
-                            <i class="fa-solid fa-circle-question interactable"
-                                title="Injects the Multihog documentation Markdown file into every Adventure Companion request. This is useful while learning the framework, but adds a few thousand input tokens."></i>
-                        </label>
-
-                        <div class="inline-drawer">
-                            <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Context Settings</b>
-                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
-                            </div>
-                            <div class="inline-drawer-content">
-                                <div class="flex-container flexFlowColumn gap-1">
-                                    <label>Story Lookback</label>
-                                    <input id="rpg_adventure_companion_lookback" type="text" inputmode="numeric" pattern="[0-9]*" min="0" max="100" class="text_pole" title="Number of recent SillyTavern chat messages to include as story context." />
-                                    <label class="checkbox_label" title="Include the entire SillyTavern chat history as story context.">
-                                        <input id="rpg_adventure_companion_lookback_all" type="checkbox" />
-                                        <span>All chat messages</span>
-                                    </label>
-                                    <label class="checkbox_label">
-                                        <input id="rpg_adventure_companion_inject_lore" type="checkbox" />
-                                        <span>Inject Lorebook Agent lore</span>
-                                    </label>
-                                    <label class="checkbox_label">
-                                        <input id="rpg_adventure_companion_inject_memo" type="checkbox" />
-                                        <span>Inject State Tracker</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="inline-drawer">
-                            <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Connection Settings</b>
-                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
-                            </div>
-                            <div class="inline-drawer-content">
-                                <div class="flex-container flexFlowColumn gap-1">
-                                    <label>Connection Source</label>
-                                    <select id="rpg_adventure_companion_connection_source" class="text_pole">
-                                        <option value="default">Main API</option>
-                                        <option value="profile">Profile</option>
-                                        <option value="ollama">Ollama</option>
-                                        <option value="openai">OpenAI</option>
-                                    </select>
-                                    <div id="rpg_adventure_companion_profile_group" style="display: none;">
-                                        <select id="rpg_adventure_companion_connection_profile" class="text_pole"></select>
-                                    </div>
-                                    <div id="rpg_adventure_companion_ollama_group" style="display: none;">
-                                        <input id="rpg_adventure_companion_ollama_url" type="text" class="text_pole" placeholder="URL" />
-                                        <div class="flex-container gap-1">
-                                            <select id="rpg_adventure_companion_ollama_model" class="text_pole" style="flex: 1;"></select>
-                                            <button id="rpg_adventure_companion_ollama_refresh" class="menu_button interactable" title="Refresh Ollama models"><i class="fa-solid fa-arrows-rotate"></i></button>
-                                        </div>
-                                    </div>
-                                    <div id="rpg_adventure_companion_openai_group" style="display: none;">
-                                        <input id="rpg_adventure_companion_openai_url" type="text" class="text_pole" placeholder="URL" />
-                                        <input id="rpg_adventure_companion_openai_key" type="password" class="text_pole" placeholder="Key" />
-                                        <div class="flex-container gap-1">
-                                            <select id="rpg_adventure_companion_openai_model" class="text_pole" style="flex: 1;"></select>
-                                            <button id="rpg_adventure_companion_openai_refresh" class="menu_button interactable" title="Refresh OpenAI-compatible models"><i class="fa-solid fa-arrows-rotate"></i></button>
-                                        </div>
-                                        <input id="rpg_adventure_companion_openai_model_manual" type="text" class="text_pole" placeholder="Manual Model Name" />
-                                    </div>
-                                    <label>Preset</label>
-                                    <select id="rpg_adventure_companion_completion_preset" class="text_pole"></select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -1693,6 +1615,89 @@
                     </div><!-- /.flex-container -->
                 </div><!-- /.inline-drawer-content -->
             </div><!-- /.inline-drawer (World Progression) -->
+
+            <!-- SUB-DRAWER: ADVENTURE COMPANION -->
+            <div class="inline-drawer">
+                <div class="inline-drawer-toggle inline-drawer-header">
+                    <i class="fa-solid fa-compass" style="margin-right: 8px; opacity: 0.7;"></i>
+                    <b>Adventure Companion</b>
+                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                </div>
+                <div class="inline-drawer-content">
+                    <div class="flex-container flexFlowColumn gap-1">
+                        <label class="checkbox_label" title="Attach the Multihog guide to every Adventure Companion request.">
+                            <input id="rpg_adventure_companion_tutorial_mode" type="checkbox" />
+                            <span>TUTORIAL MODE</span>
+                            <i class="fa-solid fa-circle-question interactable"
+                                title="Injects the Multihog documentation Markdown file into every Adventure Companion request. This is useful while learning the framework, but adds a few thousand input tokens."></i>
+                        </label>
+
+                        <div class="inline-drawer">
+                            <div class="inline-drawer-toggle inline-drawer-header">
+                                <b>Context Settings</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <label>Story Lookback</label>
+                                    <input id="rpg_adventure_companion_lookback" type="text" inputmode="numeric" pattern="[0-9]*" min="0" max="100" class="text_pole" title="Number of recent SillyTavern chat messages to include as story context." />
+                                    <label class="checkbox_label" title="Include the entire SillyTavern chat history as story context.">
+                                        <input id="rpg_adventure_companion_lookback_all" type="checkbox" />
+                                        <span>All chat messages</span>
+                                    </label>
+                                    <label class="checkbox_label">
+                                        <input id="rpg_adventure_companion_inject_lore" type="checkbox" />
+                                        <span>Inject Lorebook Agent lore</span>
+                                    </label>
+                                    <label class="checkbox_label">
+                                        <input id="rpg_adventure_companion_inject_memo" type="checkbox" />
+                                        <span>Inject State Tracker</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="inline-drawer">
+                            <div class="inline-drawer-toggle inline-drawer-header">
+                                <b>Connection Settings</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <label>Connection Source</label>
+                                    <select id="rpg_adventure_companion_connection_source" class="text_pole">
+                                        <option value="default">Main API</option>
+                                        <option value="profile">Profile</option>
+                                        <option value="ollama">Ollama</option>
+                                        <option value="openai">OpenAI</option>
+                                    </select>
+                                    <div id="rpg_adventure_companion_profile_group" style="display: none;">
+                                        <select id="rpg_adventure_companion_connection_profile" class="text_pole"></select>
+                                    </div>
+                                    <div id="rpg_adventure_companion_ollama_group" style="display: none;">
+                                        <input id="rpg_adventure_companion_ollama_url" type="text" class="text_pole" placeholder="URL" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rpg_adventure_companion_ollama_model" class="text_pole" style="flex: 1;"></select>
+                                            <button id="rpg_adventure_companion_ollama_refresh" class="menu_button interactable" title="Refresh Ollama models"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                    </div>
+                                    <div id="rpg_adventure_companion_openai_group" style="display: none;">
+                                        <input id="rpg_adventure_companion_openai_url" type="text" class="text_pole" placeholder="URL" />
+                                        <input id="rpg_adventure_companion_openai_key" type="password" class="text_pole" placeholder="Key" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rpg_adventure_companion_openai_model" class="text_pole" style="flex: 1;"></select>
+                                            <button id="rpg_adventure_companion_openai_refresh" class="menu_button interactable" title="Refresh OpenAI-compatible models"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                        <input id="rpg_adventure_companion_openai_model_manual" type="text" class="text_pole" placeholder="Manual Model Name" />
+                                    </div>
+                                    <label>Preset</label>
+                                    <select id="rpg_adventure_companion_completion_preset" class="text_pole"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             
 

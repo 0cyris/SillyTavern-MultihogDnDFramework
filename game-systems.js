@@ -14,7 +14,7 @@
 
 import { getSettings, getNpcRelationshipMax, buildRelationshipTrackingSysprompt, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries, getChatSetupItemScope, setChatSetupItemScope, setChatSetupItemEnabled } from './state-manager.js';
 import { sendStateRequest, restoreUserMacro } from './llm-client.js';
-import { escapeHtml } from './memo-processor.js';
+import { escapeHtml, memoForGmContext } from './memo-processor.js';
 import { refreshOrderList } from './ui-editors.js';
 import { QUESTS_NARRATOR, DEFAULT_STOCK_PROMPTS, resolveTimePromptKey, buildCyoaPrompt } from './constants.js';
 import { getSortableDelay } from '../../../utils.js';
@@ -30,6 +30,11 @@ import {
 import { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 import { normalizeGmContent, unwrapManagedSectionContent } from './src/state/sysprompt-content.js';
 import { buildNarrativePacingSection } from './src/state/narrative-pacing.js';
+import {
+    buildGameSystemWizardLoreContext,
+    buildGameSystemWizardStoryContext,
+    normalizeGameSystemWizardContextPrefs,
+} from './src/features/game-system-wizard-context.js';
 
 export { isBaseSectionEnabled, isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 
@@ -208,6 +213,26 @@ async function sendWizardStateRequest(settings, systemPrompt, userPrompt, signal
         { preserveUserMacro: true, userMacroNames: names },
     );
     return { raw, names };
+}
+
+/** Adds the Wizard's selected chat, Lorebook Agent, and State Tracker context. */
+async function buildWizardMechanicUserPrompt(settings, taskText) {
+    const ctx = SillyTavern.getContext();
+    const parts = [buildExistingTagsContext(settings)];
+    const story = buildGameSystemWizardStoryContext(ctx?.chat, settings);
+    if (story) {
+        parts.push(`RECENT STORY CONTEXT (use only when relevant to the requested mechanic):\n<story_context>\n${story}\n</story_context>`);
+    }
+    const lore = await buildGameSystemWizardLoreContext(settings, ctx);
+    if (lore) {
+        parts.push(`ACTIVE LOREBOOK AGENT CONTEXT:\n<active_lore>\n${lore}\n</active_lore>`);
+    }
+    if (settings.gameSystemWizardInjectMemo && settings.currentMemo) {
+        const memo = memoForGmContext(settings.currentMemo).trim();
+        if (memo) parts.push(`CURRENT STATE TRACKER MEMO:\n<state_memo>\n${memo}\n</state_memo>`);
+    }
+    parts.push(taskText);
+    return parts.join('\n\n');
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1258,7 +1283,7 @@ export function parseWizardResponse(raw, macroNames = []) {
 /** One combined AI call that drafts both halves of a new game system. */
 async function generateGameSystemDraft(settings, description, systemPrompt, effectOwner = 'tracker') {
     const sp = composeWizardArchitectPrompt(systemPrompt || getEffectiveWizardSystemPrompt(settings), effectOwner);
-    const userPrompt = `${buildExistingTagsContext(settings)}\n\nDescribe the mechanic:\n${description}`;
+    const userPrompt = await buildWizardMechanicUserPrompt(settings, `Describe the mechanic:\n${description}`);
     const { raw, names } = await sendWizardStateRequest(settings, sp, userPrompt);
     if (!raw) throw new Error('No response from AI');
     return parseWizardResponse(raw, names);
@@ -1311,7 +1336,7 @@ function buildDriverGuidance(drivers, gmTag, trackerTag, effectOwner = 'tracker'
 async function regenerateGmSection(settings, description, gmTag, drivers, trackerTag = '', effectOwner = 'tracker', systemPrompt) {
     const base = composeWizardArchitectPrompt(systemPrompt || getEffectiveWizardSystemPrompt(settings), effectOwner);
     const systemPromptFull = `${base}\n\n---\n\nCURRENT TASK: Rewrite ONLY the GM-facing section for the mechanic described below. Return ONLY:\n<gm_section tag="${gmTag}">\n...instructions...\n</gm_section>\nNo explanation, no markdown fences, no other text. Reference {{user}} for the player. Be comprehensive but concise (10-30 lines).\n\nCRITICAL: Inner content must be SECOND PERSON (you/your) — direct instructions to the Narrator. Never write "The GM must" or any third-person reference to the narrator.\n\nCRITICAL: gm_section must NEVER track totals, restate current scores, or duplicate tracker accounting.\n\n${buildDriverGuidance(drivers, gmTag, trackerTag, effectOwner)}`;
-    const userPrompt = `${buildExistingTagsContext(settings)}\n\nMechanic description:\n${description}`;
+    const userPrompt = await buildWizardMechanicUserPrompt(settings, `Mechanic description:\n${description}`);
     const { raw, names } = await sendWizardStateRequest(settings, systemPromptFull, userPrompt);
     if (!raw) throw new Error('No response from AI');
     const block = extractTagBlock(raw, 'gm_section');
@@ -1324,7 +1349,7 @@ async function regenerateTrackerModule(settings, description, trackerTag, driver
     const renderingHints = RENDERING_TAGS_LIBRARY.join('\n  - ');
     const base = composeWizardArchitectPrompt(systemPrompt || getEffectiveWizardSystemPrompt(settings), effectOwner);
     const systemPromptFull = `${base}\n\n---\n\nCURRENT TASK: Rewrite ONLY the tracker module instructions for the mechanic described below. Return ONLY:\n<tracker_module tag="${trackerTag}" label="Display Label" icon="emoji">\n...instructions, including a sample [${trackerTag}] ... [/${trackerTag}] format block using rendering markers like:\n  - ${renderingHints}\n</tracker_module>\nNo explanation, no markdown fences, no other text.\n\nCRITICAL: Inner content must be SECOND PERSON (you/your) — direct instructions to the State Tracker. Never write "The tracker maintains…", "The State Tracker must…", or any third-person reference to the tracker as an external entity.\n\nCRITICAL: This module EXCLUSIVELY owns running totals, bars, threshold tables, and tier labels — the gm_section must never duplicate this. When scanning for inline annotations, say "narrative output" / "the latest narrative output" — NEVER "GM's output" or "GM's narration".\n\n${buildDriverGuidance(drivers, '', trackerTag, effectOwner)}`;
-    const userPrompt = `${buildExistingTagsContext(settings)}\n\nMechanic description:\n${description}`;
+    const userPrompt = await buildWizardMechanicUserPrompt(settings, `Mechanic description:\n${description}`);
     const { raw, names } = await sendWizardStateRequest(settings, systemPromptFull, userPrompt);
     if (!raw) throw new Error('No response from AI');
     const block = extractTagBlock(raw, 'tracker_module');
@@ -1344,7 +1369,7 @@ async function regenerateBothHalves(settings, description, gmTag, trackerTag, dr
     const renderingHints = RENDERING_TAGS_LIBRARY.join('\n  - ');
     const base = composeWizardArchitectPrompt(systemPrompt || getEffectiveWizardSystemPrompt(settings), effectOwner);
     const systemPromptFull = `${base}\n\n---\n\nCURRENT TASK: Rewrite BOTH halves of the mechanic described below so they are fully coherent with each other. Return ONLY:\n<gm_section tag="${gmTag}">\n...instructions...\n</gm_section>\n<tracker_module tag="${trackerTag}" label="Display Label" icon="emoji">\n...instructions, including a sample [${trackerTag}] ... [/${trackerTag}] format block using rendering markers like:\n  - ${renderingHints}\n</tracker_module>\nNo explanation, no markdown fences, no other text. Reference {{user}} for the player. Be comprehensive but concise (10-30 lines each).\n\nCRITICAL: gm_section inner content must be SECOND PERSON (you/your) — never "The GM must". CRITICAL: tracker_module inner content must ALSO be SECOND PERSON (you/your) addressing the State Tracker directly — never "The tracker maintains…". CRITICAL: gm_section must NEVER track totals, restate current scores, or duplicate tracker accounting — the tracker_module EXCLUSIVELY owns totals, bars, thresholds, and tier labels.\n\n${buildDriverGuidance(drivers, gmTag, trackerTag, effectOwner)}\n\nSince both halves are generated together: magnitude/recovery guidance for restorative actions belongs ONLY in gm_section (rough common-sense guide). Tracker recovery must be "apply stated change, else common sense" — NEVER a duplicated Minor/Moderate/Major table. If effect_owner="gm", threshold numbers live in gm_section; the tracker still reports values/labels without restating mechanical effect prose.`;
-    const userPrompt = `${buildExistingTagsContext(settings)}\n\nMechanic description:\n${description}`;
+    const userPrompt = await buildWizardMechanicUserPrompt(settings, `Mechanic description:\n${description}`);
     const { raw, names } = await sendWizardStateRequest(settings, systemPromptFull, userPrompt);
     if (!raw) throw new Error('No response from AI');
     const gm = extractTagBlock(raw, 'gm_section');
@@ -1392,16 +1417,14 @@ async function iterateGameSystemDraft(settings, {
         currentDraft += `\n<tracker_module tag="${tag}" label="${trackerLabel || tag}">\n${trackerContent}\n</tracker_module>`;
     }
 
-    const userPrompt = `${buildExistingTagsContext(settings)}
-
-Original mechanic description:
+    const userPrompt = await buildWizardMechanicUserPrompt(settings, `Original mechanic description:
 ${description || '(not provided)'}
 
 CURRENT DRAFT (revise this — do not discard and restart unless the feedback requires it):
 ${currentDraft}
 
 User's iteration feedback (apply these changes):
-${iterationFeedback}`;
+${iterationFeedback}`);
 
     const { raw, names } = await sendWizardStateRequest(settings, systemPromptFull, userPrompt);
     if (!raw) throw new Error('No response from AI');
@@ -1477,6 +1500,7 @@ async function promptGameSystemIterationFeedback() {
 async function showGameSystemPreview(parsed, { description = '', isEdit = false, allowBack = false } = {}) {
     const { Popup } = SillyTavern.getContext();
     const settings = getSettings();
+    const previewContextPrefs = normalizeGameSystemWizardContextPrefs(settings);
 
     let state = {
         name: parsed.name,
@@ -1551,6 +1575,25 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
                 </button>
             </div>
 
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 10px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:rgba(0,0,0,0.12);">
+                <span style="font-size:11px; font-weight:bold; opacity:0.85;">AI context for Regenerate / Iterate</span>
+                <span style="font-size:10px; opacity:0.6;">Last</span>
+                <input id="rt_gs_preview_lookback" type="number" min="0" max="200" step="1" value="${previewContextPrefs.lookback}" class="text_pole" style="width:72px; font-size:11px;">
+                <span style="font-size:10px; opacity:0.6;">chat messages</span>
+                <label style="display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;">
+                    <input id="rt_gs_preview_lookback_all" type="checkbox" ${previewContextPrefs.lookbackAll ? 'checked' : ''}>
+                    <span>Entire chat</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;">
+                    <input id="rt_gs_preview_inject_lore" type="checkbox" ${previewContextPrefs.injectLore ? 'checked' : ''}>
+                    <span>Lorebook Agent lore</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;">
+                    <input id="rt_gs_preview_inject_memo" type="checkbox" ${previewContextPrefs.injectMemo ? 'checked' : ''}>
+                    <span>State Tracker memo</span>
+                </label>
+            </div>
+
             ${buildWizardPromptEditorHtml('rt-gs-wizard-system-prompt', getEffectiveWizardSystemPrompt(settings))}
 
             <div style="border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:10px; background:rgba(0,0,0,0.15);">
@@ -1593,6 +1636,34 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
         const $id = (id) => document.getElementById(id);
         bindWizardPromptEditor(settings, 'rt-gs-wizard-system-prompt');
         const getWizardSystemPrompt = () => readWizardSystemPromptFromUi(settings, 'rt-gs-wizard-system-prompt');
+        const previewLookback = $id('rt_gs_preview_lookback');
+        const previewLookbackAll = $id('rt_gs_preview_lookback_all');
+        const previewLore = $id('rt_gs_preview_inject_lore');
+        const previewMemo = $id('rt_gs_preview_inject_memo');
+        const syncPreviewContextPrefs = () => {
+            const prefs = normalizeGameSystemWizardContextPrefs({
+                gameSystemWizardLookback: previewLookback?.value,
+                gameSystemWizardLookbackAll: !!previewLookbackAll?.checked,
+                gameSystemWizardInjectLore: !!previewLore?.checked,
+                gameSystemWizardInjectMemo: !!previewMemo?.checked,
+            });
+            settings.gameSystemWizardLookback = prefs.lookback;
+            settings.gameSystemWizardLookbackAll = prefs.lookbackAll;
+            settings.gameSystemWizardInjectLore = prefs.injectLore;
+            settings.gameSystemWizardInjectMemo = prefs.injectMemo;
+            if (previewLookback) {
+                previewLookback.value = String(prefs.lookback);
+                previewLookback.disabled = prefs.lookbackAll;
+            }
+            saveSettings();
+        };
+        previewLookback?.addEventListener('input', syncPreviewContextPrefs);
+        previewLookback?.addEventListener('change', syncPreviewContextPrefs);
+        previewLookback?.addEventListener('blur', syncPreviewContextPrefs);
+        previewLookbackAll?.addEventListener('change', syncPreviewContextPrefs);
+        previewLore?.addEventListener('change', syncPreviewContextPrefs);
+        previewMemo?.addEventListener('change', syncPreviewContextPrefs);
+        if (previewLookback) previewLookback.disabled = previewContextPrefs.lookbackAll;
         $id('rt-gs-icon')?.addEventListener('input', e => { state.icon = e.target.value; });
         $id('rt-gs-name')?.addEventListener('input', e => { state.name = e.target.value; });
         $id('rt-gs-gmtag')?.addEventListener('input', e => { state.gmTag = e.target.value; const lbl = $id('rt-gs-gmtag-label'); if (lbl) lbl.textContent = e.target.value; });
@@ -2004,6 +2075,7 @@ async function promptGameSystemWizardDescription(initialDescription = '') {
     const settings = getSettings();
     let description = initialDescription;
     let systemPrompt = getEffectiveWizardSystemPrompt(settings);
+    let contextPrefs = normalizeGameSystemWizardContextPrefs(settings);
 
     const inputHtml = `
         <div style="display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box; text-align:left;">
@@ -2014,6 +2086,26 @@ async function promptGameSystemWizardDescription(initialDescription = '') {
             <textarea id="rt_gs_wizard_desc" rows="4" class="text_pole"
                 style="font-size:12px; resize:vertical; width:100%;"
                 placeholder="Example: Irradiated zones where the player accumulates RADS the longer they stay, with escalating debuffs at higher exposure.">${escapeHtml(initialDescription)}</textarea>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 10px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:rgba(0,0,0,0.12);">
+                <span style="font-size:11px; font-weight:bold; opacity:0.85;">Context</span>
+                <span style="font-size:10px; opacity:0.6;">Last</span>
+                <input id="rt_gs_wizard_lookback" type="number" min="0" max="200" step="1" value="${contextPrefs.lookback}" class="text_pole"
+                    style="width:72px; font-size:11px;" aria-label="Game System Wizard story lookback message count">
+                <span style="font-size:10px; opacity:0.6;">chat messages</span>
+                <label style="display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;">
+                    <input id="rt_gs_wizard_lookback_all" type="checkbox" ${contextPrefs.lookbackAll ? 'checked' : ''}>
+                    <span>Entire chat</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;">
+                    <input id="rt_gs_wizard_inject_lore" type="checkbox" ${contextPrefs.injectLore ? 'checked' : ''}>
+                    <span>Lorebook Agent lore</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;">
+                    <input id="rt_gs_wizard_inject_memo" type="checkbox" ${contextPrefs.injectMemo ? 'checked' : ''}>
+                    <span>State Tracker memo</span>
+                </label>
+                <span style="font-size:10px; opacity:0.5; flex-basis:100%;">Use these when asking the Wizard to invent a system from the current campaign. Set lookback to 0 for no chat history.</span>
+            </div>
             ${buildWizardExampleChipsHtml()}
             ${buildWizardPromptEditorHtml('rt_gs_wizard_system_prompt', getEffectiveWizardSystemPrompt(settings))}
         </div>
@@ -2023,6 +2115,10 @@ async function promptGameSystemWizardDescription(initialDescription = '') {
         bindWizardPromptEditor(settings, 'rt_gs_wizard_system_prompt');
         const ta = document.getElementById('rt_gs_wizard_desc');
         const promptTa = document.getElementById('rt_gs_wizard_system_prompt');
+        const lookbackInput = document.getElementById('rt_gs_wizard_lookback');
+        const lookbackAllInput = document.getElementById('rt_gs_wizard_lookback_all');
+        const loreInput = document.getElementById('rt_gs_wizard_inject_lore');
+        const memoInput = document.getElementById('rt_gs_wizard_inject_memo');
         bindWizardExampleChips(ta);
         if (ta) {
             if (!description) description = ta.value.trim();
@@ -2034,10 +2130,34 @@ async function promptGameSystemWizardDescription(initialDescription = '') {
         syncPrompt();
         promptTa?.addEventListener('input', syncPrompt);
         promptTa?.addEventListener('change', syncPrompt);
+        const syncContextPrefs = () => {
+            contextPrefs = normalizeGameSystemWizardContextPrefs({
+                gameSystemWizardLookback: lookbackInput?.value,
+                gameSystemWizardLookbackAll: !!lookbackAllInput?.checked,
+                gameSystemWizardInjectLore: !!loreInput?.checked,
+                gameSystemWizardInjectMemo: !!memoInput?.checked,
+            });
+            if (lookbackInput) {
+                lookbackInput.value = String(contextPrefs.lookback);
+                lookbackInput.disabled = contextPrefs.lookbackAll;
+            }
+        };
+        lookbackInput?.addEventListener('input', syncContextPrefs);
+        lookbackInput?.addEventListener('change', syncContextPrefs);
+        lookbackInput?.addEventListener('blur', syncContextPrefs);
+        lookbackAllInput?.addEventListener('change', syncContextPrefs);
+        loreInput?.addEventListener('change', syncContextPrefs);
+        memoInput?.addEventListener('change', syncContextPrefs);
+        syncContextPrefs();
     }, 100);
 
     const inputResult = await Popup.show.confirm('🧙 Game System Wizard', inputHtml, { okButton: 'Generate', cancelButton: 'Cancel', ...GS_POPUP_LARGE });
     if (!inputResult) return null;
+    settings.gameSystemWizardLookback = contextPrefs.lookback;
+    settings.gameSystemWizardLookbackAll = contextPrefs.lookbackAll;
+    settings.gameSystemWizardInjectLore = contextPrefs.injectLore;
+    settings.gameSystemWizardInjectMemo = contextPrefs.injectMemo;
+    saveSettings();
     const promptTa = document.getElementById('rt_gs_wizard_system_prompt');
     if (promptTa) {
         persistWizardSystemPrompt(settings, promptTa.value);

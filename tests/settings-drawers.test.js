@@ -15,9 +15,9 @@ describe('General & Visuals settings', () => {
             '<b>General & Visuals</b>',
             '<b>Game Systems & Customization</b>',
             '<b>State Tracker & Modules</b>',
-            '<b>Adventure Companion</b>',
             '<b>Lorebook Agent</b>',
             '<b>World Progression</b>',
+            '<b>Adventure Companion</b>',
         ];
         const expectedDepth = divDepthAt(primaryHeaders[0]);
 
@@ -44,8 +44,7 @@ describe('General & Visuals settings', () => {
 
     it('mirrors every Adventure Companion option and gives it a dedicated connection', () => {
         const companionStart = settingsMarkup.indexOf('<b>Adventure Companion</b>');
-        const lorebookStart = settingsMarkup.indexOf('<b>Lorebook Agent</b>', companionStart);
-        const companionMarkup = settingsMarkup.slice(companionStart, lorebookStart);
+        const companionMarkup = settingsMarkup.slice(companionStart);
 
         [
             'rpg_adventure_companion_tutorial_mode',
@@ -63,5 +62,25 @@ describe('General & Visuals settings', () => {
             'rpg_adventure_companion_openai_model_manual',
             'rpg_adventure_companion_completion_preset',
         ].forEach((id) => expect(companionMarkup).toContain(`id="${id}"`));
+    });
+
+    it('places Adventure Companion directly below World Progression', () => {
+        const worldStart = settingsMarkup.indexOf('<b>World Progression</b>');
+        const companionStart = settingsMarkup.indexOf('<b>Adventure Companion</b>');
+
+        expect(worldStart).toBeGreaterThanOrEqual(0);
+        expect(companionStart).toBeGreaterThan(worldStart);
+        expect(settingsMarkup.indexOf('<b>Lorebook Agent</b>')).toBeLessThan(worldStart);
+    });
+
+    it('places the global custom-bar animation toggle beside the Rendering Tags Library', () => {
+        const library = settingsMarkup.indexOf('id="rt_btn_tag_library"');
+        const animation = settingsMarkup.indexOf('id="rpg_tracker_animate_all_custom_bars"');
+        const moduleExport = settingsMarkup.indexOf('id="rpg_tracker_export_all_modules"');
+
+        expect(library).toBeGreaterThanOrEqual(0);
+        expect(animation).toBeGreaterThan(library);
+        expect(animation).toBeLessThan(moduleExport);
+        expect(settingsMarkup).not.toContain('âˆ’value');
     });
 });

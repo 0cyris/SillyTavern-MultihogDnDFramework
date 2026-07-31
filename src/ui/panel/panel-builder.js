@@ -11,6 +11,11 @@ export function resolveModeAfterAgentAttach(chatOpen, storedMode) {
     return chatOpen ? 'tracker' : (storedMode === 'agent' ? 'agent' : 'tracker');
 }
 
+/** The integrated panel always starts on State Tracker after a UI rebuild/reload. */
+export function resolveInitialPanelContentMode(_storedMode) {
+    return 'tracker';
+}
+
 /** Builds and wires the tracker panel. Dependencies stay explicit to avoid entry-module cycles. */
 export function createPanel(dependencies) {
     const {
@@ -103,6 +108,7 @@ export function createPanel(dependencies) {
         syncMemoView,
         syncRouterPrefixDisplays,
         toggleDebugViewer,
+        triggerBackgroundPortraitGeneration,
         updateAgentStatusIndicator,
         updateChatLinkUI,
         updateLorebookEntry,
@@ -116,7 +122,8 @@ export function createPanel(dependencies) {
     document.querySelector('body > #rpg-tracker-agent')?.remove();
 
     const agentDetachedOnLoad = localStorage.getItem('rpg_tracker_agent_detached') === 'true';
-    const agentModeOnLoad = settings.trackerContentMode === 'agent';
+    const initialContentMode = resolveInitialPanelContentMode(settings.trackerContentMode);
+    const agentModeOnLoad = initialContentMode === 'agent';
     const mainPanelCollapsedOnLoad = (agentModeOnLoad && !agentDetachedOnLoad)
         ? !!settings.agentCollapsed
         : !!settings.trackerCollapsed;
@@ -3085,6 +3092,12 @@ export function createPanel(dependencies) {
                 }
             }
 
+            // Manual "Add NPC to Story" writes do not produce a Lorebook Agent
+            // finish event, so enqueue this newly saved entry directly.
+            if (s.enablePortraits !== false && s.npcPortraits !== false && s.portraitAutoGenerateNpcs) {
+                triggerBackgroundPortraitGeneration(name, refreshAll, content);
+            }
+
             return true;
         };
 
@@ -5046,7 +5059,10 @@ Rules:
         });
     }
 
-    applyPanelContentMode(settings.trackerContentMode || 'tracker', { skipPersist: true });
+    // Opening/rebuilding the UI deliberately starts on State Tracker. Persist
+    // that opening mode so a previously selected Lorebook Agent tab cannot
+    // override the static tracker-selected markup on a later settings read.
+    applyPanelContentMode(initialContentMode);
 
     applyViewState();
 

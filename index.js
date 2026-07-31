@@ -12,7 +12,7 @@ import { initializeDebugViewer, toggleDebugViewer } from './debug-viewer.js';
 import { installSwipeSchedulerDebug } from './swipe-scheduler-debug.js';
 import { runRouterPass, rollbackRouterPass, reapplyRouterPass, getLorebookManifest, deleteLorebookEntry, updateLorebookEntry, disableManagedEntries, isRouterRunning, stopRouterPass, purgeWorldHistoryForChat } from './router.js';
 import { getRequestHeaders } from '../../../../script.js';
-import { fileToDataUrl, scaleImageTo512Square, scaleImageToLandscape, applyPortraitData, applyLocationImageData, renamePortraitEntity, reconcileMemoPortraitRenames, generatePortraitPrompt, generateNpcPortraitPrompt, generateLocationImagePrompt, showPortraitPromptPopup, generatePortraitDirect, autoGeneratePartyPortraits, removeAllPortraits, checkAndTriggerAutoGenerations, autoGenerateEnemyPortraits, forceCheckAutoGenerations, resetAutoGenerationTracking, resetRealtimeLocationGenerationFailure, stopRealtimeLocationGeneration, resolveLocationImageWithMeta, normalizeLocationPath, buildLocationPath, getLinkedPlayerCharacter, resolvePortraitSrcForPlayerCharacter, imageGenToast } from './portraits.js';
+import { fileToDataUrl, scaleImageTo512Square, scaleImageToLandscape, applyPortraitData, applyLocationImageData, renamePortraitEntity, reconcileMemoPortraitRenames, generatePortraitPrompt, generateNpcPortraitPrompt, generateLocationImagePrompt, showPortraitPromptPopup, generatePortraitDirect, autoGeneratePartyPortraits, removeAllPortraits, checkAndTriggerAutoGenerations, autoGenerateEnemyPortraits, forceCheckAutoGenerations, resetAutoGenerationTracking, resetRealtimeLocationGenerationFailure, stopRealtimeLocationGeneration, resolveLocationImageWithMeta, normalizeLocationPath, buildLocationPath, getLinkedPlayerCharacter, resolvePortraitSrcForPlayerCharacter, imageGenToast, triggerBackgroundPortraitGeneration } from './portraits.js';
 import { buildImmersionSceneState, renderImmersionViewHtml, getCurrentLocationText, loadLocationEntryByPath, loadNpcEntryByKey, maybeAutoGenerateImmersionSceneArt, runRealtimeSceneArtCheck, resetImmersionSceneArtTracking, hydrateImmersionSceneArtPath } from './immersion.js';
 import { migrateAllEmbeddedPortraits, countEmbeddedPortraitDataUrls, purgeAllPortraitData, resolvePortraitDisplaySrc, lookupCustomPortraitSrc, collectAllPortraitRefs, isManagedPortraitPath, isPortraitMigrationLocked, setPortraitMigrationLocked, PORTRAIT_STORAGE_FOLDER } from './portrait-storage.js';
 import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, makeResizableBR, makeResizableBL, setupResizeObserver, setupDeltaResize, canResizePanels, jqueryToggleSlide, resolveViewportClampedGeometry, clampFloatingPanelToViewport } from './ui-geometry.js';
@@ -33,9 +33,11 @@ import { createPanel as buildPanel } from './src/ui/panel/panel-builder.js';
 import { createChatStateLoader } from './src/features/chat/chat-state-loader.js';
 import { restoreEscapedCyoaChoiceMarkup } from './src/ui/panel/cyoa-markup.js';
 import { captureXpGainAnimationState, playXpGainAnimation } from './src/ui/panel/xp-gain-animation.js';
+import { captureBarChangeAnimationState, playBarChangeAnimations } from './src/ui/panel/bar-change-animation.js';
 import { buildCombatDisplayMemo } from './src/state/combat-persistence.js';
 import { isRealtimeVisualizationDisabled } from './src/state/realtime-visualization-guard.js';
 import { normalizeActivePersonaIdentity } from './src/state/player-identity.js';
+import { replacePromptArray, stripSupersededChoicesFromChatPrompt, stripSupersededChoicesFromTextPromptMessages } from './src/features/cyoa-prompt-history.js';
 
 export { RENDERING_TAGS_LIBRARY };
 export { bindRenderedCardEvents };
@@ -3669,6 +3671,7 @@ export function refreshRenderedView() {
     const el = document.getElementById('rpg-tracker-render');
     if (el) {
         const capturedXp = captureXpGainAnimationState(el, xpAnimationContext);
+        const capturedBars = captureBarChangeAnimationState(el, xpAnimationContext);
         const questsEnabled = s.syspromptModules?.quests !== false && !!(memo && memo.trim());
         let html;
 
@@ -3685,6 +3688,7 @@ export function refreshRenderedView() {
 
         el.innerHTML = html;
         playXpGainAnimation(el, capturedXp, xpAnimationContext);
+        playBarChangeAnimations(el, capturedBars, xpAnimationContext);
         bindRenderedCardEvents(el, memo, false);
 
         // Restore Character Creator panel if it was open before the DOM swap (onboarding screen only)
@@ -3728,12 +3732,14 @@ export function refreshRenderedView() {
             const body = panel.querySelector('.rpg-tracker-detached-body');
             if (body) {
                 const capturedXp = captureXpGainAnimationState(body, xpAnimationContext);
+                const capturedBars = captureBarChangeAnimationState(body, xpAnimationContext);
                 if (tag === 'QUESTS') {
                     body.innerHTML = renderQuestLog(getDisplayQuests(memo), currentTime, collapsed, detached, 'QUESTS');
                 } else {
                     body.innerHTML = renderMemoAsCards(displayMemo, tag, _sectionPages);
                 }
                 playXpGainAnimation(body, capturedXp, xpAnimationContext);
+                playBarChangeAnimations(body, capturedBars, xpAnimationContext);
                 bindRenderedCardEvents(body, memo, true);
             }
         } else {
@@ -3849,6 +3855,7 @@ function createPanel() {
         syncMemoView,
         syncRouterPrefixDisplays,
         toggleDebugViewer,
+        triggerBackgroundPortraitGeneration,
         updateAgentStatusIndicator,
         updateChatLinkUI,
         updateLorebookEntry,
@@ -4909,6 +4916,7 @@ async function runPortraitMigrationIfNeeded() {
                         $('#rpg_tracker_npc_portraits').prop('checked', sTempTracker.npcPortraits !== false);
                         syncNpcPortraitDependentUi(sTempTracker);
                         $('#rpg_tracker_npc_rel_bars').prop('checked', !!sTempTracker.npcRelationshipBars);
+                        $('#rpg_tracker_animate_all_custom_bars').prop('checked', !!sTempTracker.animateAllCustomBarChanges);
                         $('#rpg_sysprompt_mod_npc_rel_bars').prop('checked', !!sTempTracker.npcRelationshipBars);
                         $('#rpg_tracker_npc_card_import').prop('checked', !!sTempTracker.experimentalNpcImport);
                         $('#rpg_tracker_ignore_npc_limits').prop('checked', !!sTempTracker.ignoreNpcImportLimits);
@@ -5181,6 +5189,7 @@ async function runPortraitMigrationIfNeeded() {
                                     $('#rpg_tracker_npc_portraits').prop('checked', sTempTracker.npcPortraits !== false);
                                     syncNpcPortraitDependentUi(sTempTracker);
                                     $('#rpg_tracker_npc_rel_bars').prop('checked', !!sTempTracker.npcRelationshipBars);
+                                    $('#rpg_tracker_animate_all_custom_bars').prop('checked', !!sTempTracker.animateAllCustomBarChanges);
                                     $('#rpg_sysprompt_mod_npc_rel_bars').prop('checked', !!sTempTracker.npcRelationshipBars);
                                     $('#rpg_tracker_npc_card_import').prop('checked', !!sTempTracker.experimentalNpcImport);
                                     $('#rpg_tracker_ignore_npc_limits').prop('checked', !!sTempTracker.ignoreNpcImportLimits);
@@ -5825,6 +5834,23 @@ async function runPortraitMigrationIfNeeded() {
         });
 
         // ─── Event Hooks ───
+        const shouldStripOldCyoaChoices = () => {
+            const fresh = getSettings();
+            return isEffectiveSectionEnabled('CYOA_mode', fresh)
+                && fresh.cyoaConfig?.stripOldChoicesFromPrompt !== false;
+        };
+        if (event_types.CHAT_COMPLETION_PROMPT_READY) {
+            eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, (eventData) => {
+                if (!shouldStripOldCyoaChoices() || !Array.isArray(eventData?.chat)) return;
+                replacePromptArray(eventData.chat, stripSupersededChoicesFromChatPrompt(eventData.chat));
+            });
+        }
+        if (event_types.GENERATE_BEFORE_COMBINE_PROMPTS) {
+            eventSource.on(event_types.GENERATE_BEFORE_COMBINE_PROMPTS, (eventData) => {
+                if (!shouldStripOldCyoaChoices() || !Array.isArray(eventData?.finalMesSend)) return;
+                replacePromptArray(eventData.finalMesSend, stripSupersededChoicesFromTextPromptMessages(eventData.finalMesSend));
+            });
+        }
         eventSource.on(event_types.GENERATION_STARTED, onGenerationStarted);
         eventSource.on(event_types.GENERATION_ENDED, onGenerationEnded);
         eventSource.on(event_types.GENERATION_STOPPED, onGenerationEnded);
@@ -7219,6 +7245,14 @@ RULES:
             }
         });
 
+        $('#rpg_tracker_animate_all_custom_bars')
+            .prop('checked', !!settings.animateAllCustomBarChanges)
+            .on('change', function () {
+                settings.animateAllCustomBarChanges = !!$(this).prop('checked');
+                saveSettings();
+                refreshRenderedView();
+            });
+
         $('#rt_btn_tag_library').on('click', async function () {
             const { Popup } = SillyTavern.getContext();
             const { tryRenderMarker } = await import('./renderer.js');
@@ -8311,6 +8345,9 @@ RULES:
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
                         <input type="checkbox" id="cyoa-use-buttons" ${checked(cfg.useButtonTags)} /> <span>Clickable Choices <span title="Click choices to automatically send them using &lt;button&gt; functions" class="fa-solid fa-circle-question" style="opacity:0.5;cursor:help;margin-left:4px;"></span></span>
                     </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+                        <input type="checkbox" id="cyoa-strip-old-prompt" ${checked(cfg.stripOldChoicesFromPrompt)} /> <span>Keep only T-1 choices in AI context <span title="Keeps the newest completed &lt;choices&gt; block as a fresh example for the AI, and removes only T-2 and older choice blocks from the outgoing prompt. Every choice remains visible and clickable in chat." class="fa-solid fa-circle-question" style="opacity:0.5;cursor:help;margin-left:4px;"></span></span>
+                    </label>
                 </div>
 
                 <div style="margin-top:14px;font-size:11px;font-weight:bold;opacity:0.6;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Button Appearance</div>
@@ -8557,6 +8594,7 @@ RULES:
                 freshS.cyoaConfig.useEmojis      = !!dlg.querySelector('#cyoa-use-emojis')?.checked;
                 freshS.cyoaConfig.useXmlTag      = !!dlg.querySelector('#cyoa-use-xml')?.checked;
                 freshS.cyoaConfig.useButtonTags  = !!dlg.querySelector('#cyoa-use-buttons')?.checked;
+                freshS.cyoaConfig.stripOldChoicesFromPrompt = !!dlg.querySelector('#cyoa-strip-old-prompt')?.checked;
                 const styleCfg = readCyoaStyleFromDialog(dlg);
                 Object.assign(freshS.cyoaConfig, styleCfg);
                 const promptTa = dlg.querySelector('#cyoa-prompt-textarea')?.value?.trim() || '';
@@ -10288,6 +10326,7 @@ RULES:
             // NPC Relationship & Time Settings
             $('#rpg_tracker_npc_portraits').prop('checked', s.npcPortraits !== false);
             $('#rpg_tracker_npc_rel_bars').prop('checked', !!s.npcRelationshipBars);
+            $('#rpg_tracker_animate_all_custom_bars').prop('checked', !!s.animateAllCustomBarChanges);
             $('#rpg_sysprompt_mod_npc_rel_bars').prop('checked', !!s.npcRelationshipBars);
             $('#rpg_tracker_npc_card_import').prop('checked', !!s.experimentalNpcImport);
             $('#rpg_tracker_ignore_npc_limits').prop('checked', !!s.ignoreNpcImportLimits);

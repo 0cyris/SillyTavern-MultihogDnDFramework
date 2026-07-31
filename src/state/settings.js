@@ -706,15 +706,29 @@ export function getBarBackground(barId, defaultBackground, pct = null) {
  * @param {string} barId
  * @returns {boolean}
  */
-export function getBarShowAsPercentage(barId) {
+export function getBarShowAsPercentage(barId) {
     if (!barId) return false;
     const s = getSettings();
     const cfg = s.barColors?.[barId];
     if (cfg && typeof cfg === 'object') {
         return !!cfg.showAsPercentage;
     }
-    return false;
-}
+    return false;
+}
+
+/**
+ * Checks if value-change feedback is enabled for a specific rendered bar.
+ * This lives beside the color/display preferences because all three are
+ * configured from the same per-bar popup.
+ * @param {string} barId
+ * @returns {boolean}
+ */
+export function getBarAnimateChanges(barId) {
+    if (!barId) return false;
+    const s = getSettings();
+    const cfg = s.barColors?.[barId];
+    return !!(cfg && typeof cfg === 'object' && cfg.animateChanges);
+}
 
 /**
  * Sanitizes a string into a lorebook-safe campaign prefix (same rules as chat-id derive).

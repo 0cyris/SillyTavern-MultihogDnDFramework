@@ -246,6 +246,8 @@ export function buildDefaultSettings() {
 
         barColors: {},
 
+        animateAllCustomBarChanges: true,
+
         modulePageSizes: {},
 
         customTheme: null,
@@ -570,6 +572,8 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
             useXmlTag: true,
 
             useButtonTags: true,
+
+            stripOldChoicesFromPrompt: true,
 
             buttonColor: '#120a28',
 
@@ -1175,6 +1179,14 @@ Rules:
         gameSystemWizardOpenaiModel: "",
 
         gameSystemWizardSystemPrompt: "",
+
+        gameSystemWizardLookback: 10,
+
+        gameSystemWizardLookbackAll: false,
+
+        gameSystemWizardInjectLore: false,
+
+        gameSystemWizardInjectMemo: false,
 
         lastResetVersion: "",
 
