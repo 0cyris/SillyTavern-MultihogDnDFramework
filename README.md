@@ -133,5 +133,13 @@ These are recommendations, not rules — experiment. Different models shine for 
 
 ---
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6309d516-7a0e-4387-8df8-b82566555ade" width="100%" alt="Combat in progress" />
+  <br>
+  <em>Visualization Mode</em>
+</p>
+
+---
+
 ## Got a Question or Ideas?
 You can find me in the SillyTavern Discord extensions forum. Join the Discord and then head to the sub-forum there: https://discord.gg/sillytavern
