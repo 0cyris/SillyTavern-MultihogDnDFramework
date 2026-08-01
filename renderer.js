@@ -1831,6 +1831,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 for (let invIdx = 0; invIdx < lines.length; invIdx++) {
                     const line = lines[invIdx];
+                    const rawLine = rawLines[invIdx];
                     const asMarker = tryRenderMarker(line, tag, '', invIdx);
                     if (asMarker !== null) {
                         flushBullets();
@@ -1844,11 +1845,16 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         inventoryResults.push(`<div class="rt-inventory-subheader">${escapeHtml(headerText)}</div>`);
                         continue;
                     }
-                    // Original bullet/comma logic
-                    if (line.trim().match(/^[-*]\s+/)) {
-                        pendingBullets.push(line.trim().replace(/^[-*]\s*/, ''));
+                    // A bullet-delimited line is one complete item. Inspect rawLines here
+                    // because the shared preprocessor intentionally removes bullet markers
+                    // from `lines` before dispatching by block type. Item names may contain
+                    // commas (e.g. "Runekind, Quarterstaff +2") and must stay intact.
+                    const bulletRx = /^\s*[-*+•–—](?:\s+|(?=[A-Za-z]))/;
+                    if (bulletRx.test(rawLine)) {
+                        pendingBullets.push(rawLine.replace(bulletRx, '').trim());
                     } else {
-                        // Split on commas except when they are between digits (thousands separators) or inside parentheses
+                        // Preserve legacy non-bulleted, comma-separated inventory lines.
+                        // Do not split thousands separators or commas inside parentheses.
                         line.split(/(?<!\d),(?![^(]*\))|,(?!\d)(?![^(]*\))/).map(i => i.trim()).filter(Boolean)
                             .forEach(i => pendingBullets.push(i));
                     }

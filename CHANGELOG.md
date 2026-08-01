@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.8] - 2026-08-01
+
+### Fixed
+- **Inventory item names**: bullet-delimited items containing commas (such as `Runekind, Quarterstaff +2`) now render as one item instead of being split across multiple rows. Legacy comma-separated inventory lines remain supported.
+
 ## [6.6.5] - 2026-08-01
 
 ### Changed
