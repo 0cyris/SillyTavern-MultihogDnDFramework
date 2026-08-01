@@ -176,7 +176,7 @@ Example (Elite tier, demonstrating the 2-attack case):
 Elite Enforcer: 42/42 HP
 Att/def: Warhammer (2 attacks, +9/+4 / 1d10+4 B) | Plate Armor (AC: 17)
 Saves: Fort +5, Ref +3, Will +4
-Abilities: Brutal Strike
+Abilities: Brutal Strike (On a melee hit, target must make Fort save DC 16 or be knocked prone; 2/2 per combat)
 Other: Elite Tier
 Status: Healthy
 

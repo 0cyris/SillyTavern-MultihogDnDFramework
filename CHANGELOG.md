@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.5.90] - 2026-08-01
+
+### Changed
+- **COMBAT example clarity**: the elite combatant example now gives Brutal Strike a concrete melee-hit trigger, Fortitude save DC, knockdown effect, and per-combat usage limit.
+
 ## [6.5.85] - 2026-08-01
 
 ### Changed

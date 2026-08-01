@@ -34,6 +34,12 @@ describe('module instruction builders', () => {
         )).toBe(true);
     });
 
+    it('gives the elite combat example a concrete ability trigger and effect', () => {
+        expect(DEFAULT_STOCK_PROMPTS.combat).toContain(
+            'Brutal Strike (On a melee hit, target must make Fort save DC 16 or be knocked prone; 2/2 per combat)',
+        );
+    });
+
     it('buildNpcInstruction includes CORE_FORMAT and {{user}} rules', () => {
         const text = buildNpcInstruction(25, 15, true);
         expect(text).toContain('<CORE_FORMAT — NPC only>');
