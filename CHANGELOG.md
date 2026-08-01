@@ -2,6 +2,16 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.5] - 2026-08-01
+
+### Changed
+- **CYOA prompt context**: keeps the two newest completed choice blocks (T-1 and T-2) as fresh examples for the AI, while stripping T-3 and older blocks only from the outgoing prompt. All historical choice buttons remain visible and usable in chat.
+- **Model guidance**: Gemini 3.5 Flash-Lite is again the suggested default for the State Tracker and Lorebook Agent; Deepseek V4 Flash 0731 and GPT-5.6 Luna are presented as alternatives with their respective tradeoffs. Combat API Override now points to faster models such as Gemini 3.5 Flash or Deepseek Flash.
+- **Out-of-range attacks**: the narrator now reports the failed range attempt and asks for another action instead of automatically moving the player closer.
+
+### Tests
+- Added regression coverage to keep the standard, legacy, and embedded prompt copies synchronized for the out-of-range attack rule.
+
 ## [6.6.0] - 2026-08-01
 
 ### Changed

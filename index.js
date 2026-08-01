@@ -2837,7 +2837,7 @@ async function showLorebookAgentDocumentation() {
                                     <code style="font-size:11px;">[[NPC: Name | Description | keyword1, keyword2]]</code><br>
                                     Supported types: <code>NPC</code>, <code>LOC</code>, <code>FAC</code>, <code>QUEST</code>, <code>EVENT</code>, plus <code>[[ACTIVATE: name]]</code>, <code>[[DEACTIVATE: name]]</code>, <code>[[DELETE: name]]</code>.<br>
                                     Ideal for smaller/local models (Mistral Small, Gemma, Qwen, etc.).</li>
-                                <li style="margin-top:8px;"><b>Advanced Mode (Tools)</b> — Multi-turn ReAct loop: the model reasons (<i>Thought</i>), calls a tool (<i>Action</i>), receives a result (<i>Observation</i>), and repeats until it calls <code>finish</code> or hits Max Turns. Tools include <code>record</code>, <code>update</code>, <code>activate</code>, <code>deactivate</code>, <code>delete</code>, and <code>search</code>. GPT-5.6 Luna is the primary recommendation: it is better than the Gemini Flash-Lite/Flash options and MUCH cheaper. GPT-5x Mini or even Nano can also be good.</li>
+                                <li style="margin-top:8px;"><b>Advanced Mode (Tools)</b> — Multi-turn ReAct loop: the model reasons (<i>Thought</i>), calls a tool (<i>Action</i>), receives a result (<i>Observation</i>), and repeats until it calls <code>finish</code> or hits Max Turns. Tools include <code>record</code>, <code>update</code>, <code>activate</code>, <code>deactivate</code>, <code>delete</code>, and <code>search</code>. <b>Gemini 3.5 Flash-Lite is probably still the best choice</b>: it is rather inexpensive and follows instructions well. Flash is better but costs more; Deepseek V4 Flash 0731 is also worth trying. GPT-5.6 Luna is another potential choice, but is not quite as reliable with instruction/formatting following. GPT-5x Mini or even Nano can also be good.</li>
                             </ul>
 
                             <h4 style="margin-bottom: 5px;">🧠 Attention-Based Memory</h4>
@@ -8350,7 +8350,7 @@ RULES:
                         <input type="checkbox" id="cyoa-use-buttons" ${checked(cfg.useButtonTags)} /> <span>Clickable Choices <span title="Click choices to automatically send them using &lt;button&gt; functions" class="fa-solid fa-circle-question" style="opacity:0.5;cursor:help;margin-left:4px;"></span></span>
                     </label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-                        <input type="checkbox" id="cyoa-strip-old-prompt" ${checked(cfg.stripOldChoicesFromPrompt)} /> <span>Keep only T-1 choices in AI context <span title="Keeps the newest completed &lt;choices&gt; block as a fresh example for the AI, and removes only T-2 and older choice blocks from the outgoing prompt. Every choice remains visible and clickable in chat." class="fa-solid fa-circle-question" style="opacity:0.5;cursor:help;margin-left:4px;"></span></span>
+                        <input type="checkbox" id="cyoa-strip-old-prompt" ${checked(cfg.stripOldChoicesFromPrompt)} /> <span>Keep only T-1 and T-2 choices in AI context <span title="Keeps the two newest completed &lt;choices&gt; blocks as fresh examples for the AI, and removes only T-3 and older choice blocks from the outgoing prompt. Every choice remains visible and clickable in chat." class="fa-solid fa-circle-question" style="opacity:0.5;cursor:help;margin-left:4px;"></span></span>
                     </label>
                 </div>
 

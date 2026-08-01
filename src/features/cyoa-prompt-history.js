@@ -10,9 +10,10 @@ function countChoiceBlocks(text) {
 }
 
 /**
- * Strip T-2 and older choices while retaining the final matching block. During
- * ordinary generation the current user message follows that block, making it
- * the newest completed assistant turn (T-1) and a fresh formatting example.
+ * Strip T-3 and older choices while retaining the final two matching blocks.
+ * During ordinary generation the current user message follows those blocks,
+ * making them the two newest completed assistant turns (T-2 and T-1) and fresh
+ * formatting examples.
  * Holders point only at disposable prompt copies, never at SillyTavern's stored
  * or rendered chat messages.
  *
@@ -21,17 +22,19 @@ function countChoiceBlocks(text) {
  */
 function stripOlderBlocksFromHolders(holders) {
     const total = holders.reduce((sum, holder) => sum + countChoiceBlocks(holder.get()), 0);
-    if (total <= 1) return 0;
+    const keepCount = 2;
+    if (total <= keepCount) return 0;
+    const firstKeptBlock = total - keepCount + 1;
 
     let seen = 0;
     for (const holder of holders) {
         const original = holder.get();
         holder.set(original.replace(choicesRegex(), (block) => {
             seen += 1;
-            return seen === total ? block : '';
+            return seen >= firstKeptBlock ? block : '';
         }));
     }
-    return total - 1;
+    return total - keepCount;
 }
 
 /**

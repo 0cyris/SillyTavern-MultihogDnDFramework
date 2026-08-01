@@ -7,25 +7,25 @@ const guidanceFiles = [
     'index.js',
     'renderer.js',
     'adventure-companion.js',
-    'CHANGELOG.md',
 ];
 
 describe('model recommendation guidance', () => {
-    it('recommends GPT-5.6 Luna and removes superseded Gemini model names', () => {
-        const oldNames = [
-            ['Gemini', ' 3.5 Flash', '-Lite'].join(''),
-            ['Gemini', ' 3.6 Flash'].join(''),
-            ['Gemini', ' 3.5 Flash'].join(''),
-            ['Gemini', ' 3.1 Flash', '-Lite'].join(''),
-            ['Gemini', ' 3 Flash'].join(''),
-        ];
+    it('recommends Gemini 3.5 Flash-Lite while keeping alternatives tentative', () => {
+        const onboarding = readFileSync(new URL('../renderer.js', import.meta.url), 'utf8');
+        const lorebookHelp = readFileSync(new URL('../index.js', import.meta.url), 'utf8');
+
+        expect(onboarding).toContain('Gemini 3.5 Flash-Lite is probably still the best choice.');
+        expect(onboarding).toContain('Deepseek V4 Flash 0731 is probably also worth a try');
+        expect(onboarding).toContain('GPT-5.6 Luna, but from my experience it\'s not quite as reliable with instruction/formatting following.');
+        expect(onboarding).toContain('Faster models such as Gemini 3.5 Flash, Deepseek Flash, etc, are great for this.');
+        expect(lorebookHelp).toContain('Gemini 3.5 Flash-Lite is probably still the best choice');
 
         for (const filename of guidanceFiles) {
             const text = readFileSync(new URL(`../${filename}`, import.meta.url), 'utf8');
-            for (const oldName of oldNames) expect(text).not.toContain(oldName);
+            expect(text).not.toContain('GPT-5.6 Luna is now the primary recommendation');
         }
 
-        expect(readFileSync(new URL('../README.md', import.meta.url), 'utf8')).toContain('GPT-5.6 Luna');
-        expect(readFileSync(new URL('../docs/multihogDnDdoc.md', import.meta.url), 'utf8')).toContain('GPT-5.6 Luna');
+        expect(readFileSync(new URL('../README.md', import.meta.url), 'utf8')).toContain('Gemini 3.5 Flash-Lite is probably still the best choice.');
+        expect(readFileSync(new URL('../docs/multihogDnDdoc.md', import.meta.url), 'utf8')).toContain('Gemini 3.5 Flash-Lite is probably still the best choice.');
     });
 });

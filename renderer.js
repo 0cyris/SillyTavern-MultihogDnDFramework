@@ -2294,8 +2294,8 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <div style="margin-top: 12px;">
                         🤖 <b>What Model to Use?</b><br><br>
                         <b>MiMo 2.5 Pro</b> or <b>DeepSeek 4 Pro</b>: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.<br><br>
-                        For the State Tracker and Lorebook Agent, <b>GPT-5.6 Luna is now the primary recommendation</b>. It is better than the Gemini Flash-Lite/Flash options and <b>MUCH cheaper</b>, while handling extraction and lore passes exceptionally well.<br><br>
-                        If your model thinks too long in combat, enable <b>Combat API Override</b> in State Tracker settings — it auto-switches when the <code>[COMBAT]</code> tag is active in the tracker and switches back when combat ends. <b>GPT-5.6 Luna</b> is a great choice for this.<br><br>
+                        <i>For the State Tracker and Lorebook Agent,</i> <b>Gemini 3.5 Flash-Lite is probably still the best choice.</b> <i>It is rather inexpensive and follows instructions well. Flash is better, of course, but costs more. Deepseek V4 Flash 0731 is probably also worth a try, as it too is extremely inexpensive and looking promising. Another potential choice is GPT-5.6 Luna, but from my experience it's not quite as reliable with instruction/formatting following.</i><br><br>
+                        <i>If your model thinks too long in combat, enable</i> <b>Combat API Override</b> <i>in State Tracker settings — it auto-switches when the</i> <code>[COMBAT]</code> <i>tag is active in the tracker and switches back when combat ends.</i> <b><i>Faster models such as Gemini 3.5 Flash, Deepseek Flash, etc, are great for this.</i></b><br><br>
                         These are recommendations, not rules — experiment. Different models shine for different styles of play.
                     </div>
                 </div>
