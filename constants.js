@@ -67,7 +67,7 @@ Attr: STR X (mod), DEX X (mod), CON X (mod), INT X (mod), WIS X (mod), CHA X (mo
 Saves: Fort +X | Ref +X | Will +X
 Skills: Skill1 +X, Skill2 +X
 Traits: Trait1 (effect), Trait2 (effect)
-Abilities: Ability1 (effect), Ability2 (effect)
+Abilities: Ability1 (specific trigger/action, mechanical effect, save/DC if any; uses remaining/max), Ability2 (specific effect; uses remaining/max)
 Spells: Cantrips: Spell1, Spell2
 Spells: Level N (avail/max): Spell1, Spell2
 HD: dX (current/max)
@@ -176,7 +176,7 @@ Example (Elite tier, demonstrating the 2-attack case):
 Elite Enforcer: 42/42 HP
 Att/def: Warhammer (2 attacks, +9/+4 / 1d10+4 B) | Plate Armor (AC: 17)
 Saves: Fort +5, Ref +3, Will +4
-Abilities: Brutal Strike (On a melee hit, target must make Fort save DC 16 or be knocked prone; 2/2 per combat)
+Abilities: Brutal Strike (On a Warhammer hit, deal +1d10 Bludgeoning damage and force a Fort DC 16 save or knock the target prone; 2/2)
 Other: Elite Tier
 Status: Healthy
 
@@ -184,7 +184,7 @@ Example (Elite dual-wielder, showing the 3-attack case):
 Elite Duelist: 40/40 HP
 Att/def: Twin Shortswords (3 attacks, +9/+4/+4 / 1d6+3 P) | Studded Leather (AC: 16)
 Saves: Fort +4, Ref +6, Will +3
-Abilities: Dual Strike
+Abilities: Dual Strike (When both a primary-hand and offhand attack hit the same target in one turn, deal +1d6 Piercing damage; 2/2)
 Other: Elite Tier, Dual-Wielder
 Status: Healthy
 

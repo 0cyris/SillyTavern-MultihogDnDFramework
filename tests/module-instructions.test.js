@@ -43,10 +43,14 @@ describe('module instruction builders', () => {
         )).toBe(true);
     });
 
-    it('gives the elite combat example a concrete ability trigger and effect', () => {
+    it('gives both elite combat examples concrete ability rules and usage counters', () => {
         expect(DEFAULT_STOCK_PROMPTS.combat).toContain(
-            'Brutal Strike (On a melee hit, target must make Fort save DC 16 or be knocked prone; 2/2 per combat)',
+            'Brutal Strike (On a Warhammer hit, deal +1d10 Bludgeoning damage and force a Fort DC 16 save or knock the target prone; 2/2)',
         );
+        expect(DEFAULT_STOCK_PROMPTS.combat).toContain(
+            'Dual Strike (When both a primary-hand and offhand attack hit the same target in one turn, deal +1d6 Piercing damage; 2/2)',
+        );
+        expect(DEFAULT_STOCK_PROMPTS.combat).not.toContain('2/2 per combat');
     });
 
     it('buildNpcInstruction includes CORE_FORMAT and {{user}} rules', () => {

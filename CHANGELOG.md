@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.30] - 2026-08-01
+
+### Changed
+- **COMBAT ability examples**: elite enemy abilities now include concrete triggers, effects, save DCs, damage, and `2/2` encounter-use counters; the general format now instructs the model to define these properties.
+
 ## [6.6.25] - 2026-08-01
 
 ### Changed
