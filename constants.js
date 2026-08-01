@@ -374,7 +374,7 @@ Declare all previously-unknown NPC stats (AC, Saves, HP, Combat Line, resistance
 </combat_start>
 
 <combat_flow>
-- Simulate every NPC's actions each round.
+- Simulate every NPC's actions each round. Use spells and abilities intelligently, not just cantrips.
 - Use pre-calculated totals from STATE MEMO ([CHARACTER]/[PARTY]/[COMBAT]) — never re-derive/invent bonuses mid-fight. Martials: Combat line Ranged/Melee (N attacks) values. Casters: listed Spell Atk / Spell DC. Slash-separated values ("+X/+Y") = one roll per value.
 - State remaining HP after every damage/heal.
 - Buffs/debuffs expire on schedule; state initial duration in turns, e.g. Mage Armor (+3 AC, 8h 0m), Heroism (+5 Temp HP, 10 turns), Exhaustion (Disadvantage on Ability Checks, until Long Rest).
@@ -671,7 +671,7 @@ Declare all previously-unknown NPC stats (AC, Saves, HP, Combat Line, resistance
 </combat_start>
 
 <combat_flow>
-- Simulate every NPC's actions each round.
+- Simulate every NPC's actions each round. Use spells and abilities intelligently, not just cantrips.
 - Use pre-calculated totals from STATE MEMO ([CHARACTER]/[PARTY]/[COMBAT]) — never re-derive/invent bonuses mid-fight. Martials: Combat line Ranged/Melee (N attacks) values. Casters: listed Spell Atk / Spell DC. Slash-separated values ("+X/+Y") = one roll per value.
 - State remaining HP after every damage/heal.
 - Buffs/debuffs expire on schedule; state initial duration in turns, e.g. Mage Armor (+3 AC, 8h 0m), Heroism (+5 Temp HP, 10 turns), Exhaustion (Disadvantage on Ability Checks, until Long Rest).
