@@ -58,6 +58,19 @@ describe('onboarding Player Card and ST persona options', () => {
         expect(html).toContain('Hell, head there anyway!');
     });
 
+    it('places the Main prompt restoration note directly under How It Works', () => {
+        const html = renderMemoAsCards('', null, {});
+        const headingIndex = html.indexOf('<span>How It Works</span>');
+        const noteIndex = html.indexOf('class="rt-onboarding-prompt-backup-note"');
+        const helpIndex = html.indexOf('class="rt-onboarding-chat-tip"');
+
+        expect(headingIndex).toBeGreaterThanOrEqual(0);
+        expect(noteIndex).toBeGreaterThan(headingIndex);
+        expect(helpIndex).toBeGreaterThan(noteIndex);
+        expect(html).toContain('Multihog D&amp;D Framework auto-applies its own system prompt.');
+        expect(html).toContain('General &amp; Visuals -> Core -> Restore backup to Main.');
+    });
+
     it('links the startup welcome note to the GitHub releases page', () => {
         const html = renderMemoAsCards('', null, {});
 

@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.15] - 2026-08-01
+
+### Added
+- **Prompt restoration guidance**: onboarding now explains that Multihog auto-applies its system prompt and points to the backup restore control for recovering the previous Main prompt.
+
 ## [6.6.10] - 2026-08-01
 
 ### Changed

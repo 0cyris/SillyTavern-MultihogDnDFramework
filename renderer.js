@@ -2270,6 +2270,10 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div class="rt-onboarding-divider"><span>How It Works</span></div>
 
+                <div class="rt-onboarding-prompt-backup-note" role="note" style="font-size:12px;line-height:1.4;padding:8px 10px;border-left:3px solid var(--rt-accent);background:rgba(120,80,220,0.1);border-radius:4px;">
+                    <b>NOTE:</b> Multihog D&amp;D Framework auto-applies its own system prompt. If you want to restore your old prompt, go to the extension settings: General &amp; Visuals -> Core -> Restore backup to Main.
+                </div>
+
                 <div class="rt-onboarding-chat-tip" role="note">
                     <div class="rt-onboarding-chat-tip-title">Need help? Open <b>CHAT</b> in the State Tracker header</div>
                     <div class="rt-onboarding-chat-tip-body">Talk to the <b>Adventure Companion</b> for help with Multihog or to discuss your story. Enable Tutorial Mode in CHAT when you want the full framework guide attached to every request. Or head to the Discord, under the Extensions subforum: <a href="https://discord.gg/sillytavern" target="_blank" rel="noopener noreferrer">https://discord.gg/sillytavern</a>. Hell, head there anyway!</div>
