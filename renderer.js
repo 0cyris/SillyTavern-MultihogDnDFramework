@@ -1461,39 +1461,44 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     }
 
                     // 2. Entity anchor: classic "Name: X/Y HP ..." or explicit ((HP)) marker
-                    let hpMatch = line.match(/^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?\s*HP\s*[:|,]?\s*(.*)$/i);
+                    let hpMatch = line.match(/^(.+?):\s*([+-]?[\d,]+|\?+)(?:\/([\d,]+|\?+))?\s*HP\s*[:|,]?\s*(.*)$/i);
                     const isHpMarker = (markerCode === 'HP' || markerCode === 'HPB' || markerCode === 'HPBAR');
 
                     // If marker is specifically ((HP)), try a more relaxed regex (optional HP suffix)
                     if (!hpMatch && isHpMarker) {
-                        hpMatch = line.match(/^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
+                        hpMatch = line.match(/^(.+?):\s*([+-]?[\d,]+|\?+)(?:\/([\d,]+|\?+))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
                     }
 
                     // Inline-marker fallback: line was rewritten to just the value portion
                     // (e.g. "HP: 20/20" or bare "20/20"). Use a flexible regex that makes the
                     // label prefix ("HP:") optional so both forms parse correctly.
                     if (!hpMatch && inlineEntityName) {
-                        hpMatch = line.match(/^(?:(.+?):\s*)?([+-]?\d[\d,]*)(?:\/(\d[\d,]*))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
+                        hpMatch = line.match(/^(?:(.+?):\s*)?([+-]?\d[\d,]*|\?+)(?:\/(\d[\d,]*|\?+))?(?:\s*HP)?\s*[:|,]?\s*(.*)$/i);
                     }
 
                     if (hpMatch) {
                         const [, nameRaw, curRaw, maxRaw, rest] = hpMatch;
                         // inlineEntityName takes priority (set when "Name ((BARGREEN)) x/y" is used)
                         const name = (inlineEntityName || nameRaw || '').trim();
-                        const cur = Number(curRaw.replace(/,/g, ''));
-                        const max = maxRaw ? Number(maxRaw.replace(/,/g, '')) : undefined;
-                        const hasMax = max !== undefined;
-                        const pct = hasMax ? Math.max(0, Math.min(100, (cur / max) * 100)) : 100;
+                        const unknownCurrent = /^\?+$/.test(curRaw);
+                        const unknownMax = maxRaw ? /^\?+$/.test(maxRaw) : false;
+                        const cur = unknownCurrent ? undefined : Number(curRaw.replace(/,/g, ''));
+                        const max = !maxRaw || unknownMax ? undefined : Number(maxRaw.replace(/,/g, ''));
+                        const hasMax = maxRaw !== undefined;
+                        const hasKnownRange = Number.isFinite(cur) && Number.isFinite(max) && max > 0;
+                        const unknownHp = unknownCurrent || unknownMax;
+                        // Unknown HP is a neutral full-width indicator, not an implied empty/dead bar.
+                        const pct = hasKnownRange ? Math.max(0, Math.min(100, (cur / max) * 100)) : 100;
                         // If an inline colored-bar rule was detected (e.g. ((BARGREEN))), use its
                         // color directly — don't override it with the damage-based red/yellow/green.
                         const hpColor = inlineBarRule?.color
                             ? inlineBarRule.color
-                            : (!hasMax ? DEFAULT_HP_COLOR : pct > 60 ? DEFAULT_HP_COLOR : pct > 30 ? '#ffaa00' : '#ff5555');
+                            : (unknownHp ? '#6b7280' : !hasMax ? DEFAULT_HP_COLOR : pct > 60 ? DEFAULT_HP_COLOR : pct > 30 ? '#ffaa00' : '#ff5555');
                         const status = (rest || '').trim().replace(/^\|\s*/, '');
                         
                         const showAsPct = getBarShowAsPercentage(`${tag}:${name}:HP`);
-                        const dispCur = showAsPct ? Math.round(pct) : curRaw;
-                        const dispMax = showAsPct ? 100 : maxRaw;
+                        const dispCur = showAsPct && hasKnownRange ? Math.round(pct) : curRaw;
+                        const dispMax = showAsPct && hasKnownRange ? 100 : maxRaw;
                         const label = hasMax ? `${dispCur}/${dispMax}` : `${curRaw}`;
 
                         currentEntity = name;
@@ -1504,13 +1509,13 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         if (inlineEntityName) {
                             results.push(`<div class="rt-entity-row" style="display:block; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:6px;">
                                 <div class="rt-entity-name" style="font-size:1.1em; margin-bottom:6px;">${escapeHtmlWithColor(currentEntity)}</div>
-                                <div class="rt-hp-bar-wrap" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}"${hasMax ? makeBarAnimationData(barId, cur, max) : ''} style="position:relative; height:14px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.1); margin-bottom:4px; width:100%;">
+                                <div class="rt-hp-bar-wrap${unknownHp ? ' rt-hp-unknown' : ''}" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}"${hasKnownRange ? makeBarAnimationData(barId, cur, max) : ''} style="position:relative; height:14px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.1); margin-bottom:4px; width:100%;">
                                     <div class="rt-hp-bar" style="width:${pct.toFixed(1)}%; height:100%; border-radius:4px; background:${barBg}; transition:width 0.3s;"></div>
                                 </div>
                                 <span class="rt-hp-label" style="display:block; font-size:0.82em; opacity:0.85; text-align:left; line-height:1.2;">${label}</span>
                             </div>`);
                         } else {
-                            results.push(`<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div><div class="rt-hp-bar-wrap" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}"${hasMax ? makeBarAnimationData(barId, cur, max) : ''}><div class="rt-hp-bar" style="width:${pct.toFixed(1)}%;background:${barBg};"></div></div><span class="rt-hp-label">${label}</span></div>`);
+                            results.push(`<div class="rt-entity-row"><div class="rt-entity-name">${escapeHtmlWithColor(currentEntity)}</div><div class="rt-hp-bar-wrap${unknownHp ? ' rt-hp-unknown' : ''}" title="Click to recolor HP" data-recolor-id="${escapeHtml(barId)}" data-recolor-current="${escapeHtml(barBg)}"${hasKnownRange ? makeBarAnimationData(barId, cur, max) : ''}><div class="rt-hp-bar" style="width:${pct.toFixed(1)}%;background:${barBg};"></div></div><span class="rt-hp-label">${label}</span></div>`);
                         }
 
                         if (status) {

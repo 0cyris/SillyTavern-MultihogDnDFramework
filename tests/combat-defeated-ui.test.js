@@ -241,4 +241,33 @@ Status: Defeated`).join('');
         expect(html).toContain('data-defeated-combatant="Bandit"');
         expect(html.match(/rt-combatant-defeated/g)).toHaveLength(1);
     });
+
+    it('renders temporary allies with unknown ?/? or ??/?? HP as complete combatants', () => {
+        const content = `COMBAT ROUND 1
+NON-PARTY ALLIES:
+Schwarzenegger: ?/? HP
+Att/def: Schwarzenminigun (1 attack, +12 / firearm damage unspecified) | Armor (AC: unknown)
+Saves: Fort unknown, Ref unknown, Will unknown
+Abilities: None declared
+Other: Temporary allied combatant
+Status: Active (this combat)
+Schwarzenegev: ??/?? HP
+Att/def: Argument Ender (1 attack, +8 / firearm damage unspecified) | Armor (AC: unknown)
+Status: Active (this combat)`;
+
+        expect(parseCombatants(content).map(({ name, side }) => ({ name, side }))).toEqual([
+            { name: 'Schwarzenegger', side: 'allies' },
+            { name: 'Schwarzenegev', side: 'allies' },
+        ]);
+
+        const html = blockToItems('COMBAT', content).join('');
+        expect(html).toContain('Schwarzenegger');
+        expect(html).toContain('Schwarzenegev');
+        expect(html).toContain('Schwarzenminigun');
+        expect(html).toContain('Argument Ender');
+        expect(html).toContain('>?/?</span>');
+        expect(html).toContain('>??/??</span>');
+        expect(html.match(/rt-hp-unknown/g)).toHaveLength(2);
+        expect(html).not.toContain('data-rt-bar-current');
+    });
 });

@@ -1,4 +1,4 @@
-const COMBATANT_HP_RX = /^(.+?):\s*([+-]?[\d,]+)(?:\/([\d,]+))?\s*HP\b(.*)$/i;
+const COMBATANT_HP_RX = /^(.+?):\s*([+-]?[\d,]+|\?+)(?:\/([\d,]+|\?+))?\s*HP\b(.*)$/i;
 const RESOLVED_STATUS_RX = /(?:^|\|)\s*Status\s*:\s*(?:(?:\(\([^)]*\)\)|\([^)]*\))\s*)*(?:defeated|dead)\b/i;
 const COMBAT_SIDE_HEADER_RX = /^(ENEMIES|(?:NON[-\s]+PARTY\s+)?ALLIES)\s*:?\s*$/i;
 
