@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.20] - 2026-08-01
+
+### Changed
+- **NPC stat scaling prompt**: removed the instruction to always leave a fighting chance, allowing narrative realism to determine outcomes without guaranteed safety margins.
+
 ## [6.6.15] - 2026-08-01
 
 ### Added
