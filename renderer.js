@@ -2145,29 +2145,25 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                                 <span>Name</span>
                                 <button id="rt-cr-random-name" class="interactable" style="background:none; border:none; color:var(--rt-accent); cursor:pointer; padding:0; margin:0; font-size:1.1em; line-height:1;" title="Roll a random name">🎲</button>
                             </label>
-                            <input id="rt-cr-name" class="text_pole rt-cr-input" type="text" placeholder="e.g. Lyra Ashford, Kael Vane…" />
+                            <input id="rt-cr-name" class="text_pole rt-cr-input" type="text" />
                         </div>
                         <div class="rt-cr-field">
                             <label class="rt-cr-label">Gender</label>
-                            <input id="rt-cr-gender" class="text_pole rt-cr-input" type="text" placeholder="e.g. Female, Male, Non-binary…" />
+                            <input id="rt-cr-gender" class="text_pole rt-cr-input" type="text" />
                         </div>
                         <div class="rt-cr-field">
                             <label class="rt-cr-label">Age</label>
-                            <input id="rt-cr-age" class="text_pole rt-cr-input" type="text" placeholder="e.g. 21, young adult…" />
-                        </div>
-                        <div class="rt-cr-field">
-                            <label class="rt-cr-label">Orientation</label>
-                            <input id="rt-cr-orientation" class="text_pole rt-cr-input" type="text" placeholder="e.g. Straight, Bisexual, Gay…" />
+                            <input id="rt-cr-age" class="text_pole rt-cr-input" type="text" />
                         </div>
                     </div>
                     <div class="rt-cr-row">
                         <div class="rt-cr-field">
                             <label class="rt-cr-label">Species</label>
-                            <input id="rt-cr-species" class="text_pole rt-cr-input" type="text" placeholder="e.g. Human, Orc, Goblin…" />
+                            <input id="rt-cr-species" class="text_pole rt-cr-input" type="text" />
                         </div>
                         <div class="rt-cr-field">
                             <label class="rt-cr-label">Ethnicity</label>
-                            <input id="rt-cr-ethnicity" class="text_pole rt-cr-input" type="text" placeholder="e.g. Caucasian, Asian, Hispanic…" />
+                            <input id="rt-cr-ethnicity" class="text_pole rt-cr-input" type="text" />
                         </div>
                     </div>
                     <div class="rt-cr-row">
@@ -2230,11 +2226,11 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <div class="rt-cr-row">
                         <div class="rt-cr-field">
                             <label class="rt-cr-label">Background <span class="rt-cr-help-icon" title="You don't need to write a full backstory. A brief hint guides the AI (e.g. 'grew up on the streets', 'ex-soldier', 'noble exile'). Leave blank and the AI will invent a fitting background.">?</span></label>
-                            <input id="rt-cr-background" class="text_pole rt-cr-input" type="text" placeholder="e.g. ex-soldier, raised in the slums…" />
+                            <input id="rt-cr-background" class="text_pole rt-cr-input" type="text" />
                         </div>
                         <div class="rt-cr-field">
                             <label class="rt-cr-label">Appearance <span class="rt-cr-help-icon" title="Just a hint is enough (e.g. 'tall, red hair, scar on cheek'). Leave blank and the AI will create a full appearance description.">?</span></label>
-                            <input id="rt-cr-appearance" class="text_pole rt-cr-input" type="text" placeholder="e.g. tall, dark hair, green eyes…" />
+                            <input id="rt-cr-appearance" class="text_pole rt-cr-input" type="text" />
                         </div>
                     </div>
                     <div class="rt-cr-field" style="width:100%;">

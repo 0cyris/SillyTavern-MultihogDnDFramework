@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.35] - 2026-08-02
+
+### Changed
+- **Character Creator fields**: removed example placeholders and the Orientation field, including its draft and prompt plumbing.
+
 ## [6.6.30] - 2026-08-01
 
 ### Changed

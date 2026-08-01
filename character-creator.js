@@ -78,7 +78,6 @@ export function getArchetypesForGenre(genre) {
  * @param {string} [opts.nameVal]
  * @param {string} [opts.genderVal]
  * @param {string} [opts.ageVal]
- * @param {string} [opts.orientationVal]
  * @param {string} [opts.speciesVal]
  * @param {string} [opts.ethnicityVal]
  * @param {string} opts.genre
@@ -98,7 +97,6 @@ export function buildCharacterGenerationPrompt(opts) {
     const nameVal = (opts.nameVal || '').trim();
     const genderVal = (opts.genderVal || '').trim();
     const ageVal = (opts.ageVal || '').trim();
-    const orientationVal = (opts.orientationVal || '').trim();
     const speciesVal = (opts.speciesVal || '').trim();
     const ethnicityVal = (opts.ethnicityVal || '').trim();
     const genre = opts.genre || s.onboardingGenre || 'fantasy';
@@ -131,12 +129,11 @@ export function buildCharacterGenerationPrompt(opts) {
     }
 
     let extraHints = '';
-    if (nameVal || genderVal || ageVal || orientationVal || speciesVal || ethnicityVal || traitsVal || backgroundVal || appearanceVal || additionalVal) {
+    if (nameVal || genderVal || ageVal || speciesVal || ethnicityVal || traitsVal || backgroundVal || appearanceVal || additionalVal) {
         extraHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\n` +
                      (nameVal ? `Name: ${nameVal}\n` : '') +
                      (genderVal ? `Gender: ${genderVal}\n` : '') +
                      (ageVal ? `Age: ${ageVal}\n` : '') +
-                     (orientationVal ? `Orientation: ${orientationVal}\n` : '') +
                      (speciesVal ? `Species: ${speciesVal}\n` : '') +
                      (ethnicityVal ? `Ethnicity: ${ethnicityVal}\n` : '') +
                      (traitsVal ? `Traits: ${traitsVal}\n` : '') +
@@ -189,7 +186,6 @@ Design a complete player character that fits naturally into the current scenario
 Name:         ${f(nameVal, '(invent a creative, setting-appropriate name — NEVER use "User", "Unknown", or any placeholder)')}
 Gender:       ${f(genderVal, '(your choice)')}
 Age:          ${f(ageVal, '(your choice)')}
-Orientation:  ${f(orientationVal, '(your choice)')}
 Species:      ${f(speciesVal, '(your choice)')}
 Ethnicity:    ${f(ethnicityVal, '(your choice)')}
 ${classLine}
@@ -289,7 +285,6 @@ export function collectCharacterCreatorDraft(panel) {
         name: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-name'))?.value ?? '',
         gender: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-gender'))?.value ?? '',
         age: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-age'))?.value ?? '',
-        orientation: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-orientation'))?.value ?? '',
         species: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-species'))?.value ?? '',
         ethnicity: /** @type {HTMLInputElement} */ (panel.querySelector('#rt-cr-ethnicity'))?.value ?? '',
         genre: /** @type {HTMLSelectElement} */ (panel.querySelector('#rt-cr-genre'))?.value ?? '',
@@ -320,7 +315,6 @@ export function applyCharacterCreatorDraft(panel, draft, populateClasses) {
     setVal('#rt-cr-name', draft.name);
     setVal('#rt-cr-gender', draft.gender);
     setVal('#rt-cr-age', draft.age);
-    setVal('#rt-cr-orientation', draft.orientation);
     setVal('#rt-cr-species', draft.species);
     setVal('#rt-cr-ethnicity', draft.ethnicity);
     setVal('#rt-cr-genre', draft.genre ?? '');
@@ -376,7 +370,6 @@ export function resetCharacterCreatorFields(panel, populateClasses) {
     setVal('#rt-cr-name', '');
     setVal('#rt-cr-gender', '');
     setVal('#rt-cr-age', '');
-    setVal('#rt-cr-orientation', '');
     setVal('#rt-cr-species', '');
     setVal('#rt-cr-ethnicity', '');
     setVal('#rt-cr-genre', '');
@@ -645,7 +638,6 @@ async function handleCharRollGenerate(el, panel) {
     const nameVal        = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-name'))?.value.trim()        || '';
     const genderVal      = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-gender'))?.value.trim()      || '';
     const ageVal         = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-age'))?.value.trim()         || '';
-    const orientationVal = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-orientation'))?.value.trim() || '';
     const speciesVal     = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-species'))?.value.trim()     || '';
     const ethnicityVal   = /** @type {HTMLInputElement}   */ (panel.querySelector('#rt-cr-ethnicity'))?.value.trim()   || '';
     const genre          = /** @type {HTMLSelectElement}  */ (panel.querySelector('#rt-cr-genre'))?.value              || s.onboardingGenre || 'fantasy';
@@ -669,7 +661,7 @@ async function handleCharRollGenerate(el, panel) {
     const wordCount      = parseInt(wordsRaw || '150', 10) || 150;
 
     const { prompt, extraHints, cardSnippet } = buildCharacterGenerationPrompt({
-        nameVal, genderVal, ageVal, orientationVal, speciesVal, ethnicityVal,
+        nameVal, genderVal, ageVal, speciesVal, ethnicityVal,
         genre, level, gearTier, classRaw, classOtherVal,
         traitsVal, abilitiesVal, backgroundVal, appearanceVal, additionalVal,
     });
