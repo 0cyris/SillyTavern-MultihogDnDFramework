@@ -67,6 +67,7 @@ These are recommendations, not rules.
 |------|------------|--------|
 | Narrator / GM | MiMo 2.5 Pro or DeepSeek 4 Pro (e.g. via OpenRouter) | Needs **tool calling** if you use Hybrid RNG (tool-call mode). |
 | State Tracker + Lorebook Agent | Gemini Flash-Lite/Flash, Deepseek V4 Flash 0731, or GPT-5.6 Luna | All are seriously inexpensive and promising; there is no firm recommendation yet. |
+| Adventure Companion | Claude Sonnet 5 / Opus 5, GPT-5.6 Sol, or another model of similar capability | The Companion benefits from a strong general-purpose model for nuanced discussion, framework help, and reliable action handling. |
 | Combat narrator (optional) | Any faster model | Use **Combat API Override** so combat uses a faster model while `[COMBAT]` is active. |
 
 ### More About Models
@@ -507,7 +508,7 @@ Review both in the forge (edit, regenerate either/both, iterate with feedback, s
 Game Systems are deliberately atomic bundles. In **Manage Game Systems**, choose **CHAT-BOUND** or **GLOBAL** for the Game System itself; its linked tracker module and GM prompt snippet inherit that scope and enabled state together. They cannot be scoped independently. If you need only one piece to behave independently, recreate that module or snippet as a standalone item.
 
 ## Why is the Game Systems Wizard Good?
-It's good because you don't actually need to understand how the extension works. The Wizard has an excellent understanding of the system, so it can reliably make solid Game Systems even if you don't know anything about the extension. It's recommended to use a relatively strong model for this such as Claude Sonnet 5, or GPT-5.6 Terra or something of that caliber at least. Weaker models can also make good systems but not with such a high reliability and complexity.
+It's good because you don't actually need to understand how the extension works. The Wizard has an excellent understanding of the system, so it can reliably make solid Game Systems even if you don't know anything about the extension. It's recommended to use a relatively strong model for this such as Claude Sonnet 5 / Opus 5, GPT-5.6 Sol, or something of that caliber at least. Weaker models can also make good systems but not with such a high reliability and complexity.
 
 ### Game Cartridges
 
