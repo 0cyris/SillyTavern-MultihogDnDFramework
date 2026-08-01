@@ -10,22 +10,24 @@ const guidanceFiles = [
 ];
 
 describe('model recommendation guidance', () => {
-    it('recommends Gemini 3.5 Flash-Lite while keeping alternatives tentative', () => {
+    it('keeps model guidance tentative across all active recommendation surfaces', () => {
         const onboarding = readFileSync(new URL('../renderer.js', import.meta.url), 'utf8');
         const lorebookHelp = readFileSync(new URL('../index.js', import.meta.url), 'utf8');
 
-        expect(onboarding).toContain('Gemini 3.5 Flash-Lite is probably still the best choice.');
-        expect(onboarding).toContain('Deepseek V4 Flash 0731 is probably also worth a try');
-        expect(onboarding).toContain('GPT-5.6 Luna, but from my experience it\'s not quite as reliable with instruction/formatting following.');
-        expect(onboarding).toContain('Faster models such as Gemini 3.5 Flash, Deepseek Flash, etc, are great for this.');
-        expect(lorebookHelp).toContain('Gemini 3.5 Flash-Lite is probably still the best choice');
+        expect(onboarding).toContain("I've been recommending the Gemini Flash-Lite and Flash models. However, now I'm not sure at all anymore.");
+        expect(onboarding).toContain('Deepseek V4 Flash 0731 recently came out and is very promising');
+        expect(onboarding).toContain('the same goes for GPT-5.6 Luna');
+        expect(onboarding).toContain('This way you can have a faster model, so combat is faster.');
+        expect(lorebookHelp).toContain("I've been recommending Gemini Flash-Lite and Flash, but Deepseek V4 Flash 0731 and GPT-5.6 Luna are also very promising");
 
         for (const filename of guidanceFiles) {
             const text = readFileSync(new URL(`../${filename}`, import.meta.url), 'utf8');
             expect(text).not.toContain('GPT-5.6 Luna is now the primary recommendation');
+            expect(text).not.toContain('Gemini 3.5 Flash-Lite is probably still the best choice');
+            expect(text).not.toContain('recommended tracker model Gemini 3.5 Flash-Lite');
         }
 
-        expect(readFileSync(new URL('../README.md', import.meta.url), 'utf8')).toContain('Gemini 3.5 Flash-Lite is probably still the best choice.');
-        expect(readFileSync(new URL('../docs/multihogDnDdoc.md', import.meta.url), 'utf8')).toContain('Gemini 3.5 Flash-Lite is probably still the best choice.');
+        expect(readFileSync(new URL('../README.md', import.meta.url), 'utf8')).toContain('the same goes for GPT-5.6 Luna');
+        expect(readFileSync(new URL('../docs/multihogDnDdoc.md', import.meta.url), 'utf8')).toContain('there is no firm recommendation yet');
     });
 });

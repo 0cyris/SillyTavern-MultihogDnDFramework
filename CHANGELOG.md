@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.10] - 2026-08-01
+
+### Changed
+- **Tentative model guidance**: onboarding, Lorebook Agent help, README, documentation, and Adventure Companion now present Gemini Flash-Lite/Flash, Deepseek V4 Flash 0731, and GPT-5.6 Luna as inexpensive, promising options without a firm recommendation.
+- **Combat API Override guidance**: explains that the feature lets users switch to a faster model while combat is active, without prescribing a specific model.
+
 ## [6.6.8] - 2026-08-01
 
 ### Fixed

@@ -41,7 +41,7 @@ Upon LEVEL UP or equipment change (equipping/removing an offhand weapon), recalc
 export const ATTACK_TOTAL_FORMULA_HINT = `ATTACK TOTALS: Melee Total Formula: Melee Total = BAB + STR modifier + Weapon enhancement bonus. Ranged Total Formula: Ranged Total = BAB + DEX modifier + Weapon enhancement bonus. The Melee and Ranged values on the Combat line are these totals (weapon enhancement = +1/+2/+3 from the equipped weapon; 0 if mundane). Finesse: melee attacks with finesse weapons (rapier, dagger, scimitar, etc.) use DEX modifier instead of STR when the wielder benefits. ${ATTACKS_PER_ROUND_STOCK_HINT}`;
 
 export const DEFAULT_STOCK_PROMPTS = {
-  character: `Main character's core stats. Use this format:
+  character: `Main character's core stats. MECHANICS ONLY: Never include Identity, Background, Appearance, personality, biography, or other narrative/lore fields in [CHARACTER]. Use this format:
 [CHARACTER]
 {{user}} (Class): current/max HP
 Combat: BAB: +X | Ranged (1 attack / 2 attacks / 3 attacks): +X or +C/+D | Melee (1 attack / 2 attacks / 3 attacks): +X, +A/+B, or +A/+B/+C | Base AC: X | Total AC: Z
@@ -58,7 +58,7 @@ Status: Effect (duration Xh Xm)
 AC CALCULATION: Calculate Total AC as Base AC (usually 10 + DEX modifier) plus the sum of AC bonuses from all equipped items (items under [INVENTORY] tagged with '[E]', e.g. Shield (+2 AC) or Plate Armor (+8 AC)).
 ${ATTACK_TOTAL_FORMULA_HINT}
 Upon LEVEL UP, incorporate attribute changes.`,
-  party: `Companion/Party members. Use this format for each member:
+  party: `Companion/Party members. MECHANICS ONLY: Never include Identity, Background, Appearance, personality, biography, or other narrative/lore fields in [PARTY]. Use this format for each member:
 Name (Class): current/max HP
 Combat: BAB: +X | Ranged (1 attack / 2 attacks / 3 attacks): +X or +C/+D | Melee (1 attack / 2 attacks / 3 attacks): +X, +A/+B, or +A/+B/+C | Base AC: X | Total AC: Z
 Gear: Weapon (stats) | Armor Name (+Y AC)

@@ -1365,7 +1365,7 @@ function ensureChatShell(panel) {
                 <button type="button" class="rt-chat-tutorial-info-btn" id="rt-chat-tutorial-info-btn" aria-label="About Tutorial Mode" aria-haspopup="dialog" aria-expanded="false">?</button>
                 <div class="rt-chat-tutorial-info" id="rt-chat-tutorial-info" role="dialog" aria-label="About Tutorial Mode" style="display:none;">
                     <strong>TUTORIAL MODE</strong>
-                    <span>Injects the Multihog documentation Markdown file into every Adventure Companion request. It is great while learning the system, but veterans can leave it off to avoid a few thousand extra input tokens. That added cost is usually negligible with the recommended tracker model Gemini 3.5 Flash-Lite.</span>
+                    <span>Injects the Multihog documentation Markdown file into every Adventure Companion request. It is great while learning the system, but veterans can leave it off to avoid a few thousand extra input tokens. That added cost is usually negligible with inexpensive models such as Gemini Flash-Lite/Flash, Deepseek V4 Flash 0731, or GPT-5.6 Luna.</span>
                 </div>
             </div>
             <div class="rt-chat-gear-wrap">

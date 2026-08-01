@@ -15,6 +15,15 @@ import { testExtensionSettings } from './setup.js';
 import { DEFAULT_STOCK_PROMPTS } from '../constants.js';
 
 describe('module instruction builders', () => {
+    it('keeps CHARACTER and PARTY blocks free of biography fields', () => {
+        expect(DEFAULT_STOCK_PROMPTS.character).toContain(
+            'MECHANICS ONLY: Never include Identity, Background, Appearance, personality, biography, or other narrative/lore fields in [CHARACTER].',
+        );
+        expect(DEFAULT_STOCK_PROMPTS.party).toContain(
+            'MECHANICS ONLY: Never include Identity, Background, Appearance, personality, biography, or other narrative/lore fields in [PARTY].',
+        );
+    });
+
     it('includes the multi-level SPELLS block example in the stock prompt', () => {
         expect(DEFAULT_STOCK_PROMPTS.spells).toContain('[SPELLS]');
         expect(DEFAULT_STOCK_PROMPTS.spells).toContain("Level 1 (4/4): Hunter's Mark, Longstrider, Detect Magic");
