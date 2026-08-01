@@ -100,9 +100,9 @@ Your primary narrator model must support **Tool Calling** for the Hybrid RNG sys
 
 **MiMo 2.5 Pro** or **DeepSeek 4 Pro**: both are great bang for the buck with high GM output quality. I use both myself through OpenRouter. Can't go wrong with either.
 
-For the State Tracker and Lorebook Agent, I use **Gemini 3.5 Flash-Lite**. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job.
+For the State Tracker and Lorebook Agent, **GPT-5.6 Luna is now the primary recommendation**. It is better than the Gemini Flash-Lite/Flash options and **MUCH cheaper**, while handling extraction and lore passes exceptionally well.
 
-If your model thinks too long in combat, enable **Combat API Override** in State Tracker settings — it auto-switches when the `[COMBAT]` tag is active in the tracker and switches back when combat ends. **Gemini 3.6 Flash** is a great choice for this; set thinking to **Medium** so it still thinks a little.
+If your model thinks too long in combat, enable **Combat API Override** in State Tracker settings — it auto-switches when the `[COMBAT]` tag is active in the tracker and switches back when combat ends. **GPT-5.6 Luna** is a great choice for this.
 
 These are recommendations, not rules — experiment. Different models shine for different styles of play.
 

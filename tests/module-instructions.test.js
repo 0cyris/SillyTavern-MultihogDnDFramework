@@ -80,6 +80,22 @@ describe('getSettings fresh install', () => {
         expect(s.routerModules?.npc?.tag).toBe('NPC');
         expect(typeof s.routerModules?.npc?.instruction).toBe('string');
     });
+
+    it('includes implicit spell-slot and resource accounting in the State Tracker core prompt', () => {
+        for (const key of Object.keys(testExtensionSettings)) {
+            delete testExtensionSettings[key];
+        }
+        expect(getSettings().systemPromptTemplate).toContain(
+            "8. Decrement/increment resources such as spell slots if they clearly are spent or gained even if the narrator doesn't explicitly mention that a slot/resource was expended.",
+        );
+    });
+
+    it('ships a compact State Tracker core prompt without blank spacer lines', () => {
+        for (const key of Object.keys(testExtensionSettings)) {
+            delete testExtensionSettings[key];
+        }
+        expect(getSettings().systemPromptTemplate).not.toMatch(/\n[\t ]*\n/);
+    });
 });
 
 describe('shipped prompt fingerprint', () => {

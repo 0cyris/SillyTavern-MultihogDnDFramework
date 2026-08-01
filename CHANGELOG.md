@@ -2,6 +2,16 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.0] - 2026-08-01
+
+### Changed
+- **State Tracker resource accounting**: the Core Prompt now requires implicit spell-slot and resource changes to be tracked when the narrative clearly spends or grants them.
+- **Compact Core Prompt**: removed redundant blank spacer lines without changing prompt structure or instructions.
+- **Model recommendation**: GPT-5.6 Luna is now the primary State Tracker, Lorebook Agent, and Combat API Override recommendation; obsolete Gemini and thinking-level recommendations were removed.
+
+### Fixed
+- **CYOA mechanics wrapping**: long bracketed mechanics now wrap within choice buttons instead of overflowing the viewport.
+
 ## [6.5.90] - 2026-08-01
 
 ### Changed
@@ -544,7 +554,7 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 
 ### Changed
 - **APR threshold**: Second attack at BAB +8 (−5), was +10.
-- **Model guidance**: Onboarding + README note Combat API Override for slow-thinking GM models (Gemini 3.5 Flash, Medium thinking).
+- **Model guidance**: Onboarding + README note Combat API Override for slow-thinking GM models (GPT-5.6 Luna).
 
 ## [5.7.93] - 2026-07-18
 
@@ -1219,7 +1229,7 @@ Release tag for portrait file-storage work (5.1.6–5.1.8).
 - **Time/date UI sync**: All time and date controls (onboarding, Modules & Order pills, Extension Settings) funnel through shared setters so they never show contradictory state.
 - **TIME module prompt editor**: Edit/Reset now picks the correct stock prompt variant (`time`, `time_24h`, `time_ddmmyy`, `time_ddmmyy_24h`) based on both clock and calendar toggles.
 - **Status footer placement**: `<end_of_output_footer>` moved immediately after `</combat>` in both sysprompt files for higher prompt attention.
-- **Onboarding copy**: Updated How It Works, Initial Setup (time/date step), and simplified model recommendations (MiMo 2.5 Pro GM, Gemini 3.1 Flash-Lite for tracker/agent).
+- **Onboarding copy**: Updated How It Works, Initial Setup (time/date step), and simplified model recommendations (MiMo 2.5 Pro GM, GPT-5.6 Luna for tracker/agent).
 - **Lorebook Agent docs**: Removed obsolete Max Tokens control reference; Campaign Records now explains native Lorebook book creation instead of a separate Campaign Prefix control entry.
 
 ## [4.3.5] - 2026-07-05
@@ -2112,7 +2122,7 @@ A comprehensive upgrade to the external LLM pipeline and settings organization, 
 ## [1.7.1] - 2026-05-04
 
 ### Fixed
-- **Silent Model/Preset Switching**: Fixed a major regression where background RPG tracker passes would ignore the selected Connection Profile and Generation Settings Preset. The system now correctly routes requests through specific models (like Gemini 3 Flash) with custom sampler overrides (like disabling reasoning) silently and reliably.
+- **Silent Model/Preset Switching**: Fixed a major regression where background RPG tracker passes would ignore the selected Connection Profile and Generation Settings Preset. The system now correctly routes requests through specific models (like GPT-5.6 Luna) with custom sampler overrides (like disabling reasoning) silently and reliably.
 
 ## [1.7.0] - 2026-05-04
 

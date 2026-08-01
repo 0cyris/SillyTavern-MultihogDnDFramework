@@ -2837,7 +2837,7 @@ async function showLorebookAgentDocumentation() {
                                     <code style="font-size:11px;">[[NPC: Name | Description | keyword1, keyword2]]</code><br>
                                     Supported types: <code>NPC</code>, <code>LOC</code>, <code>FAC</code>, <code>QUEST</code>, <code>EVENT</code>, plus <code>[[ACTIVATE: name]]</code>, <code>[[DEACTIVATE: name]]</code>, <code>[[DELETE: name]]</code>.<br>
                                     Ideal for smaller/local models (Mistral Small, Gemma, Qwen, etc.).</li>
-                                <li style="margin-top:8px;"><b>Advanced Mode (Tools)</b> — Multi-turn ReAct loop: the model reasons (<i>Thought</i>), calls a tool (<i>Action</i>), receives a result (<i>Observation</i>), and repeats until it calls <code>finish</code> or hits Max Turns. Tools include <code>record</code>, <code>update</code>, <code>activate</code>, <code>deactivate</code>, <code>delete</code>, and <code>search</code>. Gemini 3.5 Flash-Lite is highly recommended as it is 100% reliable and very low cost. GPT-5x Mini or even Nano can also be good.</li>
+                                <li style="margin-top:8px;"><b>Advanced Mode (Tools)</b> — Multi-turn ReAct loop: the model reasons (<i>Thought</i>), calls a tool (<i>Action</i>), receives a result (<i>Observation</i>), and repeats until it calls <code>finish</code> or hits Max Turns. Tools include <code>record</code>, <code>update</code>, <code>activate</code>, <code>deactivate</code>, <code>delete</code>, and <code>search</code>. GPT-5.6 Luna is the primary recommendation: it is better than the Gemini Flash-Lite/Flash options and MUCH cheaper. GPT-5x Mini or even Nano can also be good.</li>
                             </ul>
 
                             <h4 style="margin-bottom: 5px;">🧠 Attention-Based Memory</h4>
@@ -7638,7 +7638,11 @@ RULES:
                     padding: 0 4px !important;
                     font-family: var(--rt-font-mono, ui-monospace, monospace) !important;
                     font-size: 0.92em !important;
-                    white-space: nowrap !important;
+                    white-space: normal !important;
+                    overflow-wrap: anywhere !important;
+                    word-break: break-word !important;
+                    box-decoration-break: clone !important;
+                    -webkit-box-decoration-break: clone !important;
                 }
                 .mes_text button[data-cyoa-bound] .rt-cyoa-dc {
                     color: ${st.dcColor} !important;
