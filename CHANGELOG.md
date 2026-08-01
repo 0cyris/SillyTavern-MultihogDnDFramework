@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.25] - 2026-08-01
+
+### Changed
+- **Narrator Configuration inheritance**: new chats now carry over the configuration from the previously active chat instead of resetting it to factory defaults, while retaining independent per-chat state.
+- **High-Agency Mode explanation**: clarified that this mode omits the instruction to lightly expand on the user's actions.
+
 ## [6.6.20] - 2026-08-01
 
 ### Changed
