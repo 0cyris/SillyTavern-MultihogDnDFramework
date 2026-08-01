@@ -2308,7 +2308,8 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     </div>
                     <div style="margin-top: 12px;">
                         🤖 <b>What Model to Use?</b><br><br>
-                        <b>MiMo 2.5 Pro</b> or <b>DeepSeek 4 Pro</b>: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.<br><br>
+                        For the narrator, I'd recommend trying at least the following:<br>
+                        <ul style="margin: 4px 0 10px 20px; padding-left: 16px;"><li>MiMo 2.5 Pro</li><li>Deepseek V4 Pro and latest Flash</li><li>GPT-5.6 Luna, for its great cost-efficiency. Seems to be a decent model overall.</li></ul>
                         <i>For the State Tracker and Lorebook Agent, I've been recommending the Gemini Flash-Lite and Flash models. However, now I'm not sure at all anymore. Deepseek V4 Flash 0731 recently came out and is very promising, and the same goes for GPT-5.6 Luna. These are seriously inexpensive models and seem to be heavy-hitters in terms of performance.</i><br><br>
                         <i>If your model thinks too long in combat, enable</i> <b>Combat API Override</b> <i>in State Tracker settings — it auto-switches when the</i> <code>[COMBAT]</code> <i>tag is active in the tracker and switches back when combat ends.</i> <b><i>This way you can have a faster model, so combat is faster.</i></b><br><br>
                         These are recommendations, not rules — experiment. Different models shine for different styles of play.

@@ -65,14 +65,18 @@ These are recommendations, not rules.
 
 | Role | Suggestion | Notes |
 |------|------------|--------|
-| Narrator / GM | MiMo 2.5 Pro or DeepSeek 4 Pro (e.g. via OpenRouter) | Needs **tool calling** if you use Hybrid RNG (tool-call mode). |
+| Narrator / GM | MiMo 2.5 Pro, Deepseek V4 Pro/latest Flash, or GPT-5.6 Luna | Needs **tool calling** if you use Hybrid RNG (tool-call mode). |
 | State Tracker + Lorebook Agent | Gemini Flash-Lite/Flash, Deepseek V4 Flash 0731, or GPT-5.6 Luna | All are seriously inexpensive and promising; there is no firm recommendation yet. |
 | Adventure Companion | Claude Sonnet 5 / Opus 5, GPT-5.6 Sol, or another model of similar capability | The Companion benefits from a strong general-purpose model for nuanced discussion, framework help, and reliable action handling. |
 | Combat narrator (optional) | Any faster model | Use **Combat API Override** so combat uses a faster model while `[COMBAT]` is active. |
 
 ### More About Models
 
-MiMo 2.5 Pro or DeepSeek 4 Pro: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.
+For the narrator, I'd recommend trying at least the following:
+
+- MiMo 2.5 Pro
+- Deepseek V4 Pro and latest Flash
+- GPT-5.6 Luna, for its great cost-efficiency. Seems to be a decent model overall.
 
 *For the State Tracker and Lorebook Agent, I've been recommending the Gemini Flash-Lite and Flash models. However, now I'm not sure at all anymore. Deepseek V4 Flash 0731 recently came out and is very promising, and the same goes for GPT-5.6 Luna. These are seriously inexpensive models and seem to be heavy-hitters in terms of performance.*
 
