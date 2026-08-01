@@ -22,6 +22,18 @@ describe('module instruction builders', () => {
         expect(DEFAULT_STOCK_PROMPTS.spells).toContain('[/SPELLS]');
     });
 
+    it('ends the PARTY prompt with spell-slot and ability-use tracking guidance', () => {
+        expect(DEFAULT_STOCK_PROMPTS.party.trim().endsWith(
+            'SPELL AND ABILITY USE: track PARTY spell slots and ability use accurately.',
+        )).toBe(true);
+    });
+
+    it('ends the COMBAT prompt with spell-slot and ability-use tracking guidance', () => {
+        expect(DEFAULT_STOCK_PROMPTS.combat.trim().endsWith(
+            'SPELL AND ABILITY USE: track COMBAT spell slots and ability use accurately.',
+        )).toBe(true);
+    });
+
     it('buildNpcInstruction includes CORE_FORMAT and {{user}} rules', () => {
         const text = buildNpcInstruction(25, 15, true);
         expect(text).toContain('<CORE_FORMAT — NPC only>');

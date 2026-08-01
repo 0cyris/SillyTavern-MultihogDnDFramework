@@ -98,7 +98,9 @@ Spells: Cantrips: Mage Hand
 Spells: Level 1 (2/2): Hunter's Mark, Goodberry
 HD: d10 (5/5)
 Status: Healthy
-[/PARTY]`,
+[/PARTY]
+
+SPELL AND ABILITY USE: track PARTY spell slots and ability use accurately.`,
   'benched party': `Members temporarily separated from {{user}} while reunion remains plausible. Code moves their full [PARTY] stat sheet automatically — never output stat blocks here.
 
 Output [BENCHED PARTY] only when a bench or unbench occurs this turn; otherwise omit entirely. Always close the block: \`[/BENCHED PARTY]\`. Do NOT also output [PARTY] on a bench/unbench turn — code handles roster moves. If other [PARTY] members had real changes (HP, gear, status, etc.), output [PARTY] for those changes only; still do not list the benched/unbenched member there.
@@ -202,7 +204,9 @@ Rules:
 - Firearms (new combatant damage — including enemies you invent when the GM didn't supply stats): ~2–3× typical D&D/PF firearm dice for lethality. Reasonable pistol baseline: 2d8+1 (not 1d8+2); rifle/shotgun higher. Attack bonuses stay normal — only damage scales. Never convert mid-fight.
 - DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.
 
-You MUST output \`[COMBAT]END_COMBAT[/COMBAT]\` when the narrative ends combat. Do not put members of [PARTY] into [COMBAT]`,
+You MUST output \`[COMBAT]END_COMBAT[/COMBAT]\` when the narrative ends combat. Do not put members of [PARTY] into [COMBAT]
+
+SPELL AND ABILITY USE: track COMBAT spell slots and ability use accurately.`,
   inventory: `Items, loot, equipment, and wealth. You MAY create this section if loot is found and it doesn't currently exist.
 
 Organize into two sections using plain-text headers:
@@ -341,11 +345,9 @@ DM/World Simulator for a D&D-style TTRPG. Narrate the world, simulate NPCs, adju
 </role>
 
 <rng_system>
-OUT OF COMBAT (default — exploration, dialogue, negotiation, stealth, traps, skill checks, pre-combat initiative): call RollTheDice with the DC included in the tool params (set DC before seeing the result). Output DC, roll, and success/failure in parentheses. Default to this state unless a combat encounter with an established initiative order is actively resolving round-by-round.
-
-IN COMBAT ONLY (post-initiative attacks/saves/damage): use [RNG_QUEUE v7.0] instead.
+- [RNG_QUEUE v7.0] is the sole RNG mechanic — internal physics, never revealed or explained.
 <rng_queue_instructions>
-Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps on exhaustion.
+- Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps back to start on exhaustion.
 - d20 = attacks/checks. Damage dice = matching label on the same line.
 - Multi-die damage: use the current line's matching die, then that label from successive lines, consuming each (2d8 = current d8 + next d8).
 - Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.
@@ -564,7 +566,8 @@ Typical range 1–5 minor, 5–15 major; 15+ only for life-altering moments.
 </relationship_tracking>
 
 <state_memo>
-## TRACKER STATE 0 (Current), passed every turn, is mechanical law.
+- ## TRACKER STATE 0 (Current) - passed every turn, is mechanical law.
+- TRACKER STATE 0 is the authoritative, read-only state at the start of the current turn and already accounts for all prior events. Never audit, reconstruct, reconcile, or update its resource totals from earlier narration or logs; an external tracker handles resource accounting. Narrate new resource use only when TRACKER STATE 0 shows it is available—never use a depleted resource, e.g. cast with Level 1 at 0/4.
 </state_memo>
 
 <CYOA_mode>
@@ -639,9 +642,9 @@ DM/World Simulator for a D&D-style TTRPG. Narrate the world, simulate NPCs, adju
 </role>
 
 <rng_system>
-[RNG_QUEUE v7.0] is the sole RNG mechanic — internal physics, never revealed or explained.
+- [RNG_QUEUE v7.0] is the sole RNG mechanic — internal physics, never revealed or explained.
 <rng_queue_instructions>
-Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps on exhaustion.
+- Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps back to start on exhaustion.
 - d20 = attacks/checks. Damage dice = matching label on the same line.
 - Multi-die damage: use the current line's matching die, then that label from successive lines, consuming each (2d8 = current d8 + next d8).
 - Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.
@@ -860,7 +863,8 @@ Typical range 1–5 minor, 5–15 major; 15+ only for life-altering moments.
 </relationship_tracking>
 
 <state_memo>
-## TRACKER STATE 0 (Current), passed every turn, is mechanical law.
+- ## TRACKER STATE 0 (Current) - passed every turn, is mechanical law.
+- TRACKER STATE 0 is the authoritative, read-only state at the start of the current turn and already accounts for all prior events. Never audit, reconstruct, reconcile, or update its resource totals from earlier narration or logs; an external tracker handles resource accounting. Narrate new resource use only when TRACKER STATE 0 shows it is available—never use a depleted resource, e.g. cast with Level 1 at 0/4.
 </state_memo>
 
 <CYOA_mode>

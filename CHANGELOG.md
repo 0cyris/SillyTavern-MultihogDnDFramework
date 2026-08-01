@@ -2,6 +2,13 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.5.85] - 2026-08-01
+
+### Changed
+- **Prompt accounting guidance**: PARTY and COMBAT prompts now explicitly require accurate spell-slot and ability-use tracking.
+- **Authoritative state memo**: clarified that TRACKER STATE 0 is read-only, already accounts for prior events, and must not be reconstructed from earlier narration.
+- **RNG queue prompt**: standardized the compact RNG_QUEUE v7.0 block and removed the stray blank line under its tags.
+
 ## [6.5.75] - 2026-07-31
 
 ### Added
