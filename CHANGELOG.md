@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.6.40] - 2026-08-02
+
+### Changed
+- **Quest XP scaling**: XP rewards now account for both quest complexity and the task's difficulty for the player character.
+
 ## [6.6.35] - 2026-08-02
 
 ### Changed
