@@ -468,7 +468,7 @@ JavaScript checks `[TIME]` in the State Memo after State Tracker updates. The AI
 ### Quick Start Guide
 
 1. **Atmosphere Summary** — write manually or Auto-Generate from recent chat (tone/texture; avoid specific named plot dumps).
-2. **Generate Skeleton** — factions, locations, NPCs, conflicts as Day 0 baseline in `{prefix}_Skeleton`. Edit afterward in native lorebook UI for full customization.
+2. **Generate Skeleton** — factions, locations, NPCs, conflicts as Day 0 baseline in `{prefix}_Skeleton`. You can enable **Source from Existing Lorebooks** and select books whose entries should be treated as established canon during generation; selecting none uses all non-skeleton lorebooks. Edit the generated skeleton afterward in the native lorebook UI for full customization.
 3. **Focus Randomization** (recommended) — lottery across skeleton vs organic pools so reports don’t fixate on the player bubble. Active `[PARTY]` is excluded; `[BENCHED PARTY]` members remain eligible.
 4. **Generate the First Report** — Generate Now (skeleton-only if early) or wait for the interval (later runs include organic lore).
 

@@ -89,7 +89,11 @@ export function saveProfile(name) {
         worldProgressionConsolidateInterval: s.worldProgressionConsolidateInterval ?? 7,
         worldProgressionSkeletonAtmosphereSummary: s.worldProgressionSkeletonAtmosphereSummary || '',
         worldProgressionSkeletonAtmosphereLookback: s.worldProgressionSkeletonAtmosphereLookback ?? 30,
-        worldProgressionSkeletonUseExisting: s.worldProgressionSkeletonUseExisting ?? true,
+        worldProgressionSkeletonUseExisting: s.worldProgressionSkeletonUseExisting ?? true,
+
+        worldProgressionSkeletonUseLorebooks: s.worldProgressionSkeletonUseLorebooks ?? false,
+
+        worldProgressionSkeletonLorebookFilter: JSON.parse(JSON.stringify(s.worldProgressionSkeletonLorebookFilter || [])),
         worldProgressionExclusionList: s.worldProgressionExclusionList || '',
 
         portraitGeneratorSource: s.portraitGeneratorSource ?? "native",

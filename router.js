@@ -4,6 +4,7 @@ import { getRequestHeaders } from '../../../../script.js';
 import { extractCurrentTimeStr, cleanMessageContent, parseInWorldTime, formatInWorldTime, findNthUserMessageStartIdx, formatAgentChatLogFromIndex, sanitizeLorebookRecordContent } from './memo-processor.js';
 import { recordSchedulerEvent } from './swipe-scheduler-debug.js';
 import { saveSettings } from './src/app/runtime-bridge.js';
+import { buildSkeletonLorebookSourceContext } from './src/features/world-progression/skeleton-lorebooks.js';
 
 let _routerRunning = false;
 let _routerNormalRunCount = 0; // tracks completed normal (non-cleanup) passes for auto-cleanup interval
@@ -4426,6 +4427,20 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
         .replace(/\{npcCount\}/g, String(npcCount))
         .replace(/\{conflictCount\}/g, String(conflictCount));
 
+    let sourceLorebooksStr = '';
+    if (settings.worldProgressionSkeletonUseLorebooks) {
+        let sourceBookNames = Array.isArray(settings.worldProgressionSkeletonLorebookFilter)
+            ? settings.worldProgressionSkeletonLorebookFilter
+            : [];
+        if (sourceBookNames.length === 0) {
+            sourceBookNames = await getWorldInfoNamesSafe();
+        }
+        sourceLorebooksStr = await buildSkeletonLorebookSourceContext(
+            sourceBookNames,
+            bookName => ctx.loadWorldInfo(bookName),
+        );
+    }
+
     // Gather existing entity details to avoid duplication and provide full context
     let existingEntitiesStr = '';
     if (append && useExisting && skeletonBook.entries) {
@@ -4441,6 +4456,9 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
     }
 
     let userPrompt = `## ATMOSPHERE / DESCRIPTION\n${atmosphere || '(No atmosphere description provided — generate a generic fantasy world skeleton.)'}\n\n`;
+    if (sourceLorebooksStr) {
+        userPrompt += `${sourceLorebooksStr}\n\n`;
+    }
     if (existingEntitiesStr) {
         userPrompt += `## EXISTING SKELETON ENTITIES\n${existingEntitiesStr}\n\n`;
     }

@@ -1330,6 +1330,20 @@
                                     </div>
                                     <textarea id="rpg_world_progression_skeleton_atmosphere" class="text_pole" rows="3" style="width:100%; font-size:0.8em; resize:vertical; background:rgba(0,0,0,0.3); color:var(--SmartThemeBodyColor); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:6px; box-sizing:border-box; margin-bottom: 6px;" placeholder="e.g. 'Poverty and desperation define daily life. The nobility maintains control through debt bondage. Corruption is endemic — even the church answers to noble patrons.'"></textarea>
 
+                                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
+                                        <label class="checkbox_label" style="margin:0;" title="Use existing lorebooks as established source material when generating or adding to the World Skeleton. If no books are selected, all non-skeleton lorebooks are used.">
+                                            <input id="rpg_world_progression_skeleton_use_lorebooks" type="checkbox" />
+                                            <span>Source from Existing Lorebooks</span>
+                                        </label>
+                                        <button id="rpg_world_progression_skeleton_lorebook_refresh" class="menu_button interactable" style="font-size:0.72em; padding:2px 7px; margin:0;" title="Refresh available lorebooks">
+                                            <i class="fa-solid fa-rotate"></i> Refresh
+                                        </button>
+                                    </div>
+                                    <div id="rpg_world_progression_skeleton_lorebook_filter_group" style="display:none; max-height:140px; overflow-y:auto; border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:5px; margin-bottom:7px;">
+                                        <div style="font-size:0.7em; opacity:0.55; margin-bottom:4px;">Select source books. With none selected, all non-skeleton lorebooks are included.</div>
+                                        <div id="rpg_world_progression_skeleton_lorebook_list"></div>
+                                    </div>
+
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px; margin-bottom: 6px;">
                                         <div>
                                             <label style="font-size: 0.75em; font-weight: bold; opacity: 0.8; display: block; margin-bottom: 2px;">Factions

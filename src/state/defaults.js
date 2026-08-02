@@ -739,6 +739,10 @@ The report covers the in-world period: **{periodLabel}**
 
         worldProgressionSkeletonUseExisting: true, // toggle to feed existing entries context when appending
 
+        worldProgressionSkeletonUseLorebooks: false, // feed selected existing lorebooks into skeleton generation
+
+        worldProgressionSkeletonLorebookFilter: [], // selected source lorebooks; empty means all non-skeleton books
+
         worldProgressionExclusionList: '',         // comma-separated list of lore entry titles or keys to exclude from focus randomization
 
         // NOTE: active [PARTY] members are always, unconditionally excluded from World
