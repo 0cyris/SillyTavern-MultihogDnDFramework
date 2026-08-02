@@ -160,7 +160,7 @@ async function confirmAndPurgeWorldHistory() {
                 <li>All reports in <code>${escapeHtml(worldBook)}</code></li>
                 <li>All skeleton entities in <code>${escapeHtml(skeletonBook)}</code> (removes stale DESIGNATED ENTITIES from prior stories)</li>
                 <li>Per-chat timer state and active world report keys for this chat</li>
-                <li>Saved atmosphere summary for this chat</li>
+                <li>Saved Skeleton Source for this chat</li>
             </ul>
             <p style="opacity:0.85;"><b>Note:</b> Lorebooks are stored per campaign prefix, not per chat file. If another chat shares this prefix, it will also lose this World/Skeleton data.</p>
         </div>`;
@@ -2513,6 +2513,7 @@ function loadProfile(name) {
     s.worldProgressionSkeletonConflicts = p.worldProgressionSkeletonConflicts ?? 3;
     s.worldProgressionSkeletonUseLorebooks = p.worldProgressionSkeletonUseLorebooks ?? false;
     s.worldProgressionSkeletonLorebookFilter = JSON.parse(JSON.stringify(p.worldProgressionSkeletonLorebookFilter || []));
+    s.worldProgressionSkeletonLorebookOnly = p.worldProgressionSkeletonLorebookOnly ?? false;
     s.worldProgressionLastFiredAtMinutes = p.worldProgressionLastFiredAtMinutes ?? -1;
     s.worldProgressionLastFiredPeriodLabel = p.worldProgressionLastFiredPeriodLabel || '';
     s.worldProgressionExclusionList = p.worldProgressionExclusionList ?? '';
@@ -2577,6 +2578,17 @@ function loadProfile(name) {
     $('#rpg_world_progression_skeleton_conflicts').val(s.worldProgressionSkeletonConflicts ?? 3);
     $('#rpg_world_progression_skeleton_use_lorebooks').prop('checked', !!s.worldProgressionSkeletonUseLorebooks);
     $('#rpg_world_progression_skeleton_lorebook_filter_group').toggle(!!s.worldProgressionSkeletonUseLorebooks);
+    $('#rpg_world_progression_skeleton_lorebook_only').prop('checked', !!s.worldProgressionSkeletonLorebookOnly);
+    $('#rpg_world_progression_skeleton_lorebook_only').prop('disabled', !s.worldProgressionSkeletonUseLorebooks);
+    $('#rpg_world_progression_skeleton_lorebook_only_row').css({
+        opacity: s.worldProgressionSkeletonUseLorebooks ? '1' : '0.45',
+        pointerEvents: s.worldProgressionSkeletonUseLorebooks ? 'auto' : 'none',
+    });
+    const profileLorebookOnlyActive = !!s.worldProgressionSkeletonUseLorebooks && !!s.worldProgressionSkeletonLorebookOnly;
+    $('#rpg_world_progression_skeleton_counts').css({
+        opacity: profileLorebookOnlyActive ? '0.4' : '1',
+        pointerEvents: profileLorebookOnlyActive ? 'none' : 'auto',
+    }).find('input').prop('disabled', profileLorebookOnlyActive);
     if (s.worldProgressionSkeletonUseLorebooks && typeof globalThis._rpgRefreshSkeletonLorebookList === 'function') {
         void globalThis._rpgRefreshSkeletonLorebookList();
     }
@@ -9866,6 +9878,8 @@ RULES:
         const $wpSkeletonUseLorebooks = $('#rpg_world_progression_skeleton_use_lorebooks');
         const $wpSkeletonLorebookGroup = $('#rpg_world_progression_skeleton_lorebook_filter_group');
         const $wpSkeletonLorebookList = $('#rpg_world_progression_skeleton_lorebook_list');
+        const $wpSkeletonLorebookOnly = $('#rpg_world_progression_skeleton_lorebook_only');
+        const $wpSkeletonLorebookOnlyRow = $('#rpg_world_progression_skeleton_lorebook_only_row');
         const $wpSkeletonUseExisting = $('#rpg_world_progression_skeleton_use_existing');
         const $wpSkeletonFactions = $('#rpg_world_progression_skeleton_factions');
         const $wpSkeletonLocations = $('#rpg_world_progression_skeleton_locations');
@@ -9876,6 +9890,17 @@ RULES:
         const $wpGenerateSkeleton = $('#rpg_world_progression_btn_generate_skeleton');
         const $wpAddSkeleton = $('#rpg_world_progression_btn_add_skeleton');
         const $wpSkeletonStatus = $('#rpg_world_progression_skeleton_status');
+
+        function syncSkeletonLorebookOnlyAvailability() {
+            const enabled = !!$wpSkeletonUseLorebooks.prop('checked');
+            const lorebookOnlyActive = enabled && !!$wpSkeletonLorebookOnly.prop('checked');
+            $wpSkeletonLorebookOnlyRow.css({ opacity: enabled ? '1' : '0.45', pointerEvents: enabled ? 'auto' : 'none' });
+            $wpSkeletonLorebookOnly.prop('disabled', !enabled);
+            $('#rpg_world_progression_skeleton_counts').css({
+                opacity: lorebookOnlyActive ? '0.4' : '1',
+                pointerEvents: lorebookOnlyActive ? 'none' : 'auto',
+            }).find('input').prop('disabled', lorebookOnlyActive);
+        }
 
         async function refreshSkeletonLorebookList() {
             $wpSkeletonLorebookList.empty();
@@ -9981,10 +10006,17 @@ RULES:
         $wpSkeletonUseLorebooks.prop('checked', !!settings.worldProgressionSkeletonUseLorebooks).on('change', async function () {
             getSettings().worldProgressionSkeletonUseLorebooks = !!$(this).prop('checked');
             $wpSkeletonLorebookGroup.toggle(getSettings().worldProgressionSkeletonUseLorebooks);
+            syncSkeletonLorebookOnlyAvailability();
             if (getSettings().worldProgressionSkeletonUseLorebooks) await refreshSkeletonLorebookList();
             saveSettings();
         });
+        $wpSkeletonLorebookOnly.prop('checked', !!settings.worldProgressionSkeletonLorebookOnly).on('change', function () {
+            getSettings().worldProgressionSkeletonLorebookOnly = !!$(this).prop('checked');
+            syncSkeletonLorebookOnlyAvailability();
+            saveSettings();
+        });
         $wpSkeletonLorebookGroup.toggle(!!settings.worldProgressionSkeletonUseLorebooks);
+        syncSkeletonLorebookOnlyAvailability();
         $('#rpg_world_progression_skeleton_lorebook_refresh').on('click', refreshSkeletonLorebookList);
         if (settings.worldProgressionSkeletonUseLorebooks) void refreshSkeletonLorebookList();
 
@@ -10002,9 +10034,9 @@ RULES:
                 getSettings().worldProgressionSkeletonAtmosphereSummary = summary;
                 $wpSkeletonAtmosphere.val(summary);
                 saveSettings();
-                toastr['success']('Atmosphere Summary auto-generated successfully.', 'World Skeleton');
+                toastr['success']('Skeleton Source auto-generated successfully.', 'World Skeleton');
             } catch (e) {
-                toastr['error'](`Failed to generate Atmosphere Summary: ${e.message}`, 'World Skeleton');
+                toastr['error'](`Failed to generate Skeleton Source: ${e.message}`, 'World Skeleton');
             } finally {
                 $wpGenerateAtmosphere.prop('disabled', false).html('<i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Generate');
             }
@@ -10052,7 +10084,7 @@ RULES:
             const atmosphere = String($wpSkeletonAtmosphere.val() || '').trim();
             const useLorebooks = !!$wpSkeletonUseLorebooks.prop('checked');
             if (!atmosphere && !useLorebooks) {
-                toastr['warning']('Please enter an atmosphere summary or enable existing lorebook sources before generating.', 'World Skeleton');
+                toastr['warning']('Please enter a Skeleton Source or enable existing lorebook sources before generating.', 'World Skeleton');
                 return;
             }
             const ctx = SillyTavern.getContext();
@@ -10079,7 +10111,7 @@ RULES:
             const useExisting = !!$wpSkeletonUseExisting.prop('checked');
             const useLorebooks = !!$wpSkeletonUseLorebooks.prop('checked');
             if (!useExisting && !useLorebooks && !atmosphere) {
-                toastr['warning']('Please enter an atmosphere summary or enable an existing source before adding entries.', 'World Skeleton');
+                toastr['warning']('Please enter a Skeleton Source or enable an existing source before adding entries.', 'World Skeleton');
                 return;
             }
             const ctx = SillyTavern.getContext();
@@ -10424,6 +10456,8 @@ RULES:
             $('#rpg_world_progression_skeleton_use_existing').prop('checked', !!s.worldProgressionSkeletonUseExisting);
             $('#rpg_world_progression_skeleton_use_lorebooks').prop('checked', !!s.worldProgressionSkeletonUseLorebooks);
             $('#rpg_world_progression_skeleton_lorebook_filter_group').toggle(!!s.worldProgressionSkeletonUseLorebooks);
+            $('#rpg_world_progression_skeleton_lorebook_only').prop('checked', !!s.worldProgressionSkeletonLorebookOnly);
+            syncSkeletonLorebookOnlyAvailability();
             if (s.worldProgressionSkeletonUseLorebooks) void refreshSkeletonLorebookList();
             $('#rpg_world_progression_consolidate_enabled').prop('checked', !!s.worldProgressionConsolidateEnabled);
 

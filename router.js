@@ -4278,7 +4278,7 @@ function parseSkeletonOutput(rawText) {
  * Never sees narrative content, active NPC stats, quest details, or player logs.
  *
  * @param {number} missingCount  Number of NPCs to generate
- * @param {string} atmosphere    Atmosphere summary (single paragraph, required foundation for skeleton generation)
+ * @param {string} atmosphere    Skeleton Source material used as the generation foundation
  * @param {Array}  factionDescs  Array of {name, desc} from skeleton factions
  * @param {Array}  conflictNames Skeleton conflict/event names (names only)
  * @param {Array}  locationDescs Array of {name, desc} from skeleton locations
@@ -4310,7 +4310,7 @@ Output ONLY structured content:
 ### [Name]
 [Role in the world. Current situation or agenda in 1-2 sentences.]`;
 
-    let userPrompt = `## ATMOSPHERE / DESCRIPTION\n${atmosphere || '(No atmosphere description provided)'}\n\n`;
+    let userPrompt = `## SKELETON SOURCE\n${atmosphere || '(No written Skeleton Source provided)'}\n\n`;
     userPrompt +=
 `## EXISTING SKELETON CONTEXT (for thematic consistency — do not replicate)
 ### Factions
@@ -4391,10 +4391,10 @@ Generate exactly ${missingCount} new skeleton NPC(s). Each must be unique, thema
 
 /**
  * Generates the World Skeleton: a hidden lorebook of foundational undiscovered
- * entities (factions, locations, NPCs, conflicts) seeded from the user's atmosphere summary.
+ * entities (factions, locations, NPCs, conflicts) seeded from the user's Skeleton Source.
  * Saves all entries to [CampaignPrefix]_Skeleton. Overwrites any existing skeleton.
  *
- * @param {string} atmosphereSummary - User-provided setting/atmosphere summary for the world
+ * @param {string} atmosphereSummary - User-provided Skeleton Source material (legacy setting name retained)
  * @returns {Promise<number>} Number of skeleton entries created
  */
 export async function runSkeletonGenerationPass(atmosphereSummary, append = false, useExisting = true) {
@@ -4421,7 +4421,7 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
     const conflictCount = settings.worldProgressionSkeletonConflicts ?? 3;
     const atmosphere = (atmosphereSummary || settings.worldProgressionSkeletonAtmosphereSummary || '').trim();
 
-    const systemPrompt = (settings.worldProgressionSkeletonSystemPrompt || '')
+    let systemPrompt = (settings.worldProgressionSkeletonSystemPrompt || '')
         .replace(/\{factionCount\}/g, String(factionCount))
         .replace(/\{locationCount\}/g, String(locationCount))
         .replace(/\{npcCount\}/g, String(npcCount))
@@ -4438,7 +4438,15 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
         sourceLorebooksStr = await buildSkeletonLorebookSourceContext(
             sourceBookNames,
             bookName => ctx.loadWorldInfo(bookName),
+            { lorebookOnly: !!settings.worldProgressionSkeletonLorebookOnly },
         );
+        if (settings.worldProgressionSkeletonLorebookOnly) {
+            if (!sourceLorebooksStr) {
+                throw new Error('Lorebook-only mode is enabled, but the selected source lorebooks contain no usable entries.');
+            }
+            systemPrompt += `\n\n## LOREBOOK-ONLY MODE — OVERRIDES EXACT COUNTS
+Only output entities explicitly mentioned in the supplied lorebook source material. Do not invent, infer, or extrapolate entities. Ignore the requested faction, location, NPC, and conflict counts; output the eligible entities established by the source material, and omit an empty category section.`;
+        }
     }
 
     // Gather existing entity details to avoid duplication and provide full context
@@ -4455,7 +4463,7 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
         }
     }
 
-    let userPrompt = `## ATMOSPHERE / DESCRIPTION\n${atmosphere || '(No atmosphere description provided — generate a generic fantasy world skeleton.)'}\n\n`;
+    let userPrompt = `## SKELETON SOURCE\n${atmosphere || '(No written Skeleton Source provided — use the other supplied source material.)'}\n\n`;
     if (sourceLorebooksStr) {
         userPrompt += `${sourceLorebooksStr}\n\n`;
     }
@@ -4817,7 +4825,7 @@ ${rawDump}`;
 }
 
 /**
- * Generates a single paragraph Atmosphere Summary based on a lookback window of the chat.
+ * Generates a generalized single-paragraph Skeleton Source based on a chat lookback.
  * Uses sendStateRequest to execute the generation call.
  * @param {number} lookbackCount
  * @returns {Promise<string>}
@@ -4827,7 +4835,7 @@ export async function runAtmosphereGenerationPass(lookbackCount) {
     const ctx = SillyTavern.getContext();
     const chat = ctx.chat || [];
     if (chat.length === 0) {
-        throw new Error('No chat history available to generate atmosphere summary.');
+        throw new Error('No chat history available to generate Skeleton Source material.');
     }
 
     // Grab the last lookbackCount messages
@@ -4863,22 +4871,23 @@ export async function runAtmosphereGenerationPass(lookbackCount) {
     const formattedChatHistory = lines.join('\n\n');
 
     const systemPrompt =
-`You are a World Architect. Analyze the provided chat history segment and extract a concise, thematic Atmosphere Summary of the world setting.
+`You are a World Architect. Analyze the provided chat history segment and extract a concise, generalized Skeleton Source for world generation.
 
-## Atmosphere Summary Definition
-A single paragraph description of the social texture, recurring tensions, and thematic tone of this world.
-- Focus on the atmosphere, environment, social hierarchy, and mood.
-- Do NOT name specific characters or list specific plot events.
-- Keep it generalized to the setting.
-- Example: 'Poverty and desperation define daily life. The nobility maintains control through debt bondage. Corruption is endemic — even the church answers to noble patrons.'
+## Skeleton Source Definition
+A single paragraph describing the world's broad social texture, environment, hierarchy, technology or magic level, recurring tensions, and thematic tone.
+- Generalize from the setting rather than copying story entities verbatim.
+- Do NOT name or identify player characters, party members, NPCs, factions, institutions, locations, quests, or conflicts from the chat.
+- Do NOT list or summarize specific plot events.
+- Never turn a party member or current story participant into Skeleton Source material.
+- Do not invent facts unsupported by the chat.
 
-Output ONLY the single paragraph Atmosphere Summary. No preamble, no meta-commentary.`;
+Output ONLY the single-paragraph Skeleton Source. No preamble or meta-commentary.`;
 
     const userPrompt =
 `## RECENT CHAT HISTORY
 ${formattedChatHistory}
 
-Generate the Atmosphere Summary:`;
+Generate the Skeleton Source:`;
 
     const routerSettings = {
         connectionSource: settings.worldConnectionSource || 'default',

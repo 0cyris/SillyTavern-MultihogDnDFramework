@@ -368,6 +368,7 @@ export function saveChatState(chatId, opts = {}) {
         worldProgressionSkeletonUseExisting: s.worldProgressionSkeletonUseExisting ?? true,
         worldProgressionSkeletonUseLorebooks: s.worldProgressionSkeletonUseLorebooks ?? false,
         worldProgressionSkeletonLorebookFilter: JSON.parse(JSON.stringify(s.worldProgressionSkeletonLorebookFilter || [])),
+        worldProgressionSkeletonLorebookOnly: s.worldProgressionSkeletonLorebookOnly ?? false,
         worldProgressionConsolidateEnabled: s.worldProgressionConsolidateEnabled ?? false,
         worldProgressionConsolidateInterval: s.worldProgressionConsolidateInterval ?? 7,
         worldProgressionExclusionList: s.worldProgressionExclusionList || '',

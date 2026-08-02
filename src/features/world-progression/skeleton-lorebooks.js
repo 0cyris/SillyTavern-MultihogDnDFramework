@@ -5,9 +5,10 @@
  *
  * @param {string[]} bookNames
  * @param {(bookName: string) => Promise<any>} loadWorldInfo
+ * @param {{ lorebookOnly?: boolean }} [options]
  * @returns {Promise<string>}
  */
-export async function buildSkeletonLorebookSourceContext(bookNames, loadWorldInfo) {
+export async function buildSkeletonLorebookSourceContext(bookNames, loadWorldInfo, options = {}) {
     const names = [...new Set((bookNames || [])
         .map(name => String(name || '').trim())
         .filter(name => name && !name.toLowerCase().endsWith('_skeleton')))]
@@ -40,8 +41,12 @@ export async function buildSkeletonLorebookSourceContext(bookNames, loadWorldInf
 
     if (!formattedBooks.length) return '';
 
+    const sourceRule = options.lorebookOnly
+        ? 'Create entries only for factions, locations, NPCs, and conflicts explicitly mentioned in this material. Do not invent, infer, or extrapolate additional entities. Ignore the requested category counts and output the eligible entities established by the source material.'
+        : 'Ground the generated factions, locations, NPCs, and conflicts in it; preserve its facts and tone, and do not contradict it. You may derive skeleton entities from named material or create compatible additions.';
+
     return `## EXISTING LOREBOOK SOURCE MATERIAL
-Treat the following material as established world canon. Ground the generated factions, locations, NPCs, and conflicts in it; preserve its facts and tone, and do not contradict it. You may derive skeleton entities from named material or create compatible additions.
+Treat the following material as established world canon. ${sourceRule}
 
 ${formattedBooks.join('\n\n')}`;
 }

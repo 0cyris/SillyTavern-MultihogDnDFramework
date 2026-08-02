@@ -2,6 +2,16 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.7.0] - 2026-08-02
+
+### Added
+- **World Skeleton lorebook sources**: World Skeleton generation can now use selected existing lorebooks as established source material, with per-chat selection and a strict mode that only creates explicitly mentioned entities.
+
+### Changed
+- **Skeleton Source**: replaced the narrow Atmosphere Summary concept with a freeform source field; Auto-Generate remains conservative and produces only a generalized backdrop without named story entities.
+- **Character Creator presets**: duplicate names now prompt before overwriting, and confirmed overwrites replace the existing preset instead of creating duplicates.
+- **World Progression onboarding**: clarified that an immediate Skeleton-only report can provide useful starting context for a new campaign.
+
 ## [6.6.40] - 2026-08-02
 
 ### Changed

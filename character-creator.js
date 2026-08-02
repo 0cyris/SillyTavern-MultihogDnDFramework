@@ -10,6 +10,7 @@ import {
     resolveActivatedPersonaDescription,
 } from './src/state/player-identity.js';
 import { CHARACTER_CREATOR_NAME_ADDITIONS } from './src/state/character-names.js';
+import { findCharacterCreatorPresetByName, upsertCharacterCreatorPreset } from './src/features/character-creator/presets.js';
 
 const _CR_CLASS_LISTS = {
     fantasy: [
@@ -608,19 +609,38 @@ export function showCharacterRollPanel(el) {
                 presetName = prompt('Name this preset:');
             }
             if (!presetName || !presetName.trim()) return;
+            const trimmedName = presetName.trim();
             const draft = collectCharacterCreatorDraft(panel);
             const st = getSettings();
             if (!st.characterCreatorPresets) st.characterCreatorPresets = [];
-            const newId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-            st.characterCreatorPresets.push({
-                id: newId,
-                name: presetName.trim(),
-                data: draft,
-            });
+            const existingPreset = findCharacterCreatorPresetByName(st.characterCreatorPresets, trimmedName);
+            if (existingPreset) {
+                let overwrite = false;
+                if (Popup?.show?.confirm) {
+                    overwrite = !!(await Popup.show.confirm(
+                        'Overwrite Character Creator Preset?',
+                        `A preset named "<b>${escapeHtml(trimmedName)}</b>" already exists. Replace it with the current fields?`,
+                        { okButton: 'Overwrite', cancelButton: 'Cancel' },
+                    ));
+                } else {
+                    overwrite = confirm(`A preset named "${trimmedName}" already exists. Overwrite it?`);
+                }
+                if (!overwrite) return;
+            }
+            const result = upsertCharacterCreatorPreset(
+                st.characterCreatorPresets,
+                trimmedName,
+                draft,
+                () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            );
+            st.characterCreatorPresets = result.presets;
             saveSettings();
             renderPresetPills();
-            if (presetSelect) presetSelect.value = newId;
-            toastr['success'](`Preset "${presetName.trim()}" saved!`, 'Character Creator');
+            if (presetSelect) presetSelect.value = result.preset.id;
+            toastr['success'](
+                `Preset "${trimmedName}" ${result.overwritten ? 'overwritten' : 'saved'}!`,
+                'Character Creator',
+            );
         });
     }
 }

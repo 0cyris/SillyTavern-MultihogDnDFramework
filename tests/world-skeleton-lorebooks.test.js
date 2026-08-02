@@ -42,12 +42,38 @@ describe('World Skeleton lorebook source context', () => {
         expect(loadWorldInfo).toHaveBeenCalledTimes(2);
     });
 
+    it('can prohibit extrapolation and ignore requested counts', async () => {
+        const result = await buildSkeletonLorebookSourceContext(
+            ['Canon Book'],
+            async () => ({ entries: { 0: { comment: 'Known Faction', content: 'Explicit source entity.' } } }),
+            { lorebookOnly: true },
+        );
+
+        expect(result).toContain('only for factions, locations, NPCs, and conflicts explicitly mentioned');
+        expect(result).toContain('Do not invent, infer, or extrapolate');
+        expect(result).toContain('Ignore the requested category counts');
+        expect(result).not.toContain('create compatible additions');
+    });
+
     it('wires a dedicated per-chat lorebook selector into skeleton generation', () => {
+        expect(settingsMarkup).toContain('>Skeleton Source');
+        expect(settingsMarkup).not.toContain('>Atmosphere Summary');
         expect(settingsMarkup).toContain('id="rpg_world_progression_skeleton_use_lorebooks"');
         expect(settingsMarkup).toContain('id="rpg_world_progression_skeleton_lorebook_list"');
+        expect(settingsMarkup).toContain('id="rpg_world_progression_skeleton_lorebook_only"');
+        expect(settingsMarkup).toContain('id="rpg_world_progression_skeleton_counts"');
         expect(routerSource).toContain('buildSkeletonLorebookSourceContext');
         expect(routerSource).toContain('worldProgressionSkeletonLorebookFilter');
+        expect(routerSource).toContain('LOREBOOK-ONLY MODE — OVERRIDES EXACT COUNTS');
         expect(persistenceSource).toContain('worldProgressionSkeletonUseLorebooks:');
         expect(persistenceSource).toContain('worldProgressionSkeletonLorebookFilter:');
+        expect(persistenceSource).toContain('worldProgressionSkeletonLorebookOnly:');
+    });
+
+    it('keeps chat-based Skeleton Source generation free of named story entities', () => {
+        expect(routerSource).toContain('Generalize from the setting rather than copying story entities verbatim.');
+        expect(routerSource).toContain('Do NOT name or identify player characters, party members, NPCs, factions, institutions, locations, quests, or conflicts');
+        expect(routerSource).toContain('Never turn a party member or current story participant into Skeleton Source material.');
+        expect(routerSource).toContain('Output ONLY the single-paragraph Skeleton Source.');
     });
 });

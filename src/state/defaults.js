@@ -733,7 +733,7 @@ The report covers the in-world period: **{periodLabel}**
 
         // ── World Skeleton ─────────────────────────────────────────────────────────
 
-        worldProgressionSkeletonAtmosphereSummary: '', // single paragraph atmosphere description (required only if not using existing entries context)
+        worldProgressionSkeletonAtmosphereSummary: '', // freeform Skeleton Source (legacy key retained for compatibility)
 
         worldProgressionSkeletonAtmosphereLookback: 30, // messages lookback count for atmosphere generation
 
@@ -742,6 +742,8 @@ The report covers the in-world period: **{periodLabel}**
         worldProgressionSkeletonUseLorebooks: false, // feed selected existing lorebooks into skeleton generation
 
         worldProgressionSkeletonLorebookFilter: [], // selected source lorebooks; empty means all non-skeleton books
+
+        worldProgressionSkeletonLorebookOnly: false, // never extrapolate beyond explicitly mentioned source entities
 
         worldProgressionExclusionList: '',         // comma-separated list of lore entry titles or keys to exclude from focus randomization
 
@@ -753,7 +755,7 @@ The report covers the in-world period: **{periodLabel}**
 
 
 
-        worldProgressionSkeletonSystemPrompt: `You are a World Architect. Given a world theme/seed, generate a sparse foundational skeleton for an RPG campaign simulation.
+        worldProgressionSkeletonSystemPrompt: `You are a World Architect. Given world source material, generate a sparse foundational skeleton for an RPG campaign simulation.
 
 ## OUTPUT FORMAT — MANDATORY
 Use exactly one section header followed by one level-three heading per entity:
@@ -780,7 +782,7 @@ Generate exactly {factionCount} factions, {locationCount} locations, {npcCount} 
 - The line beginning with \`###\` is the title only. Never put a description, parties involved, labels, or metadata on that line.
 - Put all descriptive text on the following line(s). In conflicts, state the parties naturally in the prose; never use a \`Parties involved:\` subheading.
 - Do not use bold text, bullet lists, tables, JSON, or any headings other than the required \`##\` sections and \`###\` titles.
-- Keep every entity consistent with the provided theme/seed. No player-character references or placeholder names.
+- Keep every entity consistent with the provided source material. No player-character references or placeholder names.
 - Maximum two sentences per entity. Output only the structured content.`,
 
 

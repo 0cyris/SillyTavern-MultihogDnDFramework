@@ -94,6 +94,8 @@ export function saveProfile(name) {
         worldProgressionSkeletonUseLorebooks: s.worldProgressionSkeletonUseLorebooks ?? false,
 
         worldProgressionSkeletonLorebookFilter: JSON.parse(JSON.stringify(s.worldProgressionSkeletonLorebookFilter || [])),
+
+        worldProgressionSkeletonLorebookOnly: s.worldProgressionSkeletonLorebookOnly ?? false,
         worldProgressionExclusionList: s.worldProgressionExclusionList || '',
 
         portraitGeneratorSource: s.portraitGeneratorSource ?? "native",
