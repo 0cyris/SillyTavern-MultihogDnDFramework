@@ -46,6 +46,9 @@ describe('General & Visuals settings', () => {
         const companionStart = settingsMarkup.indexOf('<b>Adventure Companion</b>');
         const companionMarkup = settingsMarkup.slice(companionStart);
 
+        expect(companionMarkup).toContain('Open Adventure Companion with the <b>CHAT</b> button at the top of the State Tracker. It can help with your adventure when <b>TUTORIAL MODE</b> is enabled, getting you to grips with the extension.');
+        expect(companionMarkup).toContain('Otherwise, it\'s there if you just feel like chatting about your adventure or brainstorm, etc.');
+
         [
             'rpg_adventure_companion_tutorial_mode',
             'rpg_adventure_companion_lookback',
