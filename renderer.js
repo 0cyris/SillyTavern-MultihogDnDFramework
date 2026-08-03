@@ -1941,7 +1941,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         }
     }
 
-    export function renderMemoAsCards(memo, filterTag, sectionPages) {
+    export function renderMemoAsCards(memo, filterTag, sectionPages, uiOptions = {}) {
         if (!memo || !memo.trim()) {
             const obSettings = getSettings();
             const useDdMmYy = !!obSettings.useDdMmYyFormat;
@@ -1982,6 +1982,45 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     </div>
                     <button type="button" class="rt-quickstart-begin-btn" id="rt-quickstart-begin" disabled>⚡ Begin Instant Action</button>
                     <div class="rt-quickstart-status" id="rt-quickstart-status">Select a genre, then roll a name</div>
+                </div>
+
+                <div class="rt-onboarding-drawer rt-onboarding-connection-drawer" style="width:100%;flex-shrink:0;">
+                    <button type="button" class="rt-onboarding-drawer-toggle" id="rt-onboarding-connection-drawer-toggle" aria-expanded="false" aria-controls="rt-onboarding-connection-drawer-body">
+                        <span class="rt-onboarding-drawer-toggle-label"><span class="rt-onboarding-drawer-icon" aria-hidden="true">&#128268;</span><span>Character Creation Connection<small>Shared by Character Creator, Instant Action, and Other Ways to Begin</small></span></span>
+                        <span class="rt-onboarding-drawer-chevron" aria-hidden="true">&#9656;</span>
+                    </button>
+                    <div class="rt-onboarding-drawer-body" id="rt-onboarding-connection-drawer-body">
+                        <div class="rt-onboarding-drawer-body-inner" style="display:flex;flex-direction:column;gap:7px;">
+                            <label style="font-size:11px;font-weight:600;">Connection Source</label>
+                            <select id="rt-character-creation-connection-source" class="text_pole" style="width:100%;font-size:11px;">
+                                <option value="default">Main API</option>
+                                <option value="profile">Profile</option>
+                                <option value="ollama">Ollama</option>
+                                <option value="openai">OpenAI</option>
+                            </select>
+                            <div id="rt-character-creation-profile-group" style="display:none;">
+                                <select id="rt-character-creation-connection-profile" class="text_pole" style="width:100%;font-size:11px;"></select>
+                            </div>
+                            <div id="rt-character-creation-ollama-group" style="display:none;flex-direction:column;gap:5px;">
+                                <input id="rt-character-creation-ollama-url" type="text" class="text_pole" placeholder="Ollama URL" style="width:100%;font-size:11px;" />
+                                <div style="display:flex;gap:5px;">
+                                    <select id="rt-character-creation-ollama-model" class="text_pole" style="flex:1;font-size:11px;"></select>
+                                    <button id="rt-character-creation-ollama-refresh" type="button" class="menu_button interactable" title="Refresh Ollama models" style="width:auto;padding:2px 7px;">&#8635;</button>
+                                </div>
+                            </div>
+                            <div id="rt-character-creation-openai-group" style="display:none;flex-direction:column;gap:5px;">
+                                <input id="rt-character-creation-openai-url" type="text" class="text_pole" placeholder="Endpoint URL" style="width:100%;font-size:11px;" />
+                                <input id="rt-character-creation-openai-key" type="password" class="text_pole" placeholder="API Key" style="width:100%;font-size:11px;" />
+                                <div style="display:flex;gap:5px;">
+                                    <select id="rt-character-creation-openai-model" class="text_pole" style="flex:1;font-size:11px;"></select>
+                                    <button id="rt-character-creation-openai-refresh" type="button" class="menu_button interactable" title="Refresh OpenAI-compatible models" style="width:auto;padding:2px 7px;">&#8635;</button>
+                                </div>
+                                <input id="rt-character-creation-openai-model-manual" type="text" class="text_pole" placeholder="Manual Model Name" style="width:100%;font-size:11px;" />
+                            </div>
+                            <label style="font-size:11px;font-weight:600;margin-top:2px;">Preset</label>
+                            <select id="rt-character-creation-completion-preset" class="text_pole" style="width:100%;font-size:11px;"></select>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-other-drawer">
@@ -2439,7 +2478,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         // If filtering by a single tag (detached window context)
         const tagsToRender = filterTag ? [filterTag] : sorted;
 
-        return tagsToRender.map(tag => renderSectionCard(tag, blocks, collapsed, detached, sectionPages, filterTag)).join('');
+        return tagsToRender.map(tag => renderSectionCard(tag, blocks, collapsed, detached, sectionPages, filterTag, uiOptions)).join('');
     }
 
     /**
@@ -2452,9 +2491,10 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
      * @param {Set<string>} detached
      * @param {object} sectionPages  mutable pagination state, keyed by tag
      * @param {string|null} filterTag  when set, hides the detach button and skips the detached-placeholder check
+     * @param {{fullViewSections?: string[], showCategorySettings?: boolean}} [uiOptions]
      * @returns {string}
      */
-    function renderSectionCard(tag, blocks, collapsed, detached, sectionPages, filterTag) {
+    function renderSectionCard(tag, blocks, collapsed, detached, sectionPages, filterTag, uiOptions = {}) {
         if (tag === 'QUESTS') return ''; // Quest log has dedicated high-fidelity renderer, skip standard card
         const content = blocks[tag];
         if (content === undefined && filterTag) {
@@ -2487,7 +2527,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         }
 
         const renderType = customField?.renderType || tag;
-        const isFullView = getSettings().fullViewSections.includes(tag) || NO_PAGINATE.has(renderType);
+        const fullViewOverride = Array.isArray(uiOptions.fullViewSections)
+            ? new Set(uiOptions.fullViewSections.map(value => String(value).toUpperCase()))
+            : null;
+        const isFullView = (fullViewOverride
+            ? fullViewOverride.has(tag)
+            : getSettings().fullViewSections.includes(tag)) || NO_PAGINATE.has(renderType);
         const localPageSize = getPageSize(tag);
 
         const page = isFullView ? 0 : (sectionPages[tag] ?? 0);
@@ -2551,9 +2596,9 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     ${personaFromCharBtn}
                     ${detachBtn}
                     ${fullViewBtn}
-                    <button class="rt-category-settings-btn" data-tag="${tag}" title="Category Rendering Options">
+                    ${uiOptions.showCategorySettings === false ? '' : `<button class="rt-category-settings-btn" data-tag="${tag}" title="Category Rendering Options">
                         <i class="fa-solid fa-cog"></i>
-                    </button>
+                    </button>`}
                     <span class="rt-item-count">${items.length} ${items.length === 1 ? 'entry' : 'entries'}</span>
                     <span class="rt-collapse-icon">${isCollapsed ? '&#9656;' : '&#9662;'}</span>
                 </div>

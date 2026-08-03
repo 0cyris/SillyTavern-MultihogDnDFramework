@@ -98,6 +98,14 @@ export function buildDefaultSettings() {
         adventureCompanionOpenaiKey: "",
         adventureCompanionOpenaiModel: "",
         adventureCompanionMaxTokens: 0,
+        characterCreationConnectionSource: "default",
+        characterCreationConnectionProfileId: "",
+        characterCreationCompletionPresetId: "",
+        characterCreationOllamaUrl: "http://localhost:11434",
+        characterCreationOllamaModel: "",
+        characterCreationOpenaiUrl: "",
+        characterCreationOpenaiKey: "",
+        characterCreationOpenaiModel: "",
         renderedViewActive: true,
 
         panelLayoutMode: 'stack',   // 'stack' = classic vertical stack | 'tabs' = compact tab mode (Character/Combat pinned, rest behind tabs)

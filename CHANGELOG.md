@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.8.0] - 2026-08-03
+
+### Added
+- **Game System Wizard UI Live Preview**: generated tracker sample blocks now render through the real tracker renderer while editing, with working pagination and Full List controls for long blocks.
+- **Shared Character Creation connection**: Character Creator, Instant Action, and Other Ways to Begin now use one configurable connection setting.
+
+### Changed
+- **Wizard preview controls**: persistent Category Rendering Options are hidden from the temporary preview; pagination and full-list mode remain available locally without changing tracker settings.
+
 ## [6.7.5] - 2026-08-03
 
 ### Changed

@@ -11,6 +11,7 @@ import {
 } from './src/state/player-identity.js';
 import { CHARACTER_CREATOR_NAME_ADDITIONS } from './src/state/character-names.js';
 import { findCharacterCreatorPresetByName, upsertCharacterCreatorPreset } from './src/features/character-creator/presets.js';
+import { getCharacterCreationConnectionSettings } from './character-creation-connection.js';
 
 const _CR_CLASS_LISTS = {
     fantasy: [
@@ -236,7 +237,10 @@ export async function generateQuickStartCharacter(opts) {
         classRaw: className,
     });
 
-    await sendDirectPrompt(prompt, { systemPromptMode: 'modules_only' });
+    await sendDirectPrompt(prompt, {
+        systemPromptMode: 'modules_only',
+        connectionSettings: getCharacterCreationConnectionSettings(s),
+    });
 
     const s2 = getSettings();
     const memoAfter = s2.currentMemo || '';
@@ -693,7 +697,10 @@ async function handleCharRollGenerate(el, panel) {
     if (genBtn) { genBtn.disabled = true; genBtn.textContent = '🎲 Generating...'; }
 
     try {
-        await sendDirectPrompt(prompt, { systemPromptMode: 'modules_only' });
+        await sendDirectPrompt(prompt, {
+            systemPromptMode: 'modules_only',
+            connectionSettings: getCharacterCreationConnectionSettings(s),
+        });
 
         if (wantPlayerCard || wantStPersona) {
             const s2 = getSettings();
@@ -770,7 +777,7 @@ Rules:
 
     const userPrompt = `CHARACTER CARD:\n${cleanMemo}\n\n${chatLog}\n\nWrite the persona description for ${charName || 'this character'}.\nIMPORTANT REMINDER: The total word count across all sections MUST be approximately ${wordCount} words!`;
     try {
-        const result = await sendStateRequest(s, systemPrompt, userPrompt);
+        const result = await sendStateRequest(getCharacterCreationConnectionSettings(s), systemPrompt, userPrompt);
         return (result || '').trim() || null;
     } catch (e) {
         toastr['warning']('Player Card generation failed.', 'Character Creator');
@@ -1213,7 +1220,10 @@ ${worldCtx}`;
     toastr['info'](`Importing "${name}" as PC… generating state memo.`, 'PC Import');
     el.querySelectorAll('.rt-random-char-btn').forEach(b => { /** @type {HTMLButtonElement} */ (b).disabled = true; });
 
-    await sendDirectPrompt(memoPrompt, { systemPromptMode: 'modules_only' });
+    await sendDirectPrompt(memoPrompt, {
+        systemPromptMode: 'modules_only',
+        connectionSettings: getCharacterCreationConnectionSettings(s),
+    });
 
     // Sync the card's avatar as the PC portrait globally so both the State Tracker
     // and Campaign Records immediately reflect the newly imported character's image.
@@ -1321,20 +1331,8 @@ RULES — read carefully:
             : '';
         const userPrompt = `CARD TO TRANSCRIBE:\n${cardText}${worldSection}\n\nOutput the transcribed persona text now.`;
 
-        const aiSettings = {
-            connectionSource: s.routerConnectionSource ?? 'default',
-            connectionProfileId: s.routerConnectionProfileId || '',
-            completionPresetId: s.routerCompletionPresetId || '',
-            ollamaUrl: s.routerOllamaUrl || 'http://localhost:11434',
-            ollamaModel: s.routerOllamaModel || '',
-            openaiUrl: s.routerOpenaiUrl || '',
-            openaiKey: s.routerOpenaiKey || '',
-            openaiModel: s.routerOpenaiModel || '',
-            maxTokens: s.routerMaxTokens || 0,
-            debugMode: s.debugMode,
-        };
         try {
-            const result = await sendStateRequest(aiSettings, systemPrompt, userPrompt);
+            const result = await sendStateRequest(getCharacterCreationConnectionSettings(s), systemPrompt, userPrompt);
             return (result || '').trim() || null;
         } catch (err) {
             toastr['error'](`Bio generation failed: ${String(err.message || err).substring(0, 120)}`, 'PC Import');
@@ -1373,20 +1371,8 @@ ${wordCount === 'same'
     const userPrompt = `CHARACTER CARD:\n${cardText}${worldSection}\n\nWrite the persona description for ${name}.`;
 
 
-    const aiSettings = {
-        connectionSource: s.routerConnectionSource ?? 'default',
-        connectionProfileId: s.routerConnectionProfileId || '',
-        completionPresetId: s.routerCompletionPresetId || '',
-        ollamaUrl: s.routerOllamaUrl || 'http://localhost:11434',
-        ollamaModel: s.routerOllamaModel || '',
-        openaiUrl: s.routerOpenaiUrl || '',
-        openaiKey: s.routerOpenaiKey || '',
-        openaiModel: s.routerOpenaiModel || '',
-        maxTokens: s.routerMaxTokens || 0,
-        debugMode: s.debugMode,
-    };
     try {
-        const result = await sendStateRequest(aiSettings, systemPrompt, userPrompt);
+        const result = await sendStateRequest(getCharacterCreationConnectionSettings(s), systemPrompt, userPrompt);
         return (result || '').trim() || null;
     } catch (err) {
         toastr['error'](`Bio generation failed: ${String(err.message || err).substring(0, 120)}`, 'PC Import');

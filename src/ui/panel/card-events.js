@@ -3,12 +3,13 @@ import { pickGenreCharacterName } from '../../state/character-names.js';
 
 export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRefresh = null) {
     const runtime = getRuntimeActions();
-    const { applyPortraitData, autoApplySysprompt, bindQuickStartEvents, blockToItems, buildCombatAndSkillScalingHint, buildNpcInstruction, buildOnboardingActiveBlocks, buildOnboardingTimeHint, buildOnboardingXpHint, buildStartingGearHint, createDetachedPanel, extractCharNameFromMemo, fileToDataUrl, generatePersonaBio, getPageSize, getSettings, handleCategorySettings, handleCharacterCreatorGenerate, handleRecolor, loadBenchedExpanded, loadCollapsed, loadDetached, maybeCreateOnboardingPersona, parseMemoBlocks, refreshAgentManifest, refreshNpcManifest, refreshRenderedView, registerDiceFunctionTool, removeArchivedQuest, resolveActivePersonaDescription, saveActiveTab, saveBenchedExpanded, saveCollapsed, saveDetached, saveSettings, scaleImageTo512Square, scheduleAutoApply, sendDirectPrompt, setInitialDateValue, setUse24hTime, setUseDdMmYyFormat, showCharacterRollPanel, showLorebookAgentDocumentation, showNarrativePacingExplanation, showPcImportPanel, showPersonaConfirmOverlay, showPortraitSettingsMenu, showQuestsHardcoreExplanation, showRngExplanation, showSettingsHelpPopup, syncOnboardingPersonaPrefsFromDom, syncOnboardingUI } = runtime;
+    const { applyPortraitData, autoApplySysprompt, bindCharacterCreationConnectionSettings, bindQuickStartEvents, blockToItems, buildCombatAndSkillScalingHint, buildNpcInstruction, buildOnboardingActiveBlocks, buildOnboardingTimeHint, buildOnboardingXpHint, buildStartingGearHint, createDetachedPanel, extractCharNameFromMemo, fileToDataUrl, generatePersonaBio, getCharacterCreationConnectionSettings, getPageSize, getSettings, handleCategorySettings, handleCharacterCreatorGenerate, handleRecolor, loadBenchedExpanded, loadCollapsed, loadDetached, maybeCreateOnboardingPersona, parseMemoBlocks, refreshAgentManifest, refreshNpcManifest, refreshRenderedView, registerDiceFunctionTool, removeArchivedQuest, resolveActivePersonaDescription, saveActiveTab, saveBenchedExpanded, saveCollapsed, saveDetached, saveSettings, scaleImageTo512Square, scheduleAutoApply, sendDirectPrompt, setInitialDateValue, setUse24hTime, setUseDdMmYyFormat, showCharacterRollPanel, showLorebookAgentDocumentation, showNarrativePacingExplanation, showPcImportPanel, showPersonaConfirmOverlay, showPortraitSettingsMenu, showQuestsHardcoreExplanation, showRngExplanation, showSettingsHelpPopup, syncOnboardingPersonaPrefsFromDom, syncOnboardingUI } = runtime;
     const _sectionPages = sectionPages;
 
     const refresh = onRefresh || refreshRenderedView;
 
     bindQuickStartEvents(el);
+    bindCharacterCreationConnectionSettings(el);
 
     const otherWaysDrawer = el.querySelector('.rt-onboarding-other-drawer');
     const narratorDrawer = el.querySelector('.rt-onboarding-narrator-drawer');
@@ -374,7 +375,10 @@ Gear:
                 }
                 try {
                     syncOnboardingPersonaPrefsFromDom(el);
-                    await sendDirectPrompt(customPrompt + combatSkillHint, { systemPromptMode: 'modules_only' });
+                    await sendDirectPrompt(customPrompt + combatSkillHint, {
+                        systemPromptMode: 'modules_only',
+                        connectionSettings: getCharacterCreationConnectionSettings(getSettings()),
+                    });
                     const personaHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\nAdditional: ${customInstructions}\n`;
                     await maybeCreateOnboardingPersona(personaHints);
                 } finally {
@@ -405,7 +409,10 @@ Gear:
                     personaPrompt += `\n\nAdditional setting/instruction constraints: ${customInstructions}. Adapt the name, attributes, description, gear, and spells (if any) to match this setting/instruction perfectly.`;
                 }
                 syncOnboardingPersonaPrefsFromDom(el);
-                await sendDirectPrompt(personaPrompt + combatSkillHint, { systemPromptMode: 'modules_only' });
+                await sendDirectPrompt(personaPrompt + combatSkillHint, {
+                    systemPromptMode: 'modules_only',
+                    connectionSettings: getCharacterCreationConnectionSettings(getSettings()),
+                });
                 const personaHints = `\n\n--- PLAYER PREFERENCES & HINTS ---\nSource: the previously active SillyTavern persona.${customInstructions ? `\nAdditional: ${customInstructions}` : ''}\n`;
                 await maybeCreateOnboardingPersona(personaHints, {
                     preserveActivePersona: true,
@@ -422,7 +429,10 @@ Gear:
             }
             try {
                 syncOnboardingPersonaPrefsFromDom(el);
-                await sendDirectPrompt(promptText + combatSkillHint, { systemPromptMode: 'modules_only' });
+                await sendDirectPrompt(promptText + combatSkillHint, {
+                    systemPromptMode: 'modules_only',
+                    connectionSettings: getCharacterCreationConnectionSettings(getSettings()),
+                });
                 const personaHints = customInstructions
                     ? `\n\n--- PLAYER PREFERENCES & HINTS ---\nAdditional: ${customInstructions}\n`
                     : '';

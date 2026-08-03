@@ -134,7 +134,23 @@ export function saveProfile(name) {
         gameSystemWizardOllamaModel: s.gameSystemWizardOllamaModel || "",
         gameSystemWizardOpenaiUrl: s.gameSystemWizardOpenaiUrl || "",
         gameSystemWizardOpenaiKey: s.gameSystemWizardOpenaiKey || "",
-        gameSystemWizardOpenaiModel: s.gameSystemWizardOpenaiModel || "",
+        gameSystemWizardOpenaiModel: s.gameSystemWizardOpenaiModel || "",
+
+        characterCreationConnectionSource: s.characterCreationConnectionSource ?? "default",
+
+        characterCreationConnectionProfileId: s.characterCreationConnectionProfileId || "",
+
+        characterCreationCompletionPresetId: s.characterCreationCompletionPresetId || "",
+
+        characterCreationOllamaUrl: s.characterCreationOllamaUrl || "http://localhost:11434",
+
+        characterCreationOllamaModel: s.characterCreationOllamaModel || "",
+
+        characterCreationOpenaiUrl: s.characterCreationOpenaiUrl || "",
+
+        characterCreationOpenaiKey: s.characterCreationOpenaiKey || "",
+
+        characterCreationOpenaiModel: s.characterCreationOpenaiModel || "",
         gameSystemWizardSystemPrompt: s.gameSystemWizardSystemPrompt || "",
     };
     s.activeProfile = name;

@@ -18,6 +18,7 @@ import { migrateAllEmbeddedPortraits, countEmbeddedPortraitDataUrls, purgeAllPor
 import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, makeResizableBR, makeResizableBL, setupResizeObserver, setupDeltaResize, canResizePanels, jqueryToggleSlide, resolveViewportClampedGeometry, clampFloatingPanelToViewport } from './ui-geometry.js';
 import { applyCustomTheme, openThemeWizard, refreshSavedThemesList, handleRecolor, undoThemeChange } from './theme-manager.js';
 import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenerate, generatePersonaBio, showPersonaConfirmOverlay, extractCharNameFromMemo, activateSillyTavernPersona } from './character-creator.js';
+import { bindCharacterCreationConnectionSettings, getCharacterCreationConnectionSettings } from './character-creation-connection.js';
 import { bindQuickStartEvents } from './quickstart.js';
 import { bindAdventureCompanion, bindAdventureCompanionSettingsDrawer, openAdventureCompanion, closeAdventureCompanion } from './adventure-companion.js';
 import { handleCategorySettings, openCustomFieldEditor, openPromptEditor, refreshOrderList, exportModules, importModulesFromJson, openNpcSectionEditor, openPcSectionEditor } from './ui-editors.js';
@@ -2333,7 +2334,7 @@ async function syncActivePersonaDescriptionFromAvatar() {
  * Send a direct instruction to the State Model bypassing the narrative pipeline.
  * Used for initial character setup and manual corrections.
  * @param {string} message
- * @param {{ systemPromptMode?: 'state_extractor'|'modules_only' }} [options]
+ * @param {{ systemPromptMode?: 'state_extractor'|'modules_only', connectionSettings?: object }} [options]
  */
 export async function sendDirectPrompt(message, options = {}) {
     if (runtimeState.stateModelRunning) {
@@ -2407,7 +2408,7 @@ export async function sendDirectPrompt(message, options = {}) {
             `## USER INSTRUCTION\n${message}\n\n` +
             `## OUTPUT ONLY CHANGED OR NEW SECTIONS:`;
 
-        const result = await sendStateRequest(settings, systemPrompt, userPrompt);
+        const result = await sendStateRequest(options.connectionSettings || settings, systemPrompt, userPrompt);
 
         if (result && typeof result === 'string') {
             let cleanedOutput = result;
@@ -2560,6 +2561,15 @@ function loadProfile(name) {
     s.gameSystemWizardOpenaiKey = p.gameSystemWizardOpenaiKey || "";
     s.gameSystemWizardOpenaiModel = p.gameSystemWizardOpenaiModel || "";
     s.gameSystemWizardSystemPrompt = p.gameSystemWizardSystemPrompt || "";
+
+    s.characterCreationConnectionSource = p.characterCreationConnectionSource ?? "default";
+    s.characterCreationConnectionProfileId = p.characterCreationConnectionProfileId || "";
+    s.characterCreationCompletionPresetId = p.characterCreationCompletionPresetId || "";
+    s.characterCreationOllamaUrl = p.characterCreationOllamaUrl || "http://localhost:11434";
+    s.characterCreationOllamaModel = p.characterCreationOllamaModel || "";
+    s.characterCreationOpenaiUrl = p.characterCreationOpenaiUrl || "";
+    s.characterCreationOpenaiKey = p.characterCreationOpenaiKey || "";
+    s.characterCreationOpenaiModel = p.characterCreationOpenaiModel || "";
 
     // Update settings UI inputs if rendered
     $('#rpg_world_progression_randomize_npcs').prop('checked', !!s.worldProgressionRandomizeNPCs);
@@ -4603,6 +4613,7 @@ async function runPortraitMigrationIfNeeded() {
         rebuildNpcInstructionIfNeeded,
         applyPortraitData,
         bindQuickStartEvents,
+        bindCharacterCreationConnectionSettings,
         bindAdventureCompanion,
         openAdventureCompanion,
         blockToItems,
@@ -4618,6 +4629,7 @@ async function runPortraitMigrationIfNeeded() {
         generatePersonaBio,
         getPageSize,
         getSettings,
+        getCharacterCreationConnectionSettings,
         handleCategorySettings,
         handleCharacterCreatorGenerate,
         handleRecolor,
