@@ -185,6 +185,11 @@
                                 <b style="font-size: 0.85em; opacity: 0.8;">Library</b>
                                 <div id="rpg_tracker_saved_themes_list" class="flex-container flexFlowColumn gap-1"></div>
                             </div>
+                            <label class="checkbox_label" style="margin-top: 10px;" title="Animate gains and losses on every custom ((BAR)) and ((BARREL)) marker. Individual bar animation settings still work when this is off.">
+                                <input id="rpg_tracker_animate_all_custom_bars" type="checkbox" />
+                                <span>Animate all custom bar changes in State Tracker</span>
+                                <i class="fa-solid fa-circle-question interactable" title="Shows a green positive value or red negative value and highlights the changed segment for all custom ((BAR)) and ((BARREL)) markers. Does not change XP or native relationship animations."></i>
+                            </label>
                         </div>
                             </div>
                         </div>
@@ -721,7 +726,7 @@
                     </div>
 
                     <div class="inline-drawer">
-                        <div class="inline-drawer-toggle inline-drawer-header">
+                        <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header">
                             <b>Connection Settings</b>
                             <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
                         </div>
@@ -761,7 +766,7 @@
                     </div>
 
                     <div class="inline-drawer" style="margin-top: 4px;">
-                        <div class="inline-drawer-toggle inline-drawer-header">
+                        <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header">
                             <b>Combat API Override</b>
                             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
                         </div>
@@ -802,23 +807,27 @@
                         <button id="rpg_tracker_add_custom_field_ai" class="menu_button interactable" style="flex: 1; background: rgba(180, 100, 255, 0.15); border-color: rgba(180, 100, 255, 0.4);"><i class="fa-solid fa-wand-magic-sparkles"></i> Add Custom (AI)</button>
                     </div>
                     <div class="flex-container gap-1" style="margin-top: 6px;">
+                        <button id="rpg_tracker_export_all_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Export</button>
+                        <button id="rpg_tracker_import_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Import</button>
+                        <button id="rpg_tracker_delete_all_custom_modules" class="menu_button interactable" style="flex: 1; font-size: 11px; color: #ff5555;">Clear All</button>
+                    </div>
+                    <button id="rpg_tracker_btn_reset_all_prompts" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Stock Modules</button>
+                    <div class="flex-container gap-1" style="margin-top: 0;">
                         <button id="rt_btn_tag_library" class="menu_button interactable rt-tag-library-button" aria-label="Open Rendering Tags Library">
                             <span class="rt-tag-library-icon" aria-hidden="true"><i class="fa-solid fa-swatchbook"></i></span>
                             <span class="rt-tag-library-copy"><span>Rendering Tags Library</span><small>Live previews · color alchemy</small></span>
                             <span class="rt-tag-library-sparkle" aria-hidden="true">✦</span>
                         </button>
                     </div>
-                    <label class="checkbox_label" style="margin-top: 5px;" title="Animate gains and losses on every custom ((BAR)) and ((BARREL)) marker. Individual bar animation settings still work when this is off.">
-                        <input id="rpg_tracker_animate_all_custom_bars" type="checkbox" />
-                        <span>Animate all custom BAR and BARREL changes</span>
-                        <i class="fa-solid fa-circle-question interactable" title="Shows a green positive value or red negative value and highlights the changed segment for all custom ((BAR)) and ((BARREL)) markers. Does not change XP or native relationship animations."></i>
+                    <button id="rpg_tracker_manage_display_groups" class="menu_button interactable rt-tag-library-button" aria-label="Open Display Groups manager" title="Configure global, display-only module bundles. This never changes prompts, memo blocks, activation, scope, or Wizard Game Systems.">
+                        <span class="rt-tag-library-icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
+                        <span class="rt-tag-library-copy"><span>Display Groups <small style="color:#ffc45c;">BETA</small></span><small>Shared display-only headers</small></span>
+                        <span class="rt-tag-library-sparkle" aria-hidden="true">&#10022;</span>
+                    </button>
+                    <label class="checkbox_label" style="margin-top: 5px;" title="Master safety switch. Turn this off to immediately restore the existing independent module rendering without deleting your groups.">
+                        <input id="rpg_tracker_display_groups_enabled" type="checkbox" />
+                        <span>Enable Display Groups</span>
                     </label>
-                    <div class="flex-container gap-1" style="margin-top: 4px;">
-                        <button id="rpg_tracker_export_all_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Export</button>
-                        <button id="rpg_tracker_import_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Import</button>
-                        <button id="rpg_tracker_delete_all_custom_modules" class="menu_button interactable" style="flex: 1; font-size: 11px; color: #ff5555;">Clear All</button>
-                    </div>
-                    <button id="rpg_tracker_btn_reset_all_prompts" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Stock Modules</button>
 
                     <hr>
                     <b>Scenario Profiles</b>
@@ -832,7 +841,7 @@
 
                     <hr>
                     <div class="inline-drawer">
-                        <div class="inline-drawer-toggle inline-drawer-header">
+                        <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header">
                             <b>Core Prompt</b>
                             <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
                         </div>
@@ -846,9 +855,14 @@
                         </div>
                     </div>
 
-                    <hr>
-                    <b>Advanced Options</b>
-                    <div class="flex-container flexFlowColumn gap-1">
+                    <div class="inline-drawer" style="margin-top: 8px;">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-sliders" style="margin-right:6px;opacity:.7;"></i>
+                            <b>Advanced Options</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="flex-container flexFlowColumn gap-1">
                         <label>Message Lookback</label>
                         <label class="checkbox_label" title="When enabled, the State Tracker always reads from the last user message through to the latest AI response — capturing all tool calls and multi-part replies in a single turn. This is the recommended setting.">
                             <input id="rpg_tracker_lookback_since_last_user" type="checkbox" checked />
@@ -878,6 +892,8 @@
                             Auto Rollback Memo on Swipe
                             <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Restores the State Tracker memo to its pre-update snapshot when you swipe to a different AI response. Prevents memo drift from discarded generations."></i>
                         </label>
+                            </div>
+                        </div>
                     </div>
 
 

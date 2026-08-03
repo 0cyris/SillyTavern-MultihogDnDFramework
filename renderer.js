@@ -3,6 +3,7 @@ import { lookupCustomPortraitSrc } from './portrait-storage.js';
 import { escapeHtml, decodeHtml, highlightParens, highlightNumbers, parseInWorldTime, isRestTimeUnset, formatTimeDiff, isArchivedQuestStatus, questHasEffectiveDeadline, isEmergentQuest } from './memo-processor.js';
 import { BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, renderStartingGearTierOptions } from './constants.js';
 import { isResolvedCombatantStatusLine, parseCombatSideHeader } from './src/state/combat-persistence.js';
+import { buildDisplayGroupRenderPlan } from './src/features/display-groups.js';
 
 // ── Renderer module: pure HTML string producers, localStorage helpers ──
 // No live DOM mutations. All functions return strings or void (localStorage).
@@ -128,7 +129,12 @@ export function renderDayNightBadge(str) {
         const hasLabel = colonIdx !== -1;
         const labelText = hasLabel ? line.substring(0, colonIdx + 1).trim() : '';
         const value     = hasLabel ? line.substring(colonIdx + 1).trim() : line.trim();
-        const labelStyle = rule.color ? ` style="color:${rule.color}"` : '';
+        // Badge color overrides belong to the badge value itself. Applying the
+        // same color to a preceding label (for example `Status:` in
+        // `Status: ((BADGEPINK)) Respected`) visually merges the label into the
+        // badge styling even though it is not part of the badge.
+        const colorLabel = rule.color && !['badge', 'badge_colored', 'pills', 'pill_colored'].includes(rule.renderType);
+        const labelStyle = colorLabel ? ` style="color:${rule.color}"` : '';
         const labelHtml  = labelText
             ? `<span class="rt-entity-sub-label"${labelStyle}>${escapeHtmlWithColor(labelText)}</span>`
             : '';
@@ -880,6 +886,8 @@ export function renderDayNightBadge(str) {
         if (segments.length === 0) return null;
         const usesExplicitColumns = line.includes('||');
         const usesTabStops = segments.some(segment => segment.tabStop !== undefined);
+        const compactPillRow = segments.length > 1 && segments.every(segment =>
+            ['pills', 'pill_colored', 'badge', 'badge_colored'].includes(segment.rule.renderType));
 
         const lineAnchor = (!entityName && lineIdx !== null) ? `L${lineIdx}` : '';
 
@@ -918,7 +926,7 @@ export function renderDayNightBadge(str) {
             return `<div class="${cellClass}"${layoutStyle}>${html}</div>`;
         }).join('');
 
-        return `<div class="rt-multi-marker-row${usesTabStops ? ' rt-multi-marker-row--tab-stops' : usesExplicitColumns ? ' rt-multi-marker-row--columns' : ''}">${childrenHtml}</div>`;
+        return `<div class="rt-multi-marker-row${usesTabStops ? ' rt-multi-marker-row--tab-stops' : usesExplicitColumns ? ' rt-multi-marker-row--columns' : ''}${compactPillRow ? ' rt-multi-marker-row--compact-pills' : ''}">${childrenHtml}</div>`;
     }
 
     export function renderLineInEntityContext(tag, line, entityName, rawLine) {
@@ -2475,10 +2483,23 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         const collapsed = loadCollapsed();
         const detached = loadDetached();
 
-        // If filtering by a single tag (detached window context)
-        const tagsToRender = filterTag ? [filterTag] : sorted;
+        // Detached/single-module contexts deliberately bypass Display Groups.
+        // The BETA layer only changes the main rendered composition.
+        if (filterTag) {
+            return renderSectionCard(filterTag, blocks, collapsed, detached, sectionPages, filterTag, uiOptions);
+        }
 
-        return tagsToRender.map(tag => renderSectionCard(tag, blocks, collapsed, detached, sectionPages, filterTag, uiOptions)).join('');
+        // A previously detached child keeps its established detached behavior
+        // instead of being silently duplicated inside a new virtual host.
+        const displayGroups = (s.displayGroups || []).map(group => ({
+            ...group,
+            members: (group?.members || []).filter(tag => !detached.has(String(tag).toUpperCase())),
+        }));
+        const renderPlan = buildDisplayGroupRenderPlan(sorted, displayGroups, s.displayGroupsEnabled);
+        return renderPlan.map(entry => entry.kind === 'group'
+            ? renderDisplayGroupCard(entry, blocks, collapsed, detached, sectionPages)
+            : renderSectionCard(entry.tag, blocks, collapsed, detached, sectionPages, null, uiOptions)
+        ).join('');
     }
 
     /**
@@ -2491,7 +2512,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
      * @param {Set<string>} detached
      * @param {object} sectionPages  mutable pagination state, keyed by tag
      * @param {string|null} filterTag  when set, hides the detach button and skips the detached-placeholder check
-     * @param {{fullViewSections?: string[], showCategorySettings?: boolean}} [uiOptions]
+     * @param {{fullViewSections?: string[], showCategorySettings?: boolean, bodyOnly?: boolean}} [uiOptions]
      * @returns {string}
      */
     function renderSectionCard(tag, blocks, collapsed, detached, sectionPages, filterTag, uiOptions = {}) {
@@ -2503,7 +2524,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         if (content === undefined) return '';
 
         // If main panel context, filter out detached windows
-        if (!filterTag && detached.has(tag)) {
+        if (!uiOptions.bodyOnly && !filterTag && detached.has(tag)) {
             return `<div class="rt-detached-placeholder" data-tag="${tag}">
                 <span class="rt-placeholder-icon">⧉</span> ${tag} is detached
                 <button class="rt-reattach-btn-inline" data-tag="${tag}" title="Re-attach">↓</button>
@@ -2514,7 +2535,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         const icon = customField?.icon || BLOCK_ICONS[tag] || '📄';
         const displayName = customField?.label || tag;
         const items = blockToItems(tag, content);
-        const isCollapsed = collapsed.has(tag);
+        const isCollapsed = !uiOptions.bodyOnly && collapsed.has(tag);
 
         let totalValueBadge = '';
         if (tag === 'INVENTORY' && items.totalValueGP && getSettings().showTotalInventoryValue !== false) {
@@ -2588,6 +2609,11 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
             benchedPanelHtml = renderBenchedPartyPanel(blocks['BENCHED PARTY'], collapsed.has('BENCHED PARTY'), loadBenchedExpanded());
         }
 
+        const bodyHtml = `<div class="${bodyClass}"${catStyleAttr}>${pageItems.join('')}${pagination}${benchedPanelHtml}</div>`;
+        if (uiOptions.bodyOnly) {
+            return `<div class="rt-display-group-member" data-member-tag="${tag}">${bodyHtml}</div>`;
+        }
+
         return `<div class="rt-section-card${isCollapsed ? ' rt-collapsed' : ''}" data-tag="${tag}">
             <div class="rt-section-header" data-tag="${tag}">
                 <span>${icon} ${displayName}</span>
@@ -2603,7 +2629,34 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <span class="rt-collapse-icon">${isCollapsed ? '&#9656;' : '&#9662;'}</span>
                 </div>
             </div>
-            <div class="${bodyClass}"${catStyleAttr}>${pageItems.join('')}${pagination}${benchedPanelHtml}</div>
+            ${bodyHtml}
+        </div>`;
+    }
+
+    /** Render one virtual, display-only host with headerless member bodies. */
+    function renderDisplayGroupCard(entry, blocks, collapsed, detached, sectionPages) {
+        const { key, group, tags } = entry;
+        const isCollapsed = collapsed.has(key);
+        const memberBodies = tags.map(tag => renderSectionCard(
+            tag,
+            blocks,
+            collapsed,
+            detached,
+            sectionPages,
+            null,
+            { bodyOnly: true, showCategorySettings: false },
+        )).join('');
+        if (!memberBodies) return '';
+
+        return `<div class="rt-section-card rt-display-group-card${isCollapsed ? ' rt-collapsed' : ''}" data-tag="${key}" data-display-group-id="${escapeHtml(group.id)}">
+            <div class="rt-section-header" data-tag="${key}">
+                <span>${escapeHtml(group.icon)} ${escapeHtml(group.name)}</span>
+                <div class="rt-section-header-right">
+                    <span class="rt-item-count">${tags.length} ${tags.length === 1 ? 'module' : 'modules'}</span>
+                    <span class="rt-collapse-icon">${isCollapsed ? '&#9656;' : '&#9662;'}</span>
+                </div>
+            </div>
+            <div class="rt-section-body rt-display-group-body">${memberBodies}</div>
         </div>`;
     }
 
@@ -2800,7 +2853,8 @@ export function renderTabModeView(memo, sectionPages, questsCtx = null) {
         tabTags = tabTags.filter(t => t !== 'QUESTS');
     }
 
-    if (tabTags.length === 0) {
+    const tabPlan = buildDisplayGroupRenderPlan(tabTags, s.displayGroups, s.displayGroupsEnabled);
+    if (tabPlan.length === 0) {
         return `<div class="rt-tabmode-wrap">
             <div class="rt-tabmode-pinned">${pinnedHtml}</div>
             ${vitalsHtml}
@@ -2808,16 +2862,24 @@ export function renderTabModeView(memo, sectionPages, questsCtx = null) {
         </div>`;
     }
 
+    const entryKey = entry => entry.kind === 'group' ? entry.key : entry.tag;
+    const tabKeys = tabPlan.map(entryKey);
     let activeTag = loadActiveTab();
-    if (!tabTags.includes(activeTag)) activeTag = tabTags[0];
+    if (!tabKeys.includes(activeTag)) activeTag = tabKeys[0];
 
-    const tabMeta = (tag) => {
+    const tabMeta = (entry) => {
+        if (entry.kind === 'group') return { icon: entry.group.icon, label: entry.group.name };
+        const tag = entry.tag;
         if (tag === 'QUESTS') return { icon: BLOCK_ICONS.QUESTS || '📋', label: 'Quests' };
         const customField = (s.customFields || []).find(f => f.tag.toUpperCase() === tag);
         return { icon: customField?.icon || BLOCK_ICONS[tag] || '📄', label: customField?.label || tag };
     };
 
-    const tabBadge = (tag) => {
+    const tabBadge = (entry) => {
+        if (entry.kind === 'group') {
+            return `<span class="rt-tab-badge" title="${entry.tags.length} grouped modules">${entry.tags.length}</span>`;
+        }
+        const tag = entry.tag;
         if (tag === 'QUESTS') {
             const count = questsCtx?.quests?.length || 0;
             return count > 0 ? `<span class="rt-tab-badge">${count}</span>` : '';
@@ -2834,21 +2896,25 @@ export function renderTabModeView(memo, sectionPages, questsCtx = null) {
         return badges;
     };
 
-    const tabBtnHtml = (tag) => {
-        const { icon, label } = tabMeta(tag);
-        const isActive = tag === activeTag;
-        return `<button class="rt-tab-btn${isActive ? ' active' : ''}" data-tag="${tag}" title="${escapeHtml(label)}">
-            <span class="rt-tab-icon">${icon}</span>${tabBadge(tag)}
+    const tabBtnHtml = (entry) => {
+        const key = entryKey(entry);
+        const { icon, label } = tabMeta(entry);
+        const isActive = key === activeTag;
+        return `<button class="rt-tab-btn${isActive ? ' active' : ''}" data-tag="${key}" title="${escapeHtml(label)}">
+            <span class="rt-tab-icon">${escapeHtml(icon)}</span>${tabBadge(entry)}
         </button>`;
     };
 
-    const tabStripHtml = `<div class="rt-tab-strip">${tabTags.map(tabBtnHtml).join('')}</div>`;
+    const tabStripHtml = `<div class="rt-tab-strip">${tabPlan.map(tabBtnHtml).join('')}</div>`;
 
-    const contentHtml = activeTag === 'QUESTS'
-        ? renderQuestLog(questsCtx?.quests || [], questsCtx?.currentTime || '', collapsed, detached, 'QUESTS')
-        : renderSectionCard(activeTag, blocks, collapsed, detached, sectionPages, activeTag);
+    const activeEntry = tabPlan.find(entry => entryKey(entry) === activeTag);
+    const contentHtml = activeEntry?.kind === 'group'
+        ? renderDisplayGroupCard(activeEntry, blocks, collapsed, detached, sectionPages)
+        : activeEntry?.tag === 'QUESTS'
+            ? renderQuestLog(questsCtx?.quests || [], questsCtx?.currentTime || '', collapsed, detached, 'QUESTS')
+            : renderSectionCard(activeEntry?.tag, blocks, collapsed, detached, sectionPages, activeEntry?.tag);
 
-    return `<div class="rt-tabmode-wrap" data-tab-order="${tabTags.join(',')}">
+    return `<div class="rt-tabmode-wrap" data-tab-order="${tabKeys.join(',')}">
         <div class="rt-tabmode-pinned">${pinnedHtml}</div>
         ${vitalsHtml}
         ${tabStripHtml}

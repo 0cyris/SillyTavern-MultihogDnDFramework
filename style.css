@@ -1474,6 +1474,36 @@
     display: none;
 }
 
+/* Display Groups BETA: one virtual host with headerless module bodies. */
+.rt-display-group-beta {
+    display: inline-block;
+    margin-left: 5px;
+    padding: 1px 4px;
+    border: 1px solid rgba(255, 196, 92, 0.42);
+    border-radius: 3px;
+    color: #ffc45c;
+    font-size: 0.58em;
+    line-height: 1.2;
+    vertical-align: 1px;
+}
+
+.rt-display-group-body {
+    padding: 0;
+    gap: 0;
+}
+
+.rt-display-group-member {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.rt-display-group-member:last-child {
+    border-bottom: none;
+}
+
+.rt-display-group-member > .rt-section-body {
+    padding: 8px 10px;
+}
+
 /* Pagination */
 .rt-pagination {
     display: flex;
@@ -2761,6 +2791,16 @@
     padding-bottom: 2px;
 }
 
+/* Separate colored pill markers should retain the same compact spacing as a
+   single ((PILLS)) marker rendering several values in one container. */
+.rt-multi-marker-row--compact-pills {
+    gap: 0 4px;
+}
+
+.rt-multi-marker-row--compact-pills .rt-mmc-cell:not(:first-child) > .rt-entity-sub-line {
+    padding-left: 0;
+}
+
 /* Each cell wrapper Ã¢â‚¬â€ fixed types (pills, badges, text) take natural width */
 .rt-mmc-cell {
     flex: 0 0 auto;
@@ -2902,6 +2942,8 @@
 /* Rendering Tags Library — a small portal into the framework's visual toolkit. */
 .rt-tag-library-button {
     flex: 1;
+    width: 100%;
+    box-sizing: border-box;
     position: relative;
     isolation: isolate;
     display: flex;
@@ -3210,7 +3252,7 @@
 .rt-card-kv {
     display: flex;
     gap: 6px;
-    padding: 2px 0;
+    padding: 2px 0 2px 5px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 
@@ -3218,7 +3260,6 @@
 
 .rt-card-key {
     color: var(--rt-text-muted);
-    min-width: 70px;
     flex-shrink: 0;
     font-size: 0.92em;
 }
@@ -5401,6 +5442,19 @@ textarea.rt-cr-input {
 .rpg-tracker-settings .inline-drawer .inline-drawer .inline-drawer-header b {
     font-size: 0.95em;
     opacity: 0.9;
+}
+
+/* Keep the three State Tracker utility drawer labels centered while the
+   collapse control remains available at the right edge of the header. */
+.rpg-tracker-settings .rt-centered-drawer-header {
+    position: relative;
+    justify-content: center !important;
+    text-align: center;
+}
+
+.rpg-tracker-settings .rt-centered-drawer-header .inline-drawer-icon {
+    position: absolute;
+    right: 14px;
 }
 
 .rpg-tracker-settings .inline-drawer-icon {

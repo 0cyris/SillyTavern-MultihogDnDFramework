@@ -21,6 +21,7 @@ import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenera
 import { bindCharacterCreationConnectionSettings, getCharacterCreationConnectionSettings } from './character-creation-connection.js';
 import { bindQuickStartEvents } from './quickstart.js';
 import { bindAdventureCompanion, bindAdventureCompanionSettingsDrawer, openAdventureCompanion, closeAdventureCompanion } from './adventure-companion.js';
+import { openDisplayGroupsManager } from './display-groups.js';
 import { handleCategorySettings, openCustomFieldEditor, openPromptEditor, refreshOrderList, exportModules, importModulesFromJson, openNpcSectionEditor, openPcSectionEditor } from './ui-editors.js';
 import { openGameSystemWizard, openManageGameSystems, openSystemPromptControlRoom, syncAllNarratorTogglesForUnlockState, extractTopLevelSections, normalizeSectionOrder, getSectionRowDescriptor, transformBaseSectionContent, isBlankSectionContent, isSectionUnlocked, isEffectiveSectionEnabled } from './game-systems.js';
 import { openManageGameCartridges, promptAndSaveCurrentAsCartridge } from './game-cartridges.js';
@@ -6952,6 +6953,21 @@ async function runPortraitMigrationIfNeeded() {
 
         // Initial order list refresh
         refreshOrderList();
+
+        $('#rpg_tracker_display_groups_enabled')
+            .prop('checked', !!settings.displayGroupsEnabled)
+            .on('change', function () {
+                settings.displayGroupsEnabled = !!$(this).prop('checked');
+                saveSettings(true);
+                refreshRenderedView();
+                toastr['info'](
+                    settings.displayGroupsEnabled
+                        ? 'Display Groups BETA enabled. Disable this switch at any time to restore normal module cards.'
+                        : 'Display Groups disabled. Normal module cards restored.',
+                    'Display Groups BETA',
+                );
+            });
+        $('#rpg_tracker_manage_display_groups').on('click', () => openDisplayGroupsManager());
 
         $('#rpg_tracker_add_custom_field').on('click', function () {
             const settings = getSettings();

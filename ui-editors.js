@@ -624,6 +624,12 @@ export function openCustomFieldEditor(index) {
                 const idx = s.blockOrder.indexOf(oldTag);
                 if (idx !== -1) s.blockOrder[idx] = rawTag;
             }
+            // Display Groups are global render metadata keyed by module tag.
+            // Renaming a module updates references without touching group behavior.
+            for (const group of s.displayGroups || []) {
+                if (!Array.isArray(group.members)) continue;
+                group.members = group.members.map(tag => String(tag).toUpperCase() === oldTag ? rawTag : tag);
+            }
             if (s.modulePageSizes && s.modulePageSizes[oldTag]) {
                 s.modulePageSizes[rawTag] = s.modulePageSizes[oldTag];
                 delete s.modulePageSizes[oldTag];

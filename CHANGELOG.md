@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.85.0] - 2026-08-03
+
+### Added
+- **Display Groups (BETA)**: globally bundle related tracker modules under a shared display-only header, with Stack and Tab Mode support, a dedicated manager, and safe opt-out behavior.
+
+### Changed
+- **State Tracker settings layout**: reorganized Advanced Options, module import/export controls, Display Groups, and custom bar animation settings into clearer drawers and controls.
+- **Rendering polish**: centered selected drawer labels, compacted separately colored pill spacing, isolated marker colors from their preceding labels, and aligned custom key/value rows.
+
 ## [6.8.0] - 2026-08-03
 
 ### Added

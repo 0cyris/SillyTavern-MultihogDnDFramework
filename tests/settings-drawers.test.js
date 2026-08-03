@@ -32,6 +32,16 @@ describe('General & Visuals settings', () => {
         expect(settingsMarkup).toContain('<b>Portraits</b>');
     });
 
+    it('centers the State Tracker utility drawer labels without moving their arrows', () => {
+        expect(settingsMarkup).toContain('<b>Connection Settings</b>');
+        expect(settingsMarkup).toContain('<b>Combat API Override</b>');
+        expect(settingsMarkup).toContain('<b>Core Prompt</b>');
+        const style = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+        expect(style).toContain('.rpg-tracker-settings .rt-centered-drawer-header');
+        expect(style).toContain('justify-content: center;');
+        expect(style).toContain('right: 14px;');
+    });
+
     it('keeps portrait-specific drawers and the emergency purge within Portraits', () => {
         const portraitsStart = settingsMarkup.indexOf('<b>Portraits</b>');
         const developerStart = settingsMarkup.indexOf('Developer &amp; Reset');
@@ -83,8 +93,9 @@ describe('General & Visuals settings', () => {
         const moduleExport = settingsMarkup.indexOf('id="rpg_tracker_export_all_modules"');
 
         expect(library).toBeGreaterThanOrEqual(0);
-        expect(animation).toBeGreaterThan(library);
+        expect(animation).toBeLessThan(library);
         expect(animation).toBeLessThan(moduleExport);
+        expect(settingsMarkup.slice(animation, library)).toContain('Animate all custom bar changes in State Tracker');
         expect(settingsMarkup).not.toContain('âˆ’value');
     });
 });

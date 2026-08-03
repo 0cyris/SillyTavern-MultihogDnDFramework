@@ -110,6 +110,11 @@ export function buildDefaultSettings() {
 
         panelLayoutMode: 'stack',   // 'stack' = classic vertical stack | 'tabs' = compact tab mode (Character/Combat pinned, rest behind tabs)
 
+        // BETA: global, display-only virtual hosts for related tracker modules.
+        // Off by default so existing rendering is byte-for-byte unchanged until opted in.
+        displayGroupsEnabled: false,
+        displayGroups: [],
+
         maxTokens: 0,
 
         fontSize: 14,
