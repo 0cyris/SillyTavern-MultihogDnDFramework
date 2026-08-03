@@ -37,8 +37,11 @@ describe('shared Character Creation connection', () => {
             expect(html).not.toContain(`id="${id}"`);
         });
 
-        expect(html.indexOf('Character Creation Connection')).toBeGreaterThan(html.indexOf('Instant Action'));
-        expect(html.indexOf('Character Creation Connection')).toBeLessThan(html.indexOf('Other Ways to Begin'));
+        expect(html.indexOf('Character Creation Connection')).toBeGreaterThan(html.indexOf('Narrator Configuration'));
+        const narratorStart = html.indexOf('<div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-narrator-drawer">');
+        const shortcutStart = html.indexOf('<div class="rt-onboarding-connection-shortcut"');
+        const narratorMarkup = html.slice(narratorStart, shortcutStart);
+        expect((narratorMarkup.match(/<div\b/g) || []).length).toBe((narratorMarkup.match(/<\/div>/g) || []).length);
         expect(settingsHtml).toContain('rt-character-creation-connection-controls');
     });
 

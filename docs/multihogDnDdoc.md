@@ -86,9 +86,19 @@ For the narrator, I'd recommend trying at least the following:
 
 ## First-Time Setup
 
+### Initial Setup
+
+1. Create a character card for your "narrator" (e.g. Game Master). Leave the card fields empty, as the framework handles all logic via the system prompt.
+
+2. Use one of the character creation options above to roll a new character. You can either use the Character Creator option to clearly specify your character, use Other Ways to Begin for a more rough description, or just use Instant Action to have the extension randomize everything beyond your name and adventure genre.
+
+3. If you decide to use the hybrid RNG mode that combines tool calls with the pre-seeded RNG Queue used by the extension, ensure function calling is enabled. Otherwise the `RollTheDice` tool will not work.
+
 ### Narrator character
 
 Create (or load) a SillyTavern character card that acts as the narrator — e.g. “Simulation Engine” or “Game Master.” The framework injects mechanical truth into prompts; the card supplies voice and framing.
+
+For the initial setup described above, leave the narrator card fields empty; the framework handles the narrator logic through its system prompt.
 
 The system rejects the traditional ST use of character cards, which are meant for 1-on-1 chats because RP of this kind necessarily introduces lots and lots of characters. Therefore it would make no sense to attribute the GM outputs to any one character. It functions more like a book in format, where there is a "narrator" under which everything happens.
 

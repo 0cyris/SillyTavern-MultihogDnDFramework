@@ -1992,13 +1992,6 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <div class="rt-quickstart-status" id="rt-quickstart-status">Select a genre, then roll a name</div>
                 </div>
 
-                <div class="rt-onboarding-connection-shortcut" style="width:100%;flex-shrink:0;">
-                    <button type="button" class="menu_button interactable" id="rt-open-character-creation-connection-settings" style="width:100%;">
-                        <i class="fa-solid fa-plug-circle-bolt"></i> Character Creation Connection
-                    </button>
-                    <small>Shared by Character Creator, Instant Action, and Other Ways to Begin. Configure it under <b>Connections &amp; Models</b> in extension settings.</small>
-                </div>
-
                 <div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-other-drawer">
                 <button type="button" class="rt-onboarding-drawer-toggle" id="rt-onboarding-drawer-toggle" aria-expanded="false" aria-controls="rt-onboarding-drawer-body">
                     <span class="rt-onboarding-drawer-toggle-label"><span class="rt-onboarding-drawer-icon" aria-hidden="true">&#10022;</span><span>Other Ways to Begin<small>Fine-tune your start, create a Player Card, or import a character</small></span></span>
@@ -2309,11 +2302,9 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div style="font-size: 13px; opacity: 0.9; flex-shrink: 0; line-height: 1.4; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
                     <b style="color: var(--rt-accent); font-size: 14px;">Initial Setup:</b><br><br>
-                    1. Set your starting level, genre, and time/date format (Day vs. calendar date, 12h vs. 24h) in the controls above, then use the archetype buttons to roll a new character, or <b>manually describe a character</b> by clicking 💬.<br><br>
-                    2. Create a character card for your "narrator" (e.g. Game Master). <b>Leave the card fields empty</b>, as the framework handles all logic via the system prompt.<br><br>
-                    3. Toggle the options below — the system prompt is <b>applied automatically</b> whenever you change a setting.<br><br>
-                    4. Make sure your Persona in SillyTavern matches the character name in the State Tracker after character creation. You can also describe your character in Persona as normal in SillyTavern.<br><br>
-                    5. In SillyTavern, use the <b>Chat Completion API</b> and enable <b>Enable function calling</b> under <b>AI Response Configuration</b>. Otherwise the <b>RollTheDice</b> tool will not work. Alternatively, choose an RNG mode without tool calls in <b>Narrator Configuration</b> below (e.g. <b>Pre-Seeded Only</b> or <b>No RNG</b>).<br><br>
+                    1. Create a character card for your "narrator" (e.g. Game Master). <b>Leave the card fields empty</b>, as the framework handles all logic via the system prompt.<br><br>
+                    2. Use one of the character creation options above to roll a new character. You can either use the Character Creator option to clearly specify your character, use Other Ways to Begin for a more rough description, or just use Instant Action to have the extension randomize everything beyond your name and adventure genre.<br><br>
+                    3. If you decide to use the hybrid RNG mode that combines tool calls with the pre-seeded RNG Queue used by the extension, ensure <b>function calling</b> is enabled. Otherwise the <b>RollTheDice</b> tool will not work.<br><br>
                     <div style="margin-top: 8px;">
                         🪙 <b>Token Optimization:</b> To reduce token costs, especially when in tool use mode, consider using a summarizer such as the <b>Summaryception</b> extension. Summarization combined with <b>Lorebook Agent</b> will guarantee the AI stays on track and keep token costs low.
                     </div>
@@ -2432,6 +2423,13 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     </button>
                 </div>
                 </div>
+                </div>
+                </div>
+                <div class="rt-onboarding-connection-shortcut" style="width:100%;flex-shrink:0;">
+                    <button type="button" class="menu_button interactable" id="rt-open-character-creation-connection-settings" style="width:100%;">
+                        <i class="fa-solid fa-plug-circle-bolt"></i> Character Creation Connection
+                    </button>
+                    <small>Shared by Character Creator, Instant Action, and Other Ways to Begin. Configure it under <b>Connections &amp; Models</b> in extension settings.</small>
                 </div>
             </div>`;
         }
