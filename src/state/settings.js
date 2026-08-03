@@ -847,6 +847,7 @@ export const CHAT_STATE_GLOBAL_UI_KEYS = [
     'characterCreationOpenaiModel',
     // Display Groups are global presentation metadata, never chat state.
     'displayGroupsEnabled',
+    'displayGroupsShowGaps',
     'displayGroups',
     // Appearance is global — never chat-linked (defensive; not historically snapshotted)
     'panelBgImage',

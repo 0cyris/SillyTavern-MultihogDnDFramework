@@ -2497,7 +2497,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
         }));
         const renderPlan = buildDisplayGroupRenderPlan(sorted, displayGroups, s.displayGroupsEnabled);
         return renderPlan.map(entry => entry.kind === 'group'
-            ? renderDisplayGroupCard(entry, blocks, collapsed, detached, sectionPages)
+            ? renderDisplayGroupCard(entry, blocks, collapsed, detached, sectionPages, s.displayGroupsShowGaps === true)
             : renderSectionCard(entry.tag, blocks, collapsed, detached, sectionPages, null, uiOptions)
         ).join('');
     }
@@ -2634,7 +2634,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
     }
 
     /** Render one virtual, display-only host with headerless member bodies. */
-    function renderDisplayGroupCard(entry, blocks, collapsed, detached, sectionPages) {
+    function renderDisplayGroupCard(entry, blocks, collapsed, detached, sectionPages, showGaps = true) {
         const { key, group, tags } = entry;
         const isCollapsed = collapsed.has(key);
         const memberBodies = tags.map(tag => renderSectionCard(
@@ -2656,7 +2656,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <span class="rt-collapse-icon">${isCollapsed ? '&#9656;' : '&#9662;'}</span>
                 </div>
             </div>
-            <div class="rt-section-body rt-display-group-body">${memberBodies}</div>
+            <div class="rt-section-body rt-display-group-body${showGaps ? '' : ' rt-display-group-body--seamless'}">${memberBodies}</div>
         </div>`;
     }
 
@@ -2909,7 +2909,7 @@ export function renderTabModeView(memo, sectionPages, questsCtx = null) {
 
     const activeEntry = tabPlan.find(entry => entryKey(entry) === activeTag);
     const contentHtml = activeEntry?.kind === 'group'
-        ? renderDisplayGroupCard(activeEntry, blocks, collapsed, detached, sectionPages)
+        ? renderDisplayGroupCard(activeEntry, blocks, collapsed, detached, sectionPages, s.displayGroupsShowGaps === true)
         : activeEntry?.tag === 'QUESTS'
             ? renderQuestLog(questsCtx?.quests || [], questsCtx?.currentTime || '', collapsed, detached, 'QUESTS')
             : renderSectionCard(activeEntry?.tag, blocks, collapsed, detached, sectionPages, activeEntry?.tag);

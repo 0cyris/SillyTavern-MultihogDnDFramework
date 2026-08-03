@@ -31,6 +31,7 @@ function configureGroups(enabled = true) {
         { tag: 'VEHICLE_FUEL', label: 'Vehicle Fuel', icon: '⛽', enabled: true },
     ];
     settings.displayGroupsEnabled = enabled;
+    settings.displayGroupsShowGaps = true;
     settings.displayGroups = [{
         id: 'vehicle_systems',
         name: 'Vehicle Systems',
@@ -50,6 +51,7 @@ describe('Display Groups BETA safety and planning', () => {
     it('is off by default and returns the original flat render plan unchanged', () => {
         const settings = getSettings();
         expect(settings.displayGroupsEnabled).toBe(false);
+        expect(settings.displayGroupsShowGaps).toBe(false);
         expect(settings.displayGroups).toEqual([]);
         expect(buildDisplayGroupRenderPlan(['A', 'B'], [{ id: 'g', name: 'G', members: ['A', 'B'] }], false)).toEqual([
             { kind: 'module', tag: 'A' },
@@ -70,6 +72,7 @@ describe('Display Groups BETA safety and planning', () => {
 
     it('keeps definitions and the master switch global rather than chat-linked', () => {
         expect(CHAT_STATE_GLOBAL_UI_KEYS).toContain('displayGroupsEnabled');
+        expect(CHAT_STATE_GLOBAL_UI_KEYS).toContain('displayGroupsShowGaps');
         expect(CHAT_STATE_GLOBAL_UI_KEYS).toContain('displayGroups');
     });
 });
@@ -105,6 +108,14 @@ describe('Display Group rendering', () => {
         expect(html.match(/class="rt-section-header"/g)).toHaveLength(2);
     });
 
+    it('can render grouped modules seamlessly when gaps are disabled', () => {
+        const settings = configureGroups(true);
+        settings.displayGroupsShowGaps = false;
+        const html = renderMemoAsCards(memo, null, {});
+
+        expect(html).toContain('rt-display-group-body rt-display-group-body--seamless');
+    });
+
     it('uses one group tab and one combined host in Tab Mode', () => {
         configureGroups(true);
         const html = renderTabModeView(memo, {}, null);
@@ -133,7 +144,7 @@ describe('Display Group rendering', () => {
         const managerSource = readFileSync(new URL('../display-groups.js', import.meta.url), 'utf8');
         const editorSource = readFileSync(new URL('../ui-editors.js', import.meta.url), 'utf8');
         expect(settingsHtml).toContain('Display Groups <small style="color:#ffc45c;">BETA</small>');
-        expect(settingsHtml).toContain('Enable Display Groups');
+        expect(settingsHtml).not.toContain('rpg_tracker_display_groups_enabled');
         expect(settingsHtml).toContain('rpg_tracker_manage_display_groups');
         expect(settingsHtml.indexOf('rpg_tracker_manage_display_groups')).toBeGreaterThan(settingsHtml.indexOf('<b>Modules &amp; Order</b>'));
         expect(settingsHtml.indexOf('rpg_tracker_manage_display_groups')).toBeLessThan(settingsHtml.indexOf('<b>Scenario Profiles</b>'));
@@ -143,6 +154,9 @@ describe('Display Group rendering', () => {
         expect(managerSource).toContain('They never merge memo blocks, prompts, module activation, scope, or Wizard Game Systems.');
         expect(managerSource).toContain('Display Groups allow you to visually bundle together related modules without their headers');
         expect(managerSource).toContain('Especially useful in tab mode');
+        expect(managerSource).toContain('rt-display-groups-enabled');
+        expect(managerSource).toContain('rt-display-groups-show-gaps');
+        expect(managerSource).toContain('Show gaps between grouped modules');
         expect(managerSource).toContain('width:100%;min-width:0;max-height:72vh');
         expect(managerSource).toContain('overflow-x:hidden');
         expect(managerSource).toContain('allowVerticalScrolling: true');

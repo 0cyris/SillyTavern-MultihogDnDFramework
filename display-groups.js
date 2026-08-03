@@ -50,6 +50,16 @@ export async function openDisplayGroupsManager() {
             <div style="display:none;padding:9px 10px;border:1px solid rgba(255,190,70,.45);border-radius:7px;background:rgba(255,190,70,.08);font-size:11px;line-height:1.45;box-sizing:border-box;max-width:100%;overflow-wrap:anywhere;">
                 <b style="color:#ffc45c;">BETA</b> — Display Groups are global and display-only. They never merge memo blocks, prompts, module activation, scope, or Wizard Game Systems. Disable the master toggle to restore the existing renderer immediately.
             </div>
+            <div class="rt-display-group-options">
+                <label class="rt-display-group-option" title="Turn this off to immediately restore the existing independent module rendering without deleting your groups.">
+                    <input id="rt-display-groups-enabled" type="checkbox" ${settings.displayGroupsEnabled ? 'checked' : ''}>
+                    <span class="rt-display-group-option-copy"><strong>Enable Display Groups</strong><small>Use your saved groups in the tracker display.</small></span>
+                </label>
+                <label class="rt-display-group-option" title="When disabled, grouped modules have no separator line or vertical gap between them.">
+                    <input id="rt-display-groups-show-gaps" type="checkbox" ${settings.displayGroupsShowGaps === true ? 'checked' : ''}>
+                    <span class="rt-display-group-option-copy"><strong>Show gaps between grouped modules</strong><small>Turn off for a completely seamless grouped display.</small></span>
+                </label>
+            </div>
             <div id="rt-display-groups-list" style="display:flex;flex-direction:column;gap:7px;overflow-y:auto;overflow-x:hidden;min-height:70px;min-width:0;max-width:100%;"></div>
             <button id="rt-display-group-add" class="menu_button interactable" style="width:100%;"><i class="fa-solid fa-plus"></i> Create Display Group</button>
             <div id="rt-display-group-editor" style="display:none;border:1px solid rgba(180,100,255,.35);border-radius:8px;padding:10px;background:rgba(0,0,0,.22);box-sizing:border-box;min-width:0;max-width:100%;overflow-x:hidden;"></div>
@@ -60,6 +70,23 @@ export async function openDisplayGroupsManager() {
         const list = document.getElementById('rt-display-groups-list');
         const editor = document.getElementById('rt-display-group-editor');
         if (!root || !list || !editor) return;
+
+        root.querySelector('#rt-display-groups-enabled')?.addEventListener('change', (event) => {
+            settings.displayGroupsEnabled = !!event.currentTarget.checked;
+            saveSettings(true);
+            refreshRenderedView();
+            toastr['info'](
+                settings.displayGroupsEnabled
+                    ? 'Display Groups BETA enabled.'
+                    : 'Display Groups disabled. Normal module cards restored.',
+                'Display Groups BETA',
+            );
+        });
+        root.querySelector('#rt-display-groups-show-gaps')?.addEventListener('change', (event) => {
+            settings.displayGroupsShowGaps = !!event.currentTarget.checked;
+            saveSettings(true);
+            refreshRenderedView();
+        });
 
         const renderList = () => {
             settings.displayGroups = normalizeDisplayGroups(settings.displayGroups);
