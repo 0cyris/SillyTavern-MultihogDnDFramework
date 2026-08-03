@@ -13,12 +13,15 @@ import {
 } from '../character-creation-connection.js';
 
 describe('shared Character Creation connection', () => {
-    it('renders one onboarding connection drawer for every character start path', () => {
+    it('keeps a shortcut on onboarding and centralizes the shared controls in settings', () => {
         for (const key of Object.keys(testExtensionSettings)) delete testExtensionSettings[key];
         const html = renderMemoAsCards('', null, {});
+        const settingsHtml = readFileSync(new URL('../settings.html', import.meta.url), 'utf8');
 
         expect(html).toContain('Character Creation Connection');
         expect(html).toContain('Shared by Character Creator, Instant Action, and Other Ways to Begin');
+        expect(html).toContain('rt-open-character-creation-connection-settings');
+        expect(html).toContain('Connections &amp; Models');
         [
             'rt-character-creation-connection-source',
             'rt-character-creation-connection-profile',
@@ -29,10 +32,14 @@ describe('shared Character Creation connection', () => {
             'rt-character-creation-openai-model',
             'rt-character-creation-openai-model-manual',
             'rt-character-creation-completion-preset',
-        ].forEach(id => expect(html).toContain(`id="${id}"`));
+        ].forEach(id => {
+            expect(settingsHtml).toContain(`id="${id}"`);
+            expect(html).not.toContain(`id="${id}"`);
+        });
 
         expect(html.indexOf('Character Creation Connection')).toBeGreaterThan(html.indexOf('Instant Action'));
         expect(html.indexOf('Character Creation Connection')).toBeLessThan(html.indexOf('Other Ways to Begin'));
+        expect(settingsHtml).toContain('rt-character-creation-connection-controls');
     });
 
     it('maps the shared settings into the LLM request shape', () => {

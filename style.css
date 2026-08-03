@@ -5030,6 +5030,113 @@ textarea.rt-cr-input {
 }
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Connection Settings Panels Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* Central Connections & Models settings */
+.rt-connections-models-intro {
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(100, 180, 255, 0.22);
+    border-radius: 7px;
+    background: rgba(100, 180, 255, 0.06);
+    font-size: 0.78em;
+    line-height: 1.4;
+    opacity: 0.82;
+}
+
+.rt-connection-drawer-slot:empty {
+    display: none;
+}
+
+.rt-central-connection-drawer,
+#rpg_character_creation_connection_drawer {
+    margin-bottom: 6px !important;
+}
+
+.rpg-tracker-settings .rt-central-connection-header {
+    min-height: 34px;
+    padding: 5px 42px !important;
+    box-sizing: border-box;
+    font-size: 0.88em !important;
+    line-height: 1.2;
+}
+
+.rpg-tracker-settings .rt-central-connection-header > b {
+    font-size: 1em !important;
+    font-weight: 700;
+    opacity: 0.92;
+}
+
+.rpg-tracker-settings .rt-central-connection-header .rt-central-connection-chevron {
+    position: absolute;
+    right: 12px;
+    font-size: 16px !important;
+    transform: rotate(-90deg) !important;
+    transition: transform 0.2s ease-in-out;
+}
+
+.rpg-tracker-settings .rt-central-connection-drawer.open > .rt-central-connection-header .rt-central-connection-chevron {
+    transform: rotate(0deg) !important;
+}
+
+.rt-connection-recommendation {
+    margin: 0 0 7px;
+    padding: 7px 9px;
+    border-left: 3px solid rgba(100, 180, 255, 0.55);
+    border-radius: 4px;
+    background: rgba(100, 180, 255, 0.07);
+    font-size: 0.76em;
+    line-height: 1.4;
+    opacity: 0.82;
+}
+
+.rt-connection-shortcut {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.rt-connection-shortcut > span {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.rt-connection-shortcut b {
+    font-size: 0.8em;
+}
+
+.rt-connection-shortcut small {
+    margin-top: 2px;
+    font-size: 0.7em;
+    opacity: 0.58;
+}
+
+.rt-connection-shortcut-button {
+    flex: 0 0 auto;
+    width: auto !important;
+    padding: 3px 8px !important;
+    font-size: 0.76em !important;
+}
+
+.rt-onboarding-connection-shortcut {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rt-onboarding-connection-shortcut > small {
+    padding: 0 6px;
+    color: var(--rt-text-muted);
+    font-size: 10px;
+    line-height: 1.35;
+}
+
 #rpg_tracker_profile_group,
 #rpg_tracker_ollama_group,
 #rpg_tracker_openai_group {

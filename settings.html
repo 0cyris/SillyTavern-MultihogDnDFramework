@@ -39,7 +39,7 @@
 
                         <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Help</small>
                         <button id="rpg_tracker_tutorial_help" class="menu_button interactable" style="margin-top: 2px; margin-left: 4px; width: calc(100% - 4px); font-size: 0.9em;"><i class="fa-solid fa-comments"></i> CHAT</button>
-                        <div style="font-size: 0.75em; opacity: 0.6; line-height: 1.35; padding: 4px 4px 0 4px;">Opens the in-panel Adventure Companion. Optional Tutorial Mode injects the framework guide. Its model connection and context options are configured in the Adventure Companion drawer below.</div>
+                        <div style="font-size: 0.75em; opacity: 0.6; line-height: 1.35; padding: 4px 4px 0 4px;">Opens the in-panel Adventure Companion. Optional Tutorial Mode injects the framework guide. Its model connection is configured under <strong>Connections &amp; Models</strong>; its context options remain in the Adventure Companion section below.</div>
 
                         <!-- MAIN PROMPT BACKUP -->
                         <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Main Prompt Backup</small>
@@ -483,7 +483,73 @@
                 </div>
             </div>
 
-            <!-- SUB-DRAWER 2: GAME SYSTEMS & CUSTOMIZATION -->
+            <!-- SUB-DRAWER 2: CONNECTIONS & MODELS -->
+            <div class="inline-drawer" id="rpg_connections_models_drawer">
+                <div class="inline-drawer-toggle inline-drawer-header">
+                    <i class="fa-solid fa-plug-circle-bolt" style="margin-right: 8px; opacity: 0.7;"></i>
+                    <b>Connections &amp; Models</b>
+                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                </div>
+                <div class="inline-drawer-content">
+                    <div class="rt-connections-models-intro">
+                        Configure the model connection used by each Multihog feature. These are global settings. <b>Main API</b> uses your current SillyTavern connection.
+                    </div>
+
+                    <div id="rpg_connection_slot_state_tracker" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_combat_override" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_lorebook_agent" class="rt-connection-drawer-slot"></div>
+
+                    <div id="rpg_connection_slot_character_creation" class="rt-connection-drawer-slot">
+                        <div class="inline-drawer rt-character-creation-connection-controls" id="rpg_character_creation_connection_drawer">
+                            <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header" style="font-size: 0.88em;">
+                                <i class="fa-solid fa-user-pen" style="margin-right: 6px; opacity: 0.65;"></i>
+                                <b>Character Creation &amp; Starting Modes</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <div style="font-size: 0.75em; opacity: 0.6; line-height: 1.35; margin-bottom: 4px;">Shared by Character Creator, Instant Action, and Other Ways to Begin.</div>
+                                    <label style="font-size: 0.8em;">Connection Source</label>
+                                    <select id="rt-character-creation-connection-source" class="text_pole" style="font-size: 0.8em;">
+                                        <option value="default">Main API</option>
+                                        <option value="profile">Profile</option>
+                                        <option value="ollama">Ollama</option>
+                                        <option value="openai">OpenAI</option>
+                                    </select>
+                                    <div id="rt-character-creation-profile-group" style="display:none;">
+                                        <select id="rt-character-creation-connection-profile" class="text_pole" style="font-size: 0.8em;"></select>
+                                    </div>
+                                    <div id="rt-character-creation-ollama-group" style="display:none;flex-direction:column;gap:5px;">
+                                        <input id="rt-character-creation-ollama-url" type="text" class="text_pole" placeholder="Ollama URL" style="font-size: 0.8em;" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rt-character-creation-ollama-model" class="text_pole" style="flex:1;font-size:0.8em;"></select>
+                                            <button id="rt-character-creation-ollama-refresh" type="button" class="menu_button interactable" title="Refresh Ollama models" style="width:auto;padding:2px 7px;"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                    </div>
+                                    <div id="rt-character-creation-openai-group" style="display:none;flex-direction:column;gap:5px;">
+                                        <input id="rt-character-creation-openai-url" type="text" class="text_pole" placeholder="Endpoint URL" style="font-size: 0.8em;" />
+                                        <input id="rt-character-creation-openai-key" type="password" class="text_pole" placeholder="API Key" style="font-size: 0.8em;" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rt-character-creation-openai-model" class="text_pole" style="flex:1;font-size:0.8em;"></select>
+                                            <button id="rt-character-creation-openai-refresh" type="button" class="menu_button interactable" title="Refresh OpenAI-compatible models" style="width:auto;padding:2px 7px;"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                        <input id="rt-character-creation-openai-model-manual" type="text" class="text_pole" placeholder="Manual Model Name" style="font-size: 0.8em;" />
+                                    </div>
+                                    <label style="font-size: 0.8em; margin-top: 4px;">Preset</label>
+                                    <select id="rt-character-creation-completion-preset" class="text_pole" style="font-size: 0.8em;"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="rpg_connection_slot_adventure_companion" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_game_system_wizard" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_world_progression" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_portraits" class="rt-connection-drawer-slot"></div>
+                </div>
+            </div>
+
+            <!-- SUB-DRAWER 3: GAME SYSTEMS & CUSTOMIZATION -->
             <div class="inline-drawer">
                 <div class="inline-drawer-toggle inline-drawer-header">
                     <i class="fa-solid fa-hat-wizard" style="margin-right: 8px; opacity: 0.7;"></i>

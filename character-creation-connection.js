@@ -49,9 +49,9 @@ function setOptions(select, values, emptyLabel, selectedValue) {
     select.value = selectedValue || '';
 }
 
-/** Bind the connection drawer rendered on the onboarding page. */
+/** Bind the shared Character Creation connection controls. */
 export function bindCharacterCreationConnectionSettings(rootEl) {
-    const drawer = rootEl?.querySelector('.rt-onboarding-connection-drawer');
+    const drawer = rootEl?.querySelector('.rt-character-creation-connection-controls');
     if (!drawer || drawer.dataset.rtConnectionBound === '1') return;
     drawer.dataset.rtConnectionBound = '1';
 

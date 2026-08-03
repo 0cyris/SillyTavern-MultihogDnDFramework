@@ -3,13 +3,23 @@ import { pickGenreCharacterName } from '../../state/character-names.js';
 
 export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRefresh = null) {
     const runtime = getRuntimeActions();
-    const { applyPortraitData, autoApplySysprompt, bindCharacterCreationConnectionSettings, bindQuickStartEvents, blockToItems, buildCombatAndSkillScalingHint, buildNpcInstruction, buildOnboardingActiveBlocks, buildOnboardingTimeHint, buildOnboardingXpHint, buildStartingGearHint, createDetachedPanel, extractCharNameFromMemo, fileToDataUrl, generatePersonaBio, getCharacterCreationConnectionSettings, getPageSize, getSettings, handleCategorySettings, handleCharacterCreatorGenerate, handleRecolor, loadBenchedExpanded, loadCollapsed, loadDetached, maybeCreateOnboardingPersona, parseMemoBlocks, refreshAgentManifest, refreshNpcManifest, refreshRenderedView, registerDiceFunctionTool, removeArchivedQuest, resolveActivePersonaDescription, saveActiveTab, saveBenchedExpanded, saveCollapsed, saveDetached, saveSettings, scaleImageTo512Square, scheduleAutoApply, sendDirectPrompt, setInitialDateValue, setUse24hTime, setUseDdMmYyFormat, showCharacterRollPanel, showLorebookAgentDocumentation, showNarrativePacingExplanation, showPcImportPanel, showPersonaConfirmOverlay, showPortraitSettingsMenu, showQuestsHardcoreExplanation, showRngExplanation, showSettingsHelpPopup, syncOnboardingPersonaPrefsFromDom, syncOnboardingUI } = runtime;
+    const { applyPortraitData, autoApplySysprompt, bindCharacterCreationConnectionSettings, bindQuickStartEvents, blockToItems, buildCombatAndSkillScalingHint, buildNpcInstruction, buildOnboardingActiveBlocks, buildOnboardingTimeHint, buildOnboardingXpHint, buildStartingGearHint, createDetachedPanel, extractCharNameFromMemo, fileToDataUrl, generatePersonaBio, getCharacterCreationConnectionSettings, getPageSize, getSettings, handleCategorySettings, handleCharacterCreatorGenerate, handleRecolor, loadBenchedExpanded, loadCollapsed, loadDetached, maybeCreateOnboardingPersona, openConnectionsModelsSettings, parseMemoBlocks, refreshAgentManifest, refreshNpcManifest, refreshRenderedView, registerDiceFunctionTool, removeArchivedQuest, resolveActivePersonaDescription, saveActiveTab, saveBenchedExpanded, saveCollapsed, saveDetached, saveSettings, scaleImageTo512Square, scheduleAutoApply, sendDirectPrompt, setInitialDateValue, setUse24hTime, setUseDdMmYyFormat, showCharacterRollPanel, showLorebookAgentDocumentation, showNarrativePacingExplanation, showPcImportPanel, showPersonaConfirmOverlay, showPortraitSettingsMenu, showQuestsHardcoreExplanation, showRngExplanation, showSettingsHelpPopup, syncOnboardingPersonaPrefsFromDom, syncOnboardingUI } = runtime;
     const _sectionPages = sectionPages;
 
     const refresh = onRefresh || refreshRenderedView;
 
     bindQuickStartEvents(el);
     bindCharacterCreationConnectionSettings(el);
+
+    const characterConnectionShortcut = el.querySelector('#rt-open-character-creation-connection-settings');
+    if (characterConnectionShortcut && !characterConnectionShortcut._bound) {
+        characterConnectionShortcut._bound = true;
+        characterConnectionShortcut.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openConnectionsModelsSettings('character_creation');
+        });
+    }
 
     const otherWaysDrawer = el.querySelector('.rt-onboarding-other-drawer');
     const narratorDrawer = el.querySelector('.rt-onboarding-narrator-drawer');

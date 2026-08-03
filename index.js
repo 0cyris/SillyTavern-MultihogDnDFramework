@@ -4578,6 +4578,102 @@ async function runPortraitMigrationIfNeeded() {
     }
 }
 
+const CONNECTION_SETTINGS_UI = [
+    { key: 'state_tracker', control: '#rpg_tracker_connection_source', slot: '#rpg_connection_slot_state_tracker', label: 'State Tracker', recommendation: 'I recommend a cheap mid-tier model such as GPT-5.6 Luna, Gemini Flash/Flash-Lite series, or Deepseek V4 Flash latest.' },
+    { key: 'combat_override', control: '#rpg_combat_api_override', slot: '#rpg_connection_slot_combat_override', label: 'Combat API Override' },
+    { key: 'lorebook_agent', control: '#rpg_tracker_router_source', slot: '#rpg_connection_slot_lorebook_agent', label: 'Lorebook Agent', recommendation: 'Same models work fine here as with the State Tracker.' },
+    { key: 'adventure_companion', control: '#rpg_adventure_companion_connection_source', slot: '#rpg_connection_slot_adventure_companion', label: 'Adventure Companion' },
+    { key: 'game_system_wizard', control: '#rpg_gs_wizard_connection_source', slot: '#rpg_connection_slot_game_system_wizard', label: 'Game System Wizard', recommendation: 'I recommend using a somewhat better model here such as Sonnet 5 or above for more robust and complex systems. Your mileage varies a lot here. Experiment.' },
+    { key: 'world_progression', control: '#rpg_world_connection_source', slot: '#rpg_connection_slot_world_progression', label: 'World Progression' },
+    { key: 'portraits', control: '#rpg_portrait_connection_source', slot: '#rpg_connection_slot_portraits', label: 'Portrait Generation', recommendation: 'A lightweight model should do fine.' },
+];
+
+function normalizeCentralConnectionDrawer(drawer, key, label, recommendation = '') {
+    if (!(drawer instanceof HTMLElement)) return;
+    const drawerHeader = drawer.querySelector(':scope > .inline-drawer-toggle');
+    drawerHeader?.classList.add('rt-centered-drawer-header', 'rt-central-connection-header');
+    drawerHeader?.querySelectorAll(':scope > i:not(.inline-drawer-icon)').forEach(icon => icon.remove());
+    const title = drawerHeader?.querySelector('b');
+    if (title && label) title.textContent = label;
+
+    const chevron = drawerHeader?.querySelector('.inline-drawer-icon');
+    if (chevron) {
+        chevron.className = 'inline-drawer-icon fa-solid fa-circle-chevron-down rt-central-connection-chevron';
+        chevron.removeAttribute('style');
+    }
+
+    drawer.classList.add('rt-central-connection-drawer');
+    drawer.classList.remove('open');
+    drawer.dataset.connectionKey = key;
+    const content = drawer.querySelector(':scope > .inline-drawer-content');
+    if (content instanceof HTMLElement) {
+        content.style.display = 'none';
+        if (recommendation && !content.querySelector(':scope > .rt-connection-recommendation')) {
+            const note = document.createElement('div');
+            note.className = 'rt-connection-recommendation';
+            note.textContent = recommendation;
+            content.prepend(note);
+        }
+    }
+}
+
+function setSettingsDrawerOpen(drawer) {
+    if (!(drawer instanceof HTMLElement)) return;
+    drawer.classList.add('open');
+    const content = drawer.querySelector(':scope > .inline-drawer-content');
+    if (content instanceof HTMLElement) content.style.display = 'block';
+    drawer.querySelector(':scope > .inline-drawer-toggle .inline-drawer-icon')?.classList.add('down');
+}
+
+function openConnectionsModelsSettings(targetKey = '') {
+    const extensionsContent = document.getElementById('rm_extensions_block');
+    if (extensionsContent?.classList.contains('closedDrawer')) {
+        document.querySelector('#extensions-settings-button > .drawer-toggle')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }
+
+    const settingsRoot = document.querySelector('.rpg-tracker-settings');
+    const frameworkDrawer = settingsRoot?.querySelector(':scope > .inline-drawer');
+    const connectionsDrawer = document.getElementById('rpg_connections_models_drawer');
+    setSettingsDrawerOpen(frameworkDrawer);
+    setSettingsDrawerOpen(connectionsDrawer);
+
+    const targetDrawer = targetKey === 'character_creation'
+        ? document.getElementById('rpg_character_creation_connection_drawer')
+        : document.querySelector(`.rt-central-connection-drawer[data-connection-key="${targetKey}"]`);
+    setSettingsDrawerOpen(targetDrawer);
+    setTimeout(() => (targetDrawer || connectionsDrawer)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }), 80);
+}
+
+function organizeConnectionSettingsUI() {
+    const settingsRoot = document.querySelector('.rpg-tracker-settings');
+    if (!settingsRoot) return;
+
+    for (const definition of CONNECTION_SETTINGS_UI) {
+        const control = settingsRoot.querySelector(definition.control);
+        const drawer = control?.closest('.inline-drawer');
+        const slot = settingsRoot.querySelector(definition.slot);
+        if (!(drawer instanceof HTMLElement) || !(slot instanceof HTMLElement) || drawer.parentElement === slot) continue;
+
+        const originalParent = drawer.parentElement;
+        if (originalParent && !settingsRoot.querySelector(`.rt-connection-shortcut[data-connection-key="${definition.key}"]`)) {
+            const shortcut = document.createElement('div');
+            shortcut.className = 'rt-connection-shortcut';
+            shortcut.dataset.connectionKey = definition.key;
+            shortcut.innerHTML = `<span><b>${definition.label} connection</b><small>Managed in Connections &amp; Models.</small></span><button type="button" class="menu_button interactable rt-connection-shortcut-button" data-connection-target="${definition.key}"><i class="fa-solid fa-plug"></i> Configure</button>`;
+            originalParent.insertBefore(shortcut, drawer);
+        }
+
+        normalizeCentralConnectionDrawer(drawer, definition.key, definition.label, definition.recommendation);
+        slot.appendChild(drawer);
+    }
+
+    normalizeCentralConnectionDrawer(
+        document.getElementById('rpg_character_creation_connection_drawer'),
+        'character_creation',
+        'Character Creation & Starting Modes',
+    );
+}
+
 /**
  * Initialization
  */
@@ -4615,6 +4711,7 @@ async function runPortraitMigrationIfNeeded() {
         applyPortraitData,
         bindQuickStartEvents,
         bindCharacterCreationConnectionSettings,
+        openConnectionsModelsSettings,
         bindAdventureCompanion,
         openAdventureCompanion,
         blockToItems,
@@ -4686,6 +4783,8 @@ async function runPortraitMigrationIfNeeded() {
             $('#extensions_settings').append(html);
         }
 
+        organizeConnectionSettingsUI();
+
         // Bind drawer toggles ONLY for our own content to avoid global conflicts
         $('.rpg-tracker-settings').on('click', '.inline-drawer-toggle', function (e) {
             e.preventDefault();
@@ -4696,8 +4795,14 @@ async function runPortraitMigrationIfNeeded() {
             jqueryToggleSlide(content, drawer.hasClass('open'));
             $(this).find('.inline-drawer-icon').toggleClass('down');
         });
+        $('.rpg-tracker-settings').on('click', '.rt-connection-shortcut-button', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openConnectionsModelsSettings(String($(this).data('connectionTarget') || ''));
+        });
 
         const settings = getSettings();
+        bindCharacterCreationConnectionSettings(document.querySelector('.rpg-tracker-settings'));
         bindAdventureCompanionSettingsDrawer();
         await bindFeatureConnectionSettings({
             uiPrefix: 'rpg_adventure_companion',

@@ -13,6 +13,7 @@ describe('General & Visuals settings', () => {
     it('keeps every primary section inside the framework drawer', () => {
         const primaryHeaders = [
             '<b>General & Visuals</b>',
+            '<b>Connections &amp; Models</b>',
             '<b>Game Systems & Customization</b>',
             '<b>State Tracker & Modules</b>',
             '<b>Lorebook Agent</b>',
@@ -30,6 +31,51 @@ describe('General & Visuals settings', () => {
         expect(settingsMarkup).toContain('<b>Core</b>');
         expect(settingsMarkup).toContain('<b>UI Appearance</b>');
         expect(settingsMarkup).toContain('<b>Portraits</b>');
+    });
+
+    it('places Connections & Models immediately after General & Visuals', () => {
+        const general = settingsMarkup.indexOf('<b>General & Visuals</b>');
+        const connections = settingsMarkup.indexOf('<b>Connections &amp; Models</b>');
+        const gameSystems = settingsMarkup.indexOf('<b>Game Systems & Customization</b>');
+
+        expect(general).toBeGreaterThanOrEqual(0);
+        expect(connections).toBeGreaterThan(general);
+        expect(gameSystems).toBeGreaterThan(connections);
+    });
+
+    it('provides one central slot for every feature connection', () => {
+        [
+            'rpg_connection_slot_state_tracker',
+            'rpg_connection_slot_combat_override',
+            'rpg_connection_slot_lorebook_agent',
+            'rpg_connection_slot_character_creation',
+            'rpg_connection_slot_adventure_companion',
+            'rpg_connection_slot_game_system_wizard',
+            'rpg_connection_slot_world_progression',
+            'rpg_connection_slot_portraits',
+        ].forEach(id => expect(settingsMarkup).toContain(`id="${id}"`));
+
+        const indexSource = readFileSync(new URL('../index.js', import.meta.url), 'utf8');
+        expect(indexSource).toContain('organizeConnectionSettingsUI();');
+        expect(indexSource).toContain("control: '#rpg_tracker_connection_source'");
+        expect(indexSource).toContain("control: '#rpg_tracker_router_source'");
+        expect(indexSource).toContain("control: '#rpg_adventure_companion_connection_source'");
+        expect(indexSource).toContain("control: '#rpg_gs_wizard_connection_source'");
+        expect(indexSource).toContain("control: '#rpg_world_connection_source'");
+        expect(indexSource).toContain("control: '#rpg_portrait_connection_source'");
+        expect(indexSource).toContain('I recommend a cheap mid-tier model such as GPT-5.6 Luna, Gemini Flash/Flash-Lite series, or Deepseek V4 Flash latest.');
+        expect(indexSource).toContain('Same models work fine here as with the State Tracker.');
+        expect(indexSource).toContain('I recommend using a somewhat better model here such as Sonnet 5 or above for more robust and complex systems. Your mileage varies a lot here. Experiment.');
+        expect(indexSource).toContain('A lightweight model should do fine.');
+        expect(indexSource).toContain("chevron.className = 'inline-drawer-icon fa-solid fa-circle-chevron-down rt-central-connection-chevron'");
+
+        const style = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+        expect(style).toContain('.rpg-tracker-settings .rt-central-connection-header');
+        expect(style).toContain('font-size: 0.88em !important;');
+        expect(style).toContain('.rt-central-connection-chevron');
+        expect(style).toContain('transform: rotate(-90deg) !important;');
+        expect(style).toContain('.rt-central-connection-drawer.open');
+        expect(style).toContain('transform: rotate(0deg) !important;');
     });
 
     it('centers the State Tracker utility drawer labels without moving their arrows', () => {

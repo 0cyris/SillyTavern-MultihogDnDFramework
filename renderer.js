@@ -1992,43 +1992,11 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     <div class="rt-quickstart-status" id="rt-quickstart-status">Select a genre, then roll a name</div>
                 </div>
 
-                <div class="rt-onboarding-drawer rt-onboarding-connection-drawer" style="width:100%;flex-shrink:0;">
-                    <button type="button" class="rt-onboarding-drawer-toggle" id="rt-onboarding-connection-drawer-toggle" aria-expanded="false" aria-controls="rt-onboarding-connection-drawer-body">
-                        <span class="rt-onboarding-drawer-toggle-label"><span class="rt-onboarding-drawer-icon" aria-hidden="true">&#128268;</span><span>Character Creation Connection<small>Shared by Character Creator, Instant Action, and Other Ways to Begin</small></span></span>
-                        <span class="rt-onboarding-drawer-chevron" aria-hidden="true">&#9656;</span>
+                <div class="rt-onboarding-connection-shortcut" style="width:100%;flex-shrink:0;">
+                    <button type="button" class="menu_button interactable" id="rt-open-character-creation-connection-settings" style="width:100%;">
+                        <i class="fa-solid fa-plug-circle-bolt"></i> Character Creation Connection
                     </button>
-                    <div class="rt-onboarding-drawer-body" id="rt-onboarding-connection-drawer-body">
-                        <div class="rt-onboarding-drawer-body-inner" style="display:flex;flex-direction:column;gap:7px;">
-                            <label style="font-size:11px;font-weight:600;">Connection Source</label>
-                            <select id="rt-character-creation-connection-source" class="text_pole" style="width:100%;font-size:11px;">
-                                <option value="default">Main API</option>
-                                <option value="profile">Profile</option>
-                                <option value="ollama">Ollama</option>
-                                <option value="openai">OpenAI</option>
-                            </select>
-                            <div id="rt-character-creation-profile-group" style="display:none;">
-                                <select id="rt-character-creation-connection-profile" class="text_pole" style="width:100%;font-size:11px;"></select>
-                            </div>
-                            <div id="rt-character-creation-ollama-group" style="display:none;flex-direction:column;gap:5px;">
-                                <input id="rt-character-creation-ollama-url" type="text" class="text_pole" placeholder="Ollama URL" style="width:100%;font-size:11px;" />
-                                <div style="display:flex;gap:5px;">
-                                    <select id="rt-character-creation-ollama-model" class="text_pole" style="flex:1;font-size:11px;"></select>
-                                    <button id="rt-character-creation-ollama-refresh" type="button" class="menu_button interactable" title="Refresh Ollama models" style="width:auto;padding:2px 7px;">&#8635;</button>
-                                </div>
-                            </div>
-                            <div id="rt-character-creation-openai-group" style="display:none;flex-direction:column;gap:5px;">
-                                <input id="rt-character-creation-openai-url" type="text" class="text_pole" placeholder="Endpoint URL" style="width:100%;font-size:11px;" />
-                                <input id="rt-character-creation-openai-key" type="password" class="text_pole" placeholder="API Key" style="width:100%;font-size:11px;" />
-                                <div style="display:flex;gap:5px;">
-                                    <select id="rt-character-creation-openai-model" class="text_pole" style="flex:1;font-size:11px;"></select>
-                                    <button id="rt-character-creation-openai-refresh" type="button" class="menu_button interactable" title="Refresh OpenAI-compatible models" style="width:auto;padding:2px 7px;">&#8635;</button>
-                                </div>
-                                <input id="rt-character-creation-openai-model-manual" type="text" class="text_pole" placeholder="Manual Model Name" style="width:100%;font-size:11px;" />
-                            </div>
-                            <label style="font-size:11px;font-weight:600;margin-top:2px;">Preset</label>
-                            <select id="rt-character-creation-completion-preset" class="text_pole" style="width:100%;font-size:11px;"></select>
-                        </div>
-                    </div>
+                    <small>Shared by Character Creator, Instant Action, and Other Ways to Begin. Configure it under <b>Connections &amp; Models</b> in extension settings.</small>
                 </div>
 
                 <div class="rt-onboarding-secondary rt-onboarding-drawer rt-onboarding-other-drawer">
