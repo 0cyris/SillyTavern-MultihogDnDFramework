@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.7.5] - 2026-08-03
+
+### Changed
+- **CYOA prompt context**: retains the four newest `<choices>` blocks (T-1 through T-4), stripping only T-5 and older blocks while preserving all historical choices in the visible chat.
+
 ## [6.7.0] - 2026-08-02
 
 ### Added
