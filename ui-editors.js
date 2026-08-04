@@ -1109,6 +1109,7 @@ export function refreshOrderList() {
     s.blockOrder = order;
 
     const isTagEnabled = (tag) => {
+        if (tag === 'CHARACTER') return true;
         const isStock = BLOCK_ORDER.includes(tag);
         if (isStock) return s.modules[tag.toLowerCase()] ?? false;
         const field = s.customFields.find(f => f.tag.toUpperCase() === tag);
@@ -1133,7 +1134,11 @@ export function refreshOrderList() {
         const customIndex = s.customFields.findIndex(f => f.tag.toUpperCase() === tag);
         const field = isStock ? null : s.customFields[customIndex];
 
-        const isEnabled = isStock ? (s.modules[tag.toLowerCase()] ?? false) : (field?.enabled ?? false);
+        // [CHARACTER] is structurally mandatory — the tracker always needs a
+        // schema for it (HP bars, card rendering, character creation all assume
+        // it exists), so it can never actually be turned off.
+        const isMandatory = tag === 'CHARACTER';
+        const isEnabled = isMandatory ? true : (isStock ? (s.modules[tag.toLowerCase()] ?? false) : (field?.enabled ?? false));
 
         const item = document.createElement('div');
         item.className = 'flex-container gap-1 alignitemscenter rt-order-item';
@@ -1147,7 +1152,12 @@ export function refreshOrderList() {
         cb.type = 'checkbox';
         cb.checked = isEnabled;
         cb.style.margin = '0 5px';
+        if (isMandatory) {
+            cb.disabled = true;
+            cb.title = 'CHARACTER is always active — the tracker requires it for HP bars, card rendering, and character creation.';
+        }
         cb.onchange = async () => {
+            if (isMandatory) { cb.checked = true; return; }
             if (isStock) {
                 s.modules[tag.toLowerCase()] = cb.checked;
                 // Benched Party is a sub-module of PARTY — the two toggles stay coupled.

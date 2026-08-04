@@ -12,6 +12,17 @@ describe('Character Creator fields', () => {
         expect(creatorSource).not.toContain('Orientation:');
     });
 
+    it('only requests an Abilities preference when the [ABILITIES] module is enabled', () => {
+        expect(creatorSource).toMatch(/hasAbilities\s*\?\s*`Abilities:/);
+        expect(creatorSource).not.toMatch(/^Abilities:\s/m);
+    });
+
+    it('instructs the model to defer entirely to the module instructions, never a generic D&D fallback', () => {
+        expect(creatorSource).toContain('do not invent, omit, rename, or substitute fields');
+        expect(creatorSource).toContain('do not fall back to a generic D&D template');
+        expect(creatorSource).toContain('it is disabled — do NOT output that block or its concept');
+    });
+
     it('keeps the main creator boxes free of example placeholders', () => {
         const ids = [
             'rt-cr-name',

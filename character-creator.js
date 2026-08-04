@@ -162,6 +162,7 @@ export function buildCharacterGenerationPrompt(opts) {
     const hasTime = !!mods['time'];
     const hasInventory = !!mods['inventory'];
     const hasSpells = !!mods['spells'];
+    const hasAbilities = !!mods['abilities'];
 
     const levelPrefix = noLevel
         ? `LEVEL SYSTEM: This character creation system does not use numeric character levels. Do NOT invent, assign, or output a level number, an [XP] block, or any D&D-style level indicator — balance the character using the setting's own internal logic instead.`
@@ -175,9 +176,8 @@ export function buildCharacterGenerationPrompt(opts) {
 
     const activeBlocks = buildOnboardingActiveBlocks(s);
     const closingTagExamples = activeBlocks.map(b => `[/${b}]`).join(', ');
-    const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.\nCRITICAL QUESTS RULE: Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.`;
-
     const blockListStr = activeBlocks.join(', ');
+    const CHARACTER_FORMAT_HINT = `\n\nCRITICAL TAG WRAPPING RULE: Every block you output MUST be enclosed in matching opening and closing tags (${closingTagExamples}).\nCRITICAL PARTY RULE: Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.\nCRITICAL QUESTS RULE: Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.\nCRITICAL FORMAT RULE: Follow the exact field format, structure, and terminology defined in the module instructions provided in this system prompt for each block you output (${blockListStr}) — do not invent, omit, rename, or substitute fields, and do not fall back to a generic D&D template if the defined format differs from one. If a module (e.g. [ABILITIES], [INVENTORY], [SPELLS]) has no instructions in this system prompt, it is disabled — do NOT output that block or its concept (e.g. an "Abilities" list) anywhere in the response.`;
     const spellsClause = hasSpells ? " Only include [SPELLS] if the class genuinely uses magic." : '';
 
     const SETTING_HINTS = {
@@ -203,8 +203,7 @@ Ethnicity:    ${f(ethnicityVal, '(your choice)')}
 ${classLine}
 Traits:       ${f(traitsVal, '(invent 2–3 distinctive traits)')}
 Level:        ${noLevel ? 'N/A — this system has no numeric levels' : level}
-Abilities:    ${f(abilitiesVal, '(generate fitting, creative abilities)')}
-Background:   ${f(backgroundVal, '(invent a brief origin)')}
+${hasAbilities ? `Abilities:    ${f(abilitiesVal, '(generate fitting, creative abilities)')}\n` : ''}Background:   ${f(backgroundVal, '(invent a brief origin)')}
 Appearance:   ${f(appearanceVal, '(invent a memorable appearance)')}
 ${additionalVal ? `Additional:   ${additionalVal}` : ''}
 ${cardSnippet ? `\n--- CHARACTER CARD CONTEXT ---${cardSnippet}` : ''}

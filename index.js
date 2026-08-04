@@ -1080,6 +1080,12 @@ function syncOnboardingUI() {
         if (cb instanceof HTMLInputElement) cb.checked = useCombatGuide;
     });
 
+    // Hide the Abilities preference field entirely when the [ABILITIES] module is
+    // disabled — the prompt no longer references it either, so leaving it visible
+    // would just collect input that's silently discarded.
+    const abilitiesField = /** @type {HTMLElement|null} */ (onboarding.querySelector('#rt-cr-abilities'))?.closest('.rt-cr-field');
+    if (abilitiesField) abilitiesField.style.display = s.modules?.abilities ? '' : 'none';
+
     const playerCardCbSync = /** @type {HTMLInputElement|null} */ (onboarding.querySelector('#rt-onboarding-player-card-cb'));
     if (playerCardCbSync) playerCardCbSync.checked = !!s.onboardingCreatePersona;
     const stPersonaCbSync = /** @type {HTMLInputElement|null} */ (onboarding.querySelector('#rt-onboarding-st-persona-cb'));

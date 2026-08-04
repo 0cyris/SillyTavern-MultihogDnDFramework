@@ -2,6 +2,13 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.10] - 2026-08-05
+
+### Fixed
+- **Character creation formatting**: always inject the live `[CHARACTER]` module schema into the system prompt so creation never free-forms fields when modules are off.
+- **Abilities preference leak**: omit the Creator "Abilities" preference line (and hide the UI field) unless the `[ABILITIES]` module is enabled.
+- **CHARACTER module toggle**: treat `[CHARACTER]` as mandatory in the Modules list so its schema cannot be silently disabled.
+
 ## [6.85.0] - 2026-08-03
 
 ### Added
