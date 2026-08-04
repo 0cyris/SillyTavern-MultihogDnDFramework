@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.15] - 2026-08-05
+
+### Added
+- **Initial campaign time**: Character Creator and Other Ways to Begin now let you set the starting time of day for the first `[TIME]` block (alongside Day 1/DD/MM/YYYY and 12h/24h), with the value persisted per chat and reformatted when the clock toggle changes.
+
 ## [6.9.10] - 2026-08-05
 
 ### Fixed

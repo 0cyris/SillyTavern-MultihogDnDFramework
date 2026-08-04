@@ -1962,6 +1962,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                 ? null
                 : (parseInt(String(obSettings.onboardingLevel || 1), 10) || 1);
             const startDateInputVal = obSettings.initialDate && obSettings.initialDate !== 'Day 1' ? obSettings.initialDate : '01/01/2026';
+            const startTimeInputVal = obSettings.initialTime || '08:00 AM';
 
             return `<div class="rt-empty" style="text-align: left; align-items: flex-start; padding: 12px; gap: 10px; overflow-y: auto;">
                 <div style="text-align: center; width: 100%; margin-bottom: 2px; flex-shrink: 0;">
@@ -2044,6 +2045,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                                     <button type="button" data-value="12" class="${!use24h ? 'active' : ''}">12h</button>
                                     <button type="button" data-value="24" class="${use24h ? 'active' : ''}">24h</button>
                                 </div>
+                                <input type="text" id="rt-onboarding-start-time" class="text_pole" value="${startTimeInputVal}" placeholder="${use24h ? '08:00' : '08:00 AM'}" title="Initial time of day for the very first [TIME] block." style="width: 74px; text-align: center; height: 22px; font-size: 11px; border-radius: 4px; background: var(--black70a);" />
                             </div>
                         </div>
                     </div>
@@ -2222,7 +2224,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                     </div>
                     <div class="rt-cr-row rt-cr-time-row">
                         <div class="rt-cr-field" style="width:100%;">
-                            <label class="rt-cr-label">Time &amp; Date <span class="rt-cr-help-icon" title="Calendar and clock format for [TIME] tracking in generated memos. Day 1 = narrative day count; DD/MM/YYYY = real calendar dates.">?</span></label>
+                            <label class="rt-cr-label">Time &amp; Date <span class="rt-cr-help-icon" title="Calendar and clock format for [TIME] tracking in generated memos. Day 1 = narrative day count; DD/MM/YYYY = real calendar dates. The last field sets the initial time of day for the very first [TIME] block.">?</span></label>
                             <div class="rt-cr-time-controls">
                                 <div class="rt-seg-toggle" id="rt-cr-date-seg" role="group" title="Choose the calendar format used for [TIME] tracking.">
                                     <button type="button" data-value="day" class="${!useDdMmYy ? 'active' : ''}">Day 1</button>
@@ -2233,6 +2235,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                                     <button type="button" data-value="12" class="${!use24h ? 'active' : ''}">12h</button>
                                     <button type="button" data-value="24" class="${use24h ? 'active' : ''}">24h</button>
                                 </div>
+                                <input type="text" id="rt-cr-start-time" class="text_pole rt-cr-input" value="${startTimeInputVal}" placeholder="${use24h ? '08:00' : '08:00 AM'}" title="Initial time of day for the very first [TIME] block." style="width: 84px; text-align: center;" />
                             </div>
                         </div>
                     </div>

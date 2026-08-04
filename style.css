@@ -4441,6 +4441,11 @@
     flex: 0 0 auto;
 }
 
+.rt-cr-time-row #rt-cr-start-time {
+    width: 84px !important;
+    flex: 0 0 auto;
+}
+
 textarea.rt-cr-input {
     min-height: 48px;
 }

@@ -1120,11 +1120,32 @@ Set current XP to ${fmt(currentXp)} — the character is at the BEGINNING of Lev
 ${XP_LEVEL_THRESHOLDS_TEXT}`;
 }
 
-/** Prompt fragment for the mandatory [TIME] block at character creation. */
-export function buildOnboardingTimeHint(startDateVal) {
+/**
+ * Formats a plain HH:MM time-of-day (no AM/PM) into the requested clock style.
+ * @param {number} totalMinutes minutes since midnight (0–1439)
+ * @param {boolean} use24h
+ * @returns {string}
+ */
+export function formatTimeOfDay(totalMinutes, use24h) {
+    const mins = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+    const h24 = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (use24h) return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const suffix = h24 >= 12 ? 'PM' : 'AM';
+    let h12 = h24 % 12;
+    if (h12 === 0) h12 = 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+/**
+ * Prompt fragment for the mandatory [TIME] block at character creation.
+ * @param {string} startDateVal
+ * @param {string} [startTimeVal='08:00 AM'] Initial time of day (e.g. '08:00 AM' or '08:00').
+ */
+export function buildOnboardingTimeHint(startDateVal, startTimeVal = '08:00 AM') {
     return `\n\n[TIME]
 Last Rest: N/A
-Current Time: 08:00 AM, ${startDateVal}
+Current Time: ${startTimeVal || '08:00 AM'}, ${startDateVal}
 [/TIME]
 
 Last Rest must be N/A — this is a brand-new character who has not taken a Long Rest yet.`;

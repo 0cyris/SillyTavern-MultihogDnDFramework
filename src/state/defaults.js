@@ -238,6 +238,9 @@ export function buildDefaultSettings() {
 
         initialDate: "Day 1",
 
+        /** Initial time of day for a new campaign's first [TIME] block (matches use24hTime format). */
+        initialTime: "08:00 AM",
+
         onboardingGenre: "fantasy",
 
         /** Starting level for character creation (1–20), or "none" for systems without numeric levels. */

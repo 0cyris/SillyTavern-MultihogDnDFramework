@@ -1,4 +1,4 @@
-import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped } from './constants.js';
+import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped, formatTimeOfDay } from './constants.js';
 import { MODULE_NAME, DEFAULT_MODULES, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
 import { snapshotChatSetup, chatSetupsMatch, syncChatSetupCatalogs, removeChatSetupCatalogEntries } from './src/state/chat-setup.js';
 import { buildDirectPromptSystemPrompt, DIRECT_PROMPT_SYSTEM_MODES } from './src/state/direct-prompt-system.js';
@@ -919,6 +919,7 @@ function applyChatTimeFormatSettings(saved) {
     s.use24hTime = saved?.use24hTime ?? false;
     s.useDdMmYyFormat = saved?.useDdMmYyFormat ?? false;
     s.initialDate = saved?.initialDate ?? 'Day 1';
+    s.initialTime = saved?.initialTime ?? '08:00 AM';
     if (s.routerModules?.npc) {
         s.routerModules.npc.instruction = buildNpcInstruction(s.npcMajorWords, s.npcMinorWords, false);
     }
@@ -963,6 +964,10 @@ export function setUseDdMmYyFormat(isDate) {
 export function setUse24hTime(is24h) {
     const s = getSettings();
     s.use24hTime = !!is24h;
+    // Reformat the stored initial-time anchor to match the new clock style so the
+    // Character Creator / onboarding inputs and the [TIME] hint stay consistent.
+    const parsedMins = parseInWorldTime(s.initialTime || '08:00 AM');
+    if (parsedMins != null) s.initialTime = formatTimeOfDay(parsedMins, s.use24hTime);
     rebuildAllModuleInstructions(s);
     adjustAllStoredTemplatesForTimeFormat(s);
     $('#rpg_tracker_router_prompt').val(s.routerSystemPromptTemplate);
@@ -989,6 +994,21 @@ function setInitialDateValue(val, sourceInput = null) {
     saveSettings();
     persistChatTimeFormatIfLinked();
     document.querySelectorAll('#rt-cr-start-date, #rt-onboarding-start-date').forEach(input => {
+        if (input !== sourceInput) /** @type {HTMLInputElement} */ (input).value = val;
+    });
+}
+
+/**
+ * Single source-of-truth setter for the initial time-of-day anchor text.
+ * See {@link setInitialDateValue} for why every input MUST funnel through here.
+ * @param {string} val
+ * @param {HTMLInputElement|null} [sourceInput] - the input the user is typing into; left untouched.
+ */
+function setInitialTimeValue(val, sourceInput = null) {
+    getSettings().initialTime = val;
+    saveSettings();
+    persistChatTimeFormatIfLinked();
+    document.querySelectorAll('#rt-cr-start-time, #rt-onboarding-start-time').forEach(input => {
         if (input !== sourceInput) /** @type {HTMLInputElement} */ (input).value = val;
     });
 }
@@ -1067,6 +1087,10 @@ function syncOnboardingUI() {
         drawerStartDate.value = startDateVal;
         drawerStartDate.style.display = s.useDdMmYyFormat ? 'inline-block' : 'none';
     }
+    const startTimeVal = s.initialTime || '08:00 AM';
+    onboarding.querySelectorAll('#rt-cr-start-time, #rt-onboarding-start-time').forEach(input => {
+        if (input instanceof HTMLInputElement && input.value !== startTimeVal) input.value = startTimeVal;
+    });
     const gearTier = s.onboardingGearTier || 'auto';
     onboarding.querySelectorAll('#rt-onboarding-gear-tier, #rt-cr-gear-tier').forEach(sel => {
         if (sel instanceof HTMLSelectElement && sel.value !== gearTier) sel.value = gearTier;
@@ -4773,6 +4797,7 @@ function organizeConnectionSettingsUI() {
         scaleImageTo512Square,
         scheduleAutoApply,
         setInitialDateValue,
+        setInitialTimeValue,
         showCharacterRollPanel,
         showLorebookAgentDocumentation,
         showNarrativePacingExplanation,

@@ -3,7 +3,7 @@ import { pickGenreCharacterName } from '../../state/character-names.js';
 
 export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRefresh = null) {
     const runtime = getRuntimeActions();
-    const { applyPortraitData, autoApplySysprompt, bindCharacterCreationConnectionSettings, bindQuickStartEvents, blockToItems, buildCombatAndSkillScalingHint, buildNpcInstruction, buildOnboardingActiveBlocks, buildOnboardingTimeHint, buildOnboardingXpHint, buildStartingGearHint, createDetachedPanel, extractCharNameFromMemo, fileToDataUrl, generatePersonaBio, getCharacterCreationConnectionSettings, getPageSize, getSettings, handleCategorySettings, handleCharacterCreatorGenerate, handleRecolor, loadBenchedExpanded, loadCollapsed, loadDetached, maybeCreateOnboardingPersona, openConnectionsModelsSettings, parseMemoBlocks, refreshAgentManifest, refreshNpcManifest, refreshRenderedView, registerDiceFunctionTool, removeArchivedQuest, resolveActivePersonaDescription, saveActiveTab, saveBenchedExpanded, saveCollapsed, saveDetached, saveSettings, scaleImageTo512Square, scheduleAutoApply, sendDirectPrompt, setInitialDateValue, setUse24hTime, setUseDdMmYyFormat, showCharacterRollPanel, showLorebookAgentDocumentation, showNarrativePacingExplanation, showPcImportPanel, showPersonaConfirmOverlay, showPortraitSettingsMenu, showQuestsHardcoreExplanation, showRngExplanation, showSettingsHelpPopup, syncOnboardingPersonaPrefsFromDom, syncOnboardingUI } = runtime;
+    const { applyPortraitData, autoApplySysprompt, bindCharacterCreationConnectionSettings, bindQuickStartEvents, blockToItems, buildCombatAndSkillScalingHint, buildNpcInstruction, buildOnboardingActiveBlocks, buildOnboardingTimeHint, buildOnboardingXpHint, buildStartingGearHint, createDetachedPanel, extractCharNameFromMemo, fileToDataUrl, generatePersonaBio, getCharacterCreationConnectionSettings, getPageSize, getSettings, handleCategorySettings, handleCharacterCreatorGenerate, handleRecolor, loadBenchedExpanded, loadCollapsed, loadDetached, maybeCreateOnboardingPersona, openConnectionsModelsSettings, parseMemoBlocks, refreshAgentManifest, refreshNpcManifest, refreshRenderedView, registerDiceFunctionTool, removeArchivedQuest, resolveActivePersonaDescription, saveActiveTab, saveBenchedExpanded, saveCollapsed, saveDetached, saveSettings, scaleImageTo512Square, scheduleAutoApply, sendDirectPrompt, setInitialDateValue, setInitialTimeValue, setUse24hTime, setUseDdMmYyFormat, showCharacterRollPanel, showLorebookAgentDocumentation, showNarrativePacingExplanation, showPcImportPanel, showPersonaConfirmOverlay, showPortraitSettingsMenu, showQuestsHardcoreExplanation, showRngExplanation, showSettingsHelpPopup, syncOnboardingPersonaPrefsFromDom, syncOnboardingUI } = runtime;
     const _sectionPages = sectionPages;
 
     const refresh = onRefresh || refreshRenderedView;
@@ -213,6 +213,14 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
     const drawerStartDateInput = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-start-date'));
     if (drawerStartDateInput) syncStartDateInput(drawerStartDateInput);
 
+    const syncStartTimeInput = (input) => {
+        input.addEventListener('input', () => setInitialTimeValue(input.value.trim(), input));
+    };
+    const crStartTimeInput = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-cr-start-time'));
+    if (crStartTimeInput) syncStartTimeInput(crStartTimeInput);
+    const drawerStartTimeInput = /** @type {HTMLInputElement|null} */ (el.querySelector('#rt-onboarding-start-time'));
+    if (drawerStartTimeInput) syncStartTimeInput(drawerStartTimeInput);
+
 
     // Character Creator / onboarding ? help icons — tap opens popup (hover title still works on desktop)
     if (!el._crHelpDelegated) {
@@ -312,7 +320,7 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
                     : `STARTING LEVEL: ${level} (mandatory — the character MUST be exactly Level ${level}; scale/adjust HP, stats, saves, capabilities, and gear (everything a character of that level might have) to Level ${level} accordingly, but do NOT output an [XP] block as it is disabled).`;
 
             const xpHint = (_hasXp && !noLevel) ? buildOnboardingXpHint(level) : '';
-            const TIME_FORMAT_HINT = _hasTime ? buildOnboardingTimeHint(startDateVal) : '';
+            const TIME_FORMAT_HINT = _hasTime ? buildOnboardingTimeHint(startDateVal, getSettings().initialTime || '08:00 AM') : '';
             const magicGearHint = buildStartingGearHint(noLevel ? 1 : level, getSettings().onboardingGenre || 'fantasy', _hasInventory, gearTier);
             const combatSkillHint = getSettings().onboardingUseCombatScalingGuide !== false ? buildCombatAndSkillScalingHint() : '';
             // Fixed quick-roll archetype templates (magic/melee/rogue/etc.) below hardcode

@@ -377,6 +377,7 @@ export function saveChatState(chatId, opts = {}) {
         use24hTime: !!s.use24hTime,
         useDdMmYyFormat: !!s.useDdMmYyFormat,
         initialDate: s.initialDate || 'Day 1',
+        initialTime: s.initialTime || '08:00 AM',
         npcRelationshipMax: getNpcRelationshipMax(s),
 
         // Optional full configuration lock. State-only Chat Link behavior remains

@@ -171,7 +171,7 @@ export function buildCharacterGenerationPrompt(opts) {
             : `STARTING LEVEL: ${level} (mandatory — the character MUST be exactly Level ${level}; scale/adjust HP, stats, saves, capabilities, and gear (everything a character of that level might have) to Level ${level} accordingly, but do NOT output an [XP] block as it is disabled).`;
 
     const xpHint = (hasXp && !noLevel) ? buildOnboardingXpHint(level) : '';
-    const TIME_FORMAT_HINT = hasTime ? buildOnboardingTimeHint(startDateVal) : '';
+    const TIME_FORMAT_HINT = hasTime ? buildOnboardingTimeHint(startDateVal, s.initialTime || '08:00 AM') : '';
     const magicGearHint = buildStartingGearHint(noLevel ? 1 : level, genre, hasInventory, gearTier);
 
     const activeBlocks = buildOnboardingActiveBlocks(s);
