@@ -14,7 +14,7 @@ import { runRouterPass, rollbackRouterPass, reapplyRouterPass, getLorebookManife
 import { getRequestHeaders } from '../../../../script.js';
 import { fileToDataUrl, scaleImageTo512Square, scaleImageToLandscape, applyPortraitData, applyLocationImageData, renamePortraitEntity, reconcileMemoPortraitRenames, generatePortraitPrompt, generateNpcPortraitPrompt, generateLocationImagePrompt, showPortraitPromptPopup, generatePortraitDirect, autoGeneratePartyPortraits, removeAllPortraits, checkAndTriggerAutoGenerations, autoGenerateEnemyPortraits, forceCheckAutoGenerations, resetAutoGenerationTracking, resetRealtimeLocationGenerationFailure, stopRealtimeLocationGeneration, resolveLocationImageWithMeta, normalizeLocationPath, buildLocationPath, getLinkedPlayerCharacter, resolvePortraitSrcForPlayerCharacter, imageGenToast, triggerBackgroundPortraitGeneration } from './portraits.js';
 import { buildImmersionSceneState, renderImmersionViewHtml, getCurrentLocationText, loadLocationEntryByPath, loadNpcEntryByKey, maybeAutoGenerateImmersionSceneArt, runRealtimeSceneArtCheck, resetImmersionSceneArtTracking, hydrateImmersionSceneArtPath } from './immersion.js';
-import { migrateAllEmbeddedPortraits, countEmbeddedPortraitDataUrls, purgeAllPortraitData, resolvePortraitDisplaySrc, lookupCustomPortraitSrc, collectAllPortraitRefs, isManagedPortraitPath, isPortraitMigrationLocked, setPortraitMigrationLocked, PORTRAIT_STORAGE_FOLDER } from './portrait-storage.js';
+import { migrateAllEmbeddedPortraits, countEmbeddedPortraitDataUrls, purgeAllPortraitData, resolvePortraitDisplaySrc, lookupCustomPortraitSrc, collectAllPortraitRefs, isManagedPortraitPath, isPortraitMigrationLocked, setPortraitMigrationLocked, PORTRAIT_STORAGE_FOLDER, snapshotPortraitMapsForChat, loadPortraitMapsForChat, migrateLegacyPortraitMapsToChat } from './portrait-storage.js';
 import { loadPanelGeometry, loadDeltaHeight, makeDraggable, makeResizableTR, makeResizableBR, makeResizableBL, setupResizeObserver, setupDeltaResize, canResizePanels, jqueryToggleSlide, resolveViewportClampedGeometry, clampFloatingPanelToViewport } from './ui-geometry.js';
 import { applyCustomTheme, openThemeWizard, refreshSavedThemesList, handleRecolor, undoThemeChange } from './theme-manager.js';
 import { showCharacterRollPanel, showPcImportPanel, handleCharacterCreatorGenerate, generatePersonaBio, showPersonaConfirmOverlay, extractCharNameFromMemo, activateSillyTavernPersona } from './character-creator.js';
@@ -539,6 +539,7 @@ async function forceDiskCheckpoint() {
     const s = getSettings();
     markMemoPersistedByCurrentBrowser(s);
     const chatId = runtimeState.currentChatId || SillyTavern.getContext()?.chatId || null;
+    snapshotPortraitMapsForChat(s, chatId);
     if (s.chatLinkEnabled && chatId) {
         saveChatState(chatId, { skipDiskWrite: true });
     }
@@ -567,6 +568,7 @@ export function saveSettings(force = false, delay = 0) {
         const s0 = getSettings();
         syncChatSetupCatalogs(s0);
         const chatId0 = runtimeState.currentChatId || SillyTavern.getContext()?.chatId || null;
+        snapshotPortraitMapsForChat(s0, chatId0);
         writeModuleSchemaBackup(chatId0);
         if (s0.chatLinkEnabled && chatId0 && !isPortraitMigrationLocked()) {
             // Keep legacy per-chat module presentation aligned without nesting saveSettings.
@@ -598,6 +600,7 @@ export function saveSettings(force = false, delay = 0) {
                 markMemoPersistedByCurrentBrowser(s);
                 const ctx = SillyTavern.getContext();
                 const activeChatId = runtimeState.currentChatId || ctx.chatId;
+                snapshotPortraitMapsForChat(s, activeChatId);
                 // Snapshot chat-linked state into extension settings before persisting to disk.
                 if (s.chatLinkEnabled && activeChatId && !isPortraitMigrationLocked()) {
                     saveChatState(activeChatId, { skipDiskWrite: true });
@@ -1067,6 +1070,14 @@ function syncOnboardingUI() {
     const gearTier = s.onboardingGearTier || 'auto';
     onboarding.querySelectorAll('#rt-onboarding-gear-tier, #rt-cr-gear-tier').forEach(sel => {
         if (sel instanceof HTMLSelectElement && sel.value !== gearTier) sel.value = gearTier;
+    });
+    const levelPref = s.onboardingLevel === 'none' ? 'none' : String(s.onboardingLevel || 1);
+    onboarding.querySelectorAll('#rt-starting-level, #rt-cr-level').forEach(sel => {
+        if (sel instanceof HTMLSelectElement && sel.value !== levelPref) sel.value = levelPref;
+    });
+    const useCombatGuide = s.onboardingUseCombatScalingGuide !== false;
+    onboarding.querySelectorAll('#rt-onboarding-combat-guide-cb, #rt-cr-combat-guide-cb').forEach(cb => {
+        if (cb instanceof HTMLInputElement) cb.checked = useCombatGuide;
     });
 
     const playerCardCbSync = /** @type {HTMLInputElement|null} */ (onboarding.querySelector('#rt-onboarding-player-card-cb'));
@@ -1627,10 +1638,12 @@ function onChatChanged(newChatId) {
     }
 
     const oldChatId = runtimeState.currentChatId;
+    const migratedPortraitScope = migrateLegacyPortraitMapsToChat(s, oldChatId || resolvedId);
 
     // Same-chat refresh (bare emit, F5, Copilot apply, etc.): keep live tracker state.
     if (!emitHadId || oldChatId === resolvedId) {
         runtimeState.currentChatId = resolvedId;
+        if (migratedPortraitScope) void saveSettings(true);
         void ensureLocalMemoRecovery(resolvedId);
         updateChatLinkUI();
         return;
@@ -1641,6 +1654,9 @@ function onChatChanged(newChatId) {
     if (typeof globalThis._rpgFlushAdventureCompanionForChat === 'function' && oldChatId) {
         globalThis._rpgFlushAdventureCompanionForChat(oldChatId);
     }
+
+    // Portraits and location images are always chat-owned, even when broader Chat Link is off.
+    snapshotPortraitMapsForChat(s, oldChatId);
 
     runtimeState.currentChatId = resolvedId;
 
@@ -1765,6 +1781,8 @@ function onChatChanged(newChatId) {
     }
 
     if (!s.chatLinkEnabled) {
+        loadPortraitMapsForChat(s, resolvedId);
+        if (migratedPortraitScope) void saveSettings(true);
         // World Progression "last fired" is operational per-chat state and must never bleed
         // between scenarios regardless of chatLinkEnabled. Reset it unconditionally on actual switch.
         s.worldProgressionLastFiredAtMinutes = -1;
@@ -1790,6 +1808,7 @@ function onChatChanged(newChatId) {
         globalThis._rpgLoadAdventureCompanionForChat(resolvedId);
     }
     if (s.chatSetupLinkEnabled) syncAllNarratorTogglesForUnlockState();
+    if (migratedPortraitScope) void saveSettings(true);
 
     scheduleAgentManifestRefresh();
     updateChatLinkUI();
@@ -6003,6 +6022,10 @@ function organizeConnectionSettingsUI() {
         sanitizeRouterState(settings);
         const bootChatId = ctx.chatId || ctx.getCurrentChatId?.() || null;
         runtimeState.currentChatId = bootChatId;
+        const migratedPortraitScope = migrateLegacyPortraitMapsToChat(settings, bootChatId);
+        if (bootChatId && !settings.chatLinkEnabled) {
+            loadPortraitMapsForChat(settings, bootChatId);
+        }
         // Strip intentionally-deleted custom modules before loadChatState.
         // A browser-local configuration backup is never applied automatically: it may
         // be a genuine interrupted save or simply an older browser's cache.
@@ -6051,7 +6074,7 @@ function organizeConnectionSettingsUI() {
         // Baseline WAL after boot so the next cancelled save still has a sync snapshot.
         writeModuleSchemaBackup(bootChatId);
         // If we healed from WAL/tombstones, push the repaired schema to disk so settings.js catches up.
-        if (strippedTombstones || healedFromBackup || strippedGlobalUi || isRealtimeVisualizationDisabled()) {
+        if (strippedTombstones || healedFromBackup || strippedGlobalUi || migratedPortraitScope || isRealtimeVisualizationDisabled()) {
             void saveSettings(true);
         }
 
@@ -6082,6 +6105,7 @@ function organizeConnectionSettingsUI() {
                     _saveSettingsTimer = null;
                 }
                 const s = getSettings();
+                snapshotPortraitMapsForChat(s, runtimeState.currentChatId);
                 // Do this FIRST and unconditionally — localStorage.setItem is synchronous
                 // and cannot be cancelled by the unload that's about to happen, unlike the
                 // disk write below. This is the actual safety net; everything after is best-effort.

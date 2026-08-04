@@ -121,7 +121,8 @@ export async function runQuickStart(genre, rootEl = null, selectedName = '') {
 
         const archetypes = getArchetypesForGenre(validGenre);
         const className = pickRandomArchetype(archetypes);
-        const level = parseInt(String(s.onboardingLevel || 1), 10) || 1;
+        const noLevel = s.onboardingLevel === 'none';
+        const level = noLevel ? null : (parseInt(String(s.onboardingLevel || 1), 10) || 1);
         const gearTier = s.onboardingGearTier || 'auto';
         const wordCount = parseInt(String(s.onboardingPersonaWords || '150'), 10) || 150;
         const genreLabel = GENRE_LABELS[validGenre] || validGenre;

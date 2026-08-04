@@ -1957,6 +1957,10 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
             const onboardingGenre = obSettings.onboardingGenre || 'fantasy';
             const onboardingGearTier = obSettings.onboardingGearTier || 'auto';
             const gearTierOptions = renderStartingGearTierOptions(onboardingGearTier);
+            const onboardingLevelIsNone = obSettings.onboardingLevel === 'none';
+            const onboardingLevelNum = onboardingLevelIsNone
+                ? null
+                : (parseInt(String(obSettings.onboardingLevel || 1), 10) || 1);
             const startDateInputVal = obSettings.initialDate && obSettings.initialDate !== 'Day 1' ? obSettings.initialDate : '01/01/2026';
 
             return `<div class="rt-empty" style="text-align: left; align-items: flex-start; padding: 12px; gap: 10px; overflow-y: auto;">
@@ -2003,11 +2007,12 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                 <div style="display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 4px 0; flex-shrink: 0;">
                     <div class="rt-onboarding-config-row">
                         <div class="rt-onboarding-field">
-                            <span class="rt-onboarding-field-label">Level</span>
+                            <span class="rt-onboarding-field-label">Level <span class="rt-cr-help-icon" title="Pick 'N/A' if your system doesn't use numeric character levels — Custom and Persona generation will not invent a level, XP, or D&D-style level indicator.">?</span></span>
                             <select id="rt-starting-level" class="text_pole" style="width: auto; min-width: 60px; padding: 2px 4px; font-size: 11px; height: 22px; border-radius: 4px; background: var(--black70a);">
+                                <option value="none"${onboardingLevelIsNone ? ' selected' : ''}>N/A — No Levels</option>
                                 ${[...Array(20).keys()].map(i => {
                                     const lvl = i + 1;
-                                    const isSel = lvl === parseInt(obSettings.onboardingLevel || '1') ? 'selected' : '';
+                                    const isSel = !onboardingLevelIsNone && lvl === onboardingLevelNum ? 'selected' : '';
                                     return `<option value="${lvl}" ${isSel}>Level ${lvl}</option>`;
                                 }).join('')}
                             </select>
@@ -2042,6 +2047,11 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                             </div>
                         </div>
                     </div>
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.85em; margin: 2px 0;">
+                        <input type="checkbox" id="rt-onboarding-combat-guide-cb" ${obSettings.onboardingUseCombatScalingGuide !== false ? 'checked' : ''} />
+                        <span>Use Combat &amp; Skill Scaling Guide</span>
+                        <span class="rt-cr-help-icon" title="When enabled, the AI is guided by a classic d20/BAB-style combat and skill progression reference. Turn this off if you're using your own homebrew system and don't want D&D-flavored scaling language influencing Instant Action, Custom, Persona, or PC Import generation.">?</span>
+                    </label>
                     <textarea id="rt-onboarding-custom-instructions" class="text_pole" placeholder="Custom setting/character instructions (e.g. Victorian London, space marine, gritty realism, cyberpunk decker...)" style="width: 100%; min-height: 40px; max-height: 120px; font-size: 11px; padding: 4px 6px; border-radius: 4px; background: var(--black70a); resize: vertical; margin-top: 2px;">${escapeHtml(obSettings.onboardingCustomInstructions || '')}</textarea>
                     <div class="rt-quickstart-name-picker rt-onboarding-name-picker">
                         <input type="text" class="rt-quickstart-name" id="rt-onboarding-rolled-name" placeholder="Roll or enter a name" aria-label="Other Ways character name" autocomplete="off" />
@@ -2186,18 +2196,28 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                             </select>
                         </div>
                         <div class="rt-cr-field">
-                            <label class="rt-cr-label">Level</label>
+                            <label class="rt-cr-label">Level <span class="rt-cr-help-icon" title="Pick 'N/A' if your system doesn't use numeric character levels — the AI will not invent a level, XP, or D&D-style level indicator.">?</span></label>
                             <select id="rt-cr-level" class="text_pole rt-cr-input">
-                                ${[...Array(20).keys()].map(i => { const l = i + 1; return `<option value="${l}"${l === parseInt(obSettings.onboardingLevel || '1') ? ' selected' : ''}>Level ${l}</option>`; }).join('')}
+                                <option value="none"${onboardingLevelIsNone ? ' selected' : ''}>N/A — No Levels (Custom System)</option>
+                                ${[...Array(20).keys()].map(i => { const l = i + 1; return `<option value="${l}"${!onboardingLevelIsNone && l === onboardingLevelNum ? ' selected' : ''}>Level ${l}</option>`; }).join('')}
                             </select>
                         </div>
                     </div>
                     <div class="rt-cr-row">
                         <div class="rt-cr-field">
-                            <label class="rt-cr-label">Gear Tier <span class="rt-cr-help-icon" title="How well-equipped the character should be — from mundane starter kit to heroic named gear. Auto scales with level.">?</span></label>
+                            <label class="rt-cr-label">Gear Tier <span class="rt-cr-help-icon" title="How well-equipped the character should be — from mundane starter kit to heroic named gear. Auto scales with level. Pick 'None' to skip all gear guidance.">?</span></label>
                             <select id="rt-cr-gear-tier" class="text_pole rt-cr-input">
                                 ${gearTierOptions}
                             </select>
+                        </div>
+                    </div>
+                    <div class="rt-cr-row">
+                        <div class="rt-cr-field" style="width:100%;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:0.88em; font-weight:normal;">
+                                <input type="checkbox" id="rt-cr-combat-guide-cb" ${obSettings.onboardingUseCombatScalingGuide !== false ? 'checked' : ''} />
+                                <span>Use Combat &amp; Skill Scaling Guide</span>
+                                <span class="rt-cr-help-icon" title="When enabled, the AI is guided by a classic d20/BAB-style combat and skill progression reference. Turn this off if you're using your own homebrew system and don't want D&D-flavored scaling language influencing the result.">?</span>
+                            </label>
                         </div>
                     </div>
                     <div class="rt-cr-row rt-cr-time-row">

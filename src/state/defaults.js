@@ -140,6 +140,10 @@ export function buildDefaultSettings() {
 
         portraitsFileStorageVersion: 1,
 
+        /** Migrated to 1 after legacy live portrait maps are assigned to the active chat. */
+
+        portraitChatScopeVersion: 0,
+
         portraitGeneratorSource: "native",
 
         portraitSkipPromptDialog: false,
@@ -236,9 +240,14 @@ export function buildDefaultSettings() {
 
         onboardingGenre: "fantasy",
 
+        /** Starting level for character creation (1–20), or "none" for systems without numeric levels. */
         onboardingLevel: 1,
 
         onboardingGearTier: "auto",
+
+        /** When false, the Character Creator omits the classic d20/BAB-style combat
+         *  & skill scaling guide from generation prompts — for custom/homebrew systems. */
+        onboardingUseCombatScalingGuide: true,
 
         onboardingCustomInstructions: "",
 

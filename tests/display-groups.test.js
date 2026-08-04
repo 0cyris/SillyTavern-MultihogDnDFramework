@@ -116,6 +116,27 @@ describe('Display Group rendering', () => {
         expect(html).toContain('rt-display-group-body rt-display-group-body--seamless');
     });
 
+    it('always expands grouped modules instead of inheriting pagination state', () => {
+        const settings = configureGroups(true);
+        settings.fullViewSections = [];
+        settings.modulePageSizes = {
+            ALPHA_STANDING: 1,
+            VEHICLE_FUEL: 1,
+        };
+        const sectionPages = {
+            ALPHA_STANDING: 1,
+            VEHICLE_FUEL: 1,
+        };
+
+        const html = renderMemoAsCards(memo, null, sectionPages);
+
+        expect(html).toContain('Alpha Standing:');
+        expect(html).toContain('Vehicle Fuel:');
+        expect(html).toContain('Respected');
+        expect(html).toContain('Full');
+        expect(html).not.toContain('rt-pagination');
+    });
+
     it('uses one group tab and one combined host in Tab Mode', () => {
         configureGroups(true);
         const html = renderTabModeView(memo, {}, null);

@@ -15,6 +15,7 @@ import {
     resolvePortraitDisplaySrc,
     normalizeEntityName,
     lookupCustomPortraitSrc,
+    snapshotPortraitMapsForChat,
 } from './portrait-storage.js';
 
 /**
@@ -65,17 +66,14 @@ export async function applyPortraitData(entityName, src) {
 
     if (!src) {
         delete s.customPortraits[normName];
+        snapshotPortraitMapsForChat(s, chatId);
         if (previous && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);
         }
     } else {
         const stored = await persistPortraitSrc(src, chatId, normName);
         s.customPortraits[normName] = stored;
-
-        // Keep the active chat partition in sync so saveChatState cannot resurrect the old path.
-        if (s.chatLinkEnabled && chatId && s.chatStates?.[chatId]?.customPortraits) {
-            s.chatStates[chatId].customPortraits[normName] = stored;
-        }
+        snapshotPortraitMapsForChat(s, chatId);
 
         if (previous && previous !== stored && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);
@@ -108,17 +106,7 @@ function migratePortraitMapKey(oldName, newName) {
     const displaced = s.customPortraits[newKey] || null;
     s.customPortraits[newKey] = src;
     delete s.customPortraits[oldKey];
-
-    if (s.chatStates && typeof s.chatStates === 'object') {
-        for (const chatId of Object.keys(s.chatStates)) {
-            const part = s.chatStates[chatId];
-            if (!part?.customPortraits || typeof part.customPortraits !== 'object') continue;
-            if (part.customPortraits[oldKey]) {
-                part.customPortraits[newKey] = part.customPortraits[oldKey];
-                delete part.customPortraits[oldKey];
-            }
-        }
-    }
+    snapshotPortraitMapsForChat(s, getActiveChatId());
 
     return { moved: true, displaced: displaced && displaced !== src ? displaced : null, src };
 }
@@ -1731,16 +1719,14 @@ export async function applyLocationImageData(locationPath, src) {
 
     if (!src) {
         delete s.customLocationImages[normPath];
+        snapshotPortraitMapsForChat(s, chatId);
         if (previous && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);
         }
     } else {
         const stored = await persistPortraitSrc(src, chatId, storageKey);
         s.customLocationImages[normPath] = stored;
-
-        if (s.chatLinkEnabled && chatId && s.chatStates?.[chatId]?.customLocationImages) {
-            s.chatStates[chatId].customLocationImages[normPath] = stored;
-        }
+        snapshotPortraitMapsForChat(s, chatId);
 
         if (previous && previous !== stored && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);

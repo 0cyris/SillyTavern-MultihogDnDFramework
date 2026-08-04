@@ -1091,6 +1091,21 @@ export function getOnboardingLevelXpValues(level) {
     return { level: lvl, currentXp, nextXp };
 }
 
+/**
+ * Resolve the shared onboarding Level preference.
+ * Supports numeric levels 1–20 and the persisted "none" (no numeric levels) sentinel.
+ * @param {unknown} raw
+ * @returns {{ selectValue: string, stored: number|'none', noLevel: boolean, level: number|null }}
+ */
+export function resolveOnboardingLevelPreference(raw) {
+    if (raw === 'none' || raw === null) {
+        return { selectValue: 'none', stored: 'none', noLevel: true, level: null };
+    }
+    const n = parseInt(String(raw ?? 1), 10);
+    const level = Number.isFinite(n) && n >= 1 ? Math.min(20, n) : 1;
+    return { selectValue: String(level), stored: level, noLevel: false, level };
+}
+
 /** Prompt fragment requiring an [XP] block for onboarding character creation. */
 export function buildOnboardingXpHint(level) {
     const { level: lvl, currentXp, nextXp } = getOnboardingLevelXpValues(level);
@@ -1191,6 +1206,7 @@ export const STARTING_GEAR_TIER_OPTIONS = [
     { value: 'standard', label: 'Standard' },
     { value: 'well_equipped', label: 'Well-equipped' },
     { value: 'heroic', label: 'Heroic' },
+    { value: 'none', label: 'None — skip gear guidance' },
 ];
 
 /** @param {string} [selected='auto'] */
@@ -1272,9 +1288,15 @@ function getFantasyGearTierGuidance(tier, lvl) {
  * @param {string} [gearTier='auto']
  */
 export function buildStartingGearHint(level, genre, hasInventory, gearTier = 'auto') {
-    const lvl = Math.max(1, Math.min(20, parseInt(String(level), 10) || 1));
     const tier = STARTING_GEAR_TIER_OPTIONS.some(t => t.value === gearTier) ? gearTier : 'auto';
-    const g = genre || 'fantasy';
+    if (tier === 'none') return '';
+
+    const lvl = Math.max(1, Math.min(20, parseInt(String(level), 10) || 1));
+    // Only fall back to 'fantasy' when genre is truly unset (undefined/null) — an
+    // explicit empty string means the user picked "None — AI decides", which must
+    // NOT be silently treated as fantasy (that was forcing D&D-flavored gear text
+    // even for users who opted out of a genre).
+    const g = (genre === undefined || genre === null) ? 'fantasy' : genre;
     const isFantasy = g === 'fantasy';
 
     /** @type {Record<string, string>} */
