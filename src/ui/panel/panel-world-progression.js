@@ -98,7 +98,7 @@ export function wireAgentWorldProgression({
         const worldFireNowBtn = agentPanel.querySelector('#rt-agent-world-fire-now');
         if (worldFireNowBtn) {
             worldFireNowBtn.addEventListener('click', async () => {
-                const { parseInWorldMinutes: piw, runWorldProgressionPass: rwp } = await import('./router.js');
+                const { parseInWorldMinutes: piw, runWorldProgressionPass: rwp } = await import('../../../router.js');
                 const s = getSettings();
                 const timeMatch = (s.currentMemo || '').match(/\[TIME\]([\s\S]*?)\[\/TIME\]/i);
                 const timeStr = timeMatch ? extractCurrentTimeStr(timeMatch[1]) : '';
@@ -129,7 +129,7 @@ export function wireAgentWorldProgression({
         const worldFireExtraBtn = agentPanel.querySelector('#rt-agent-world-fire-extra');
         if (worldFireExtraBtn) {
             worldFireExtraBtn.addEventListener('click', async () => {
-                const { parseInWorldMinutes: piw, runWorldProgressionPass: rwp } = await import('./router.js');
+                const { parseInWorldMinutes: piw, runWorldProgressionPass: rwp } = await import('../../../router.js');
                 const s = getSettings();
                 const timeMatch = (s.currentMemo || '').match(/\[TIME\]([\s\S]*?)\[\/TIME\]/i);
                 const timeStr = timeMatch ? extractCurrentTimeStr(timeMatch[1]) : '';

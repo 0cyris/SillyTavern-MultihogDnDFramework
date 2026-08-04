@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { wireAgentWorldProgression } from '../src/ui/panel/panel-world-progression.js';
 
 describe('World Progression panel controls', () => {
+    it('loads the extension-root router for on-demand report generation', () => {
+        const source = readFileSync(new URL('../src/ui/panel/panel-world-progression.js', import.meta.url), 'utf8');
+
+        expect(source.match(/import\('\.\.\/\.\.\/\.\.\/router\.js'\)/g)).toHaveLength(2);
+        expect(source).not.toContain("import('./router.js')");
+    });
+
     it('exposes a status updater that reflects the current tracker setting', () => {
         const last = { textContent: '' };
         const next = { textContent: '' };
