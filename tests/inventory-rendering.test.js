@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../portrait-storage.js', () => ({
@@ -31,5 +32,12 @@ Rope, Torch, Rations
         expect(html).toContain('Rope');
         expect(html).toContain('Torch');
         expect(html).toContain('Rations');
+    });
+
+    it('keeps category text and bullet color controls independent', () => {
+        const styles = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+
+        expect(styles).toMatch(/\.rt-card-item::before\s*\{[^}]*color:\s*var\(--rt-cat-bullet-color,\s*var\(--rt-text-muted\)\);/s);
+        expect(styles).toMatch(/\.rt-section-body\[style\*="--rt-cat-text-color"\] \.rt-inventory-item > span:not\(\.rt-coin-badge\)\s*\{[^}]*color:\s*var\(--rt-cat-text-color\)\s*!important;/s);
     });
 });

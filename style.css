@@ -2948,7 +2948,7 @@
 
 .rt-card-item::before {
     content: var(--rt-cat-bullet-style, "\2022");
-    color: var(--rt-cat-bullet-color, inherit);
+    color: var(--rt-cat-bullet-color, var(--rt-text-muted));
     display: var(--rt-cat-bullet-display, inline-block);
     margin-right: 8px;
     flex-shrink: 0;
@@ -2956,6 +2956,27 @@
     font-family: var(--rt-font);
     font-size: 1.1em;
     line-height: 1;
+}
+
+/* Unlabelled custom-module lines are secondary prose, not list headlines. */
+.rt-card-item--plain {
+    color: var(--rt-cat-text-color, var(--rt-text-muted));
+    font-size: 0.92em;
+    font-weight: 400;
+    line-height: 1.35;
+}
+
+/* A category text override must win over Inventory rarity markup. Keep badges
+   independent so their semantic colors are not flattened with the item name. */
+.rt-section-body[style*="--rt-cat-text-color"] .rt-inventory-item > span:not(.rt-coin-badge) {
+    color: var(--rt-cat-text-color) !important;
+}
+
+.rt-card-item--plain::before {
+    font-family: inherit;
+    font-size: 0.95em;
+    font-weight: 400;
+    line-height: 1.35;
 }
 
 /* Inventory item worth tooltip */

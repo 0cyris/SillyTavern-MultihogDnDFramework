@@ -964,7 +964,7 @@ export function renderDayNightBadge(str) {
         // Plain kv fallback
         const kv = line.match(/^([^:]+):\s*(.+)$/);
         if (kv) return `<div class="rt-card-kv"><span class="rt-card-key">${escapeHtmlWithColor(kv[1].trim())}:</span><span class="rt-card-val">${escapeHtmlWithColor(kv[2].trim())}</span></div>`;
-        return `<div class="rt-card-item">${escapeHtmlWithColor(line.trim())}</div>`;
+        return `<div class="rt-card-item rt-card-item--plain">${escapeHtmlWithColor(line.trim())}</div>`;
     }
 
     /**
@@ -2610,7 +2610,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
             detached,
             sectionPages,
             null,
-            { bodyOnly: true, showCategorySettings: false },
+            { bodyOnly: true, showCategorySettings: false, fullViewSections: tags },
         )).join('');
         if (!memberBodies) return '';
 
