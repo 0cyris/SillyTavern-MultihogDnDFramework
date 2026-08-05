@@ -4207,6 +4207,11 @@
     margin-top: 2px;
 }
 
+/* Creator field rows: keep inputs level even when a long label (+ help icon) wraps. */
+#rt-char-roll-panel > .rt-cr-row {
+    align-items: flex-end;
+}
+
 .rt-cr-row {
     display: flex;
     align-items: center;

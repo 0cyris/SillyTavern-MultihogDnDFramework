@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.23] - 2026-08-05
+
+### Added
+- **Sexual Orientation in Character Creator**: restored next to Age, with a help tip explaining it is needed for the relationship system and CYOA romantic options. Draft/prompt plumbing included.
+
 ## [6.9.22] - 2026-08-05
 
 ### Fixed

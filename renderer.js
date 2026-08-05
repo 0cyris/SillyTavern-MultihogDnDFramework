@@ -2175,6 +2175,10 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                             <label class="rt-cr-label">Age</label>
                             <input id="rt-cr-age" class="text_pole rt-cr-input" type="text" />
                         </div>
+                        <div class="rt-cr-field" style="flex:1.35 1 0%;">
+                            <label class="rt-cr-label" style="display:inline-flex; align-items:center; gap:3px; white-space:nowrap;">Sexual Orientation <span class="rt-cr-help-icon" style="width:14px;height:14px;font-size:0.65em;" title="Needed for the relationship system and CYOA romantic options — without this, NPC affection/romance targeting is guesswork.">?</span></label>
+                            <input id="rt-cr-orientation" class="text_pole rt-cr-input" type="text" />
+                        </div>
                     </div>
                     <div class="rt-cr-row">
                         <div class="rt-cr-field">

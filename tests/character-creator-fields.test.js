@@ -5,11 +5,17 @@ const rendererSource = readFileSync(new URL('../renderer.js', import.meta.url), 
 const creatorSource = readFileSync(new URL('../character-creator.js', import.meta.url), 'utf8');
 
 describe('Character Creator fields', () => {
-    it('does not expose or inject an Orientation field', () => {
-        expect(rendererSource).not.toContain('id="rt-cr-orientation"');
-        expect(rendererSource).not.toContain('>Orientation</label>');
-        expect(creatorSource).not.toContain('orientationVal');
-        expect(creatorSource).not.toContain('Orientation:');
+    it('exposes Orientation to the right of Age, with a relationship-system help tip', () => {
+        expect(rendererSource).toContain('id="rt-cr-orientation"');
+        // Field must sit after Age in the same Name/Gender/Age row.
+        const ageIdx = rendererSource.indexOf('id="rt-cr-age"');
+        const orientIdx = rendererSource.indexOf('id="rt-cr-orientation"');
+        expect(ageIdx).toBeGreaterThan(-1);
+        expect(orientIdx).toBeGreaterThan(ageIdx);
+        expect(rendererSource).toContain('Needed for the relationship system and CYOA romantic options');
+        expect(creatorSource).toContain('orientationVal');
+        expect(creatorSource).toContain('Sexual Orientation:');
+        expect(creatorSource).toContain("setVal('#rt-cr-orientation'");
     });
 
     it('only requests an Abilities preference when the [ABILITIES] module is enabled', () => {
@@ -28,6 +34,7 @@ describe('Character Creator fields', () => {
             'rt-cr-name',
             'rt-cr-gender',
             'rt-cr-age',
+            'rt-cr-orientation',
             'rt-cr-species',
             'rt-cr-ethnicity',
             'rt-cr-background',
