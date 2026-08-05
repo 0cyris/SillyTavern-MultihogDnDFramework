@@ -2,9 +2,9 @@
 
 *A highly customizable and modular RPG platform/simulation engine for SillyTavern.*
 
-Started off as a humble "RPG State Tracker" but has since expanded into a more ambitious game engine, simulation system, and modular RPG platform where you can even make your own RPGs with their own systems and game logic — and all of this can be done through AI prompting via numerous integrated AI wizards/tools. By default, ships with a plug-and-play "hardcore" setup that can best be described as simulation autism. Actions have consequences, and there is no scaling. The dragon will kick you to the curb even if you're level 2.
+Started off as a humble "RPG State Tracker" but has since expanded into a more ambitious game engine, simulation system, and modular RPG platform where you can even make your own RPGs with their own systems and game logic — and all of this can be done through AI prompting via numerous integrated AI wizards/tools.
 
-The core aim and philosophy is to deliver an immersive experience through robust simulation logic, using realistic time passage as the backbone that ties into numerous other systems, and this aforementioned "player-agnosticism/neutrality." Fundamentally it acts as a cohesive RPG framework as well as an anti-sycophancy system.
+By default, ships with a plug-and-play "hardcore" setup that can best be described as simulation autism. Actions have consequences, and there is no scaling. The dragon will kick you to the curb even if you're level 2. The core aim and philosophy is to deliver an immersive experience through robust simulation logic, using realistic time passage as the backbone that ties into numerous other systems, and this aforementioned "player-agnosticism/neutrality." Fundamentally it acts as a cohesive RPG framework as well as an anti-sycophancy system.
 
 I know it says "D&D Framework," but in addition to fantasy, the system works just as well for casual "slice of life" scenarios, modern settings, or anything else imaginable, so you're by no means limited to wizards and goblins. Everything is FULLY customizable and homebrew-friendly, complete with AI wizards, so next to no technical knowledge is required.
 
