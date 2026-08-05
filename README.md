@@ -1,8 +1,8 @@
 # Multihog D&D Framework
 
-*A D&D-based RPG platform/simulation engine for SillyTavern.*
+*A highly customizable and modular RPG platform/simulation engine for SillyTavern.*
 
-This framework, with its stock settings, essentially turns SillyTavern into something like AI Dungeon, but with actual mechanics/consequences! And I mean that. It's not anti-player, but it can be said to be "player-neutral." The narrative and internal consistency of the world determines how hard or easy something is. There is explicitly zero scaling anywhere to ensure choices matter and consequence is real. Going into the dragon's lair at level 2 should not turn the dragon into anything less than a dragon, and the dragon shouldn't show mercy just because you happen to be level 2.
+Started off as a humble "RPG State Tracker" but has since expanded into a more ambitious game engine, simulation system, and modular RPG platform where you can even make your own RPGs with their own systems and game logic. By default, ships with a plug-and-play "hardcore" setup that can best be described as simulation autism. Actions have consequences, and there is no scaling. The dragon will kick you to the curb even if you're level 2.
 
 The core aim and philosophy is to deliver an immersive experience through robust simulation logic, using realistic time passage as the backbone that ties into numerous other systems, and this aforementioned "player-agnosticism/neutrality." Fundamentally it acts as a cohesive RPG framework as well as an anti-sycophancy system.
 
