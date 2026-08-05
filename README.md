@@ -40,7 +40,6 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 - **Buff/debuff temporal decay**: via [TIME] delta tracking; statuses expire automatically over time based on time elapsed.
 - **CYOA Mode**: Offers you clickable choices for frictionless gameplay. Completely optional, of course.
 - **Auto model-switching**: The best models for the task.
-- **Full-context audit mode** with automatic chunking for massive chat histories.
 - **Party-benching system**: Send your squad on quests; they will automatically eventually return, and their success/failure depends on their aptitude and RNG.
 - **Custom fields, AI theme wizard, reorderable sections**; track whatever you want beyond the stock fields and customize the visuals to your liking.
 - **Robust character creation options**: Specify detailed character information, a simple description, or just roll a completely random character.
