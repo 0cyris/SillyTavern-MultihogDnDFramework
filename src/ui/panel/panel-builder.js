@@ -552,22 +552,22 @@ export function createPanel(dependencies) {
 
                 if (!isNpcEntry && coreMatch) {
                     coreRead.style.display = 'block';
-                    coreRead.innerHTML = `<div class="rt-agent-core-label">Permanent</div><div class="rt-agent-core-text">${escapeHtml(coreMatch[1].trim())}</div>`;
+                    coreRead.innerHTML = `<div class="rt-agent-core-label">Permanent</div><div class="rt-agent-core-text">${escapeHtml(substituteDisplayMacros(coreMatch[1].trim()))}</div>`;
                 } else {
                     coreRead.style.display = 'none';
                     coreRead.innerHTML = '';
                 }
 
                 if (isNpcEntry) {
-                    contentRead.textContent = dynamic || '(No campaign history recorded yet)';
+                    contentRead.textContent = substituteDisplayMacros(dynamic) || '(No campaign history recorded yet)';
                     contentRead.style.display = 'block';
                 } else if (dynamic) {
-                    contentRead.textContent = dynamic;
+                    contentRead.textContent = substituteDisplayMacros(dynamic);
                     contentRead.style.display = 'block';
                 } else if (coreMatch) {
                     contentRead.style.display = 'none';
                 } else {
-                    contentRead.textContent = raw || '(Empty)';
+                    contentRead.textContent = substituteDisplayMacros(raw) || '(Empty)';
                     contentRead.style.display = 'block';
                 }
             };

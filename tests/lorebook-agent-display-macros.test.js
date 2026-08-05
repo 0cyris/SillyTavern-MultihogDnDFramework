@@ -24,6 +24,13 @@ describe('display-time macro substitution ({{user}} etc.)', () => {
         expect(panelBuilderSource).toContain('escapeHtml(substituteDisplayMacros(match[2]))');
     });
 
+    it('Lorebook Agent tree-view expanded entry (Permanent + campaign history) substitutes macros', () => {
+        expect(panelBuilderSource).toContain("coreRead.innerHTML = `<div class=\"rt-agent-core-label\">Permanent</div><div class=\"rt-agent-core-text\">${escapeHtml(substituteDisplayMacros(coreMatch[1].trim()))}</div>`;");
+        expect(panelBuilderSource).toContain("contentRead.textContent = substituteDisplayMacros(dynamic) || '(No campaign history recorded yet)';");
+        expect(panelBuilderSource).toContain('contentRead.textContent = substituteDisplayMacros(dynamic);');
+        expect(panelBuilderSource).toContain("contentRead.textContent = substituteDisplayMacros(raw) || '(Empty)';");
+    });
+
     it('Lorebook Agent edit textareas still load the raw, unsubstituted content', () => {
         // Editing must always start from the literal stored text so macros round-trip on save.
         expect(panelBuilderSource).toContain("contentArea.value = item.content || '';");
