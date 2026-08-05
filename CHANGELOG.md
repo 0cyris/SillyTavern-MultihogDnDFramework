@@ -2,7 +2,7 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
-## [6.9.17] - 2026-08-05
+## [6.9.20] - 2026-08-05
 
 ### Fixed
 - **{{user}} still literal in Lorebook Agent tree view**: the default expanded entry view (Permanent description + campaign history lines) used a separate rendering path that the 6.9.16 fix missed — it now also resolves `{{user}}`/`{{char}}` macros for display.
