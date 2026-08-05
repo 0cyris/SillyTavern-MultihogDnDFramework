@@ -34,34 +34,27 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 
 ## Highlights
 
-- **20+ Rendering Tags** with universal inline support and live preview library.
-- **AI-Powered Configuration** — generate custom fields and sysprompt sections from plain language descriptions.
-- **Dual-Engine Physics**: Deterministic queue for instant combat, and interactive tool calls for narrative skill checks.
-- **Draggable HUD** with HP bars, spell pips, colored status pills, alert badges, and economy coins.
-- **Automatic spell slot tracking** via 🔵 pips in the UI; never worry about remembering how many you have left.
-- **Buff/debuff temporal decay** via [TIME] delta tracking; statuses expire automatically over time based on time elapsed.
-- **NO enemy scaling** — the narrative is king and the logic of reality applies; you're not accommodated if you take a task beyond you just because you're weak.
-- **Auto model-switching** so that you can use a different model for tracking the state.
+- **Full Mobile support**: Continue on your phone where you left off on desktop.
+- **AI-powered effortless creation**: generate entire game systems effortlessly from plain language prompts. AI handles it all.
+- **Automatic spell slot tracking**: via 🔵 pips in the UI; never worry about remembering how many you have left.
+- **Buff/debuff temporal decay**: via [TIME] delta tracking; statuses expire automatically over time based on time elapsed.
+- **CYOA Mode**: Offers you clickable choices for frictionless gameplay. Completely optional, of course.
+- **Auto model-switching**: The best models for the task.
 - **Full-context audit mode** with automatic chunking for massive chat histories.
-- **Custom fields, themes, reorderable sections**; track whatever you want beyond the stock fields and customize the visuals to your liking.
-- **Automatic D&D wikidot spell links** - look up spells by clicking on them without awkward googling.
-- **Mobile support** (open from the wand menu).
-- **Talk to the tracker model directly via (💬)**, making editing or adding things easy.
-- **Onboarding system** - roll up a random character or describe one to the model.
-- **Profile saving** - switch between multiple campaigns without losing your state.
-- **Homebrew-friendly** and flexible in general, relying on AI to do a lot of the lifting.
-- **Automatic Long-Context Tracking** via the Lorebook Agent with World Engine simulation.
-- **AI Portrait Generation** via Pollinations.ai — free, non-profit image generation with full lorebook agent context awareness for accurate character portraits.
-- **Inventory Currency Auto-Rendering** — items with a worth value automatically display a styled coin badge (gold, silver, bronze, or dollar) based on the currency type.
+- **Party-benching system**: Send your squad on quests; they will automatically eventually return, and their success/failure depends on their aptitude and RNG.
+- **Custom fields, AI theme wizard, reorderable sections**; track whatever you want beyond the stock fields and customize the visuals to your liking.
+- **Robust character creation options**: Specify detailed character information, a simple description, or just roll a completely random character.
+- **Save your RPGs as Game Cartridges**: A complete snapshot of your RPG configuration. Importing and exporting is supported for easy backups or even sharing.
+- **Homebrew-friendliness** and flexibility in general, supporting any genre.
+- **Autonomous Lorebook Agent** handles your lorebooks completely hands-free, with no configuration necessary.
+- **Talk to the models directly via (💬)**, making editing or adding things easy.
+- **AI Portrait Generation and Real-Time Visualization Mode**: Portraits for everything, and a visualizer viewport.
 - **Character card importing** — import any existing character into the story as an NPC; AI will automatically adapt it to the story, regardless of setting/theme.
-- **AI-powered Game Systems Wizard** — Simply describe any mechanic to the wizard in natural language (e.g. "reputation system), and the AI will build the system for you according to the structure of the extension (sysprompt + module.) Iterate, regenerate, or manually edit any block directly within the forge before saving.
-- **Life/dating sim-style friendship/affection component.**
-- **Export your entire setup as a "Game Cartridge."**
-- **d100 (percentage-based rolls) support.**
-- **Real-Time Visualization Mode** — Lorebook Agent can be turned into a visual viewer that generates images of the current scene (with adjustable frequency) and displays the portraits of the currently present entities.
-- **Instant Action** — Get started by simply pressing one button.
--  **Adventure Companion** — Learn the framework with optional Tutorial Mode, discuss your adventure, update campaign state or lore, and even ask it to take your next turn.
-  
+- **Life/dating sim-style friendship/affection component**: Build friendships and romance.
+- **d100 support** for percentage-based systems/calculations.
+- **Adventure Companion**: Learn the framework with an optional Tutorial Mode, discuss your adventure, update campaign state or lore, and even ask it to take your next turn.
+- **Efficient Dual-Engine RNG**: Deterministic queue for instant combat; tool calls for narrative skill checks.
+
 ---
 
 <p align="center">
