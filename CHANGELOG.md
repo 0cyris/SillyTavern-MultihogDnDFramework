@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.24] - 2026-08-05
+
+### Fixed
+- **"No message generated" / walled Direct Prompt & Character Creator requests**: the default (generateRaw) connection path now disables SillyTavern's `trimNames` cleanup. Previously, if a raw completion happened to start with `"{{user}}:"` or `"{{char}}:"` (very plausible for a full character sheet whose first line is the generated name — especially once Character Creator's "Create SillyTavern Persona" option sets `{{user}}` to that exact name), ST's core `cleanUpMessage` silently deleted the **entire response**, surfacing as an opaque "No message generated" error and blocking character creation / state updates.
+
 ## [6.9.23] - 2026-08-05
 
 ### Added
