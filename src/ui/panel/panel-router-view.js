@@ -11,6 +11,7 @@ export function createRouterViewRenderer({
     getSettings,
     parseInWorldTime,
     saveSettings,
+    setLorebookEntryPinned,
 }) {
     return async function renderRouterUI() {
         const s = getSettings();
@@ -27,6 +28,7 @@ export function createRouterViewRenderer({
         const ctx = SillyTavern.getContext();
         const books = {};
         const activeKeys = s.activeRouterKeys || [];
+        const pinnedSet = new Set(s.pinnedRouterKeys || []);
 
         // Collect needed lorebooks to minimize loads
         const neededBooks = new Set();
@@ -76,15 +78,30 @@ export function createRouterViewRenderer({
                 title = `[${bookName}] ${entry.key?.join(', ')}\n\n${(entry.content || '').substring(0, 500)}${entry.content?.length > 500 ? '...' : ''}`;
             }
 
-            const isKeywordTriggered = keywordTriggeredSet.has(k);
-            const pillBg = isKeywordTriggered ? 'rgba(58, 46, 14, 0.9)' : 'rgba(42, 42, 53, 0.8)';
-            const pillBorder = isKeywordTriggered ? '1px solid rgba(210, 160, 40, 0.6)' : '1px solid rgba(255,255,255,0.1)';
-            const tooltipPrefix = isKeywordTriggered ? '⌂ Keyword-triggered this turn\n\n' : '';
+            const isPinned = pinnedSet.has(k);
+            const isKeywordTriggered = !isPinned && keywordTriggeredSet.has(k);
+            const pillBg = isPinned
+                ? 'rgba(20, 60, 35, 0.9)'
+                : (isKeywordTriggered ? 'rgba(58, 46, 14, 0.9)' : 'rgba(42, 42, 53, 0.8)');
+            const pillBorder = isPinned
+                ? '1px solid rgba(52, 168, 83, 0.65)'
+                : (isKeywordTriggered ? '1px solid rgba(210, 160, 40, 0.6)' : '1px solid rgba(255,255,255,0.1)');
+            const tooltipPrefix = isPinned
+                ? '📌 Pinned — always active\n\n'
+                : (isKeywordTriggered ? '⌂ Keyword-triggered this turn\n\n' : '');
+            const prefixIcon = isPinned
+                ? '<span style="color: #34a853; font-size: 0.9em; flex-shrink: 0;" title="Pinned — always active">📌</span>'
+                : (isKeywordTriggered ? '<span style="color: #d4a028; font-size: 0.9em; flex-shrink: 0;" title="Keyword-triggered this turn">⌂</span>' : '');
+            // Pinned pills expose Unpin instead of Deactivate — deactivating a still-pinned
+            // entry would just get re-activated on the next reconciliation pass.
+            const actionHtml = isPinned
+                ? `<span class="rt-router-unpin-key" data-key="${k}" style="cursor:pointer; color: #34a853; font-weight: bold; padding: 0 2px;" title="Unpin">✕</span>`
+                : `<span class="rt-router-kill-key" data-key="${k}" style="cursor:pointer; color: #ff5555; font-weight: bold; padding: 0 2px;" title="Deactivate">✕</span>`;
 
             return `<span class="rt-router-pill" style="background: ${pillBg}; padding: 2px 8px; border-radius: 12px; font-size: 0.769em; border: ${pillBorder}; display: inline-flex; align-items: center; gap: 6px; cursor: help; max-width: 120px;" title="${escapeHtml(tooltipPrefix + title)}">
-                    ${isKeywordTriggered ? '<span style="color: #d4a028; font-size: 0.9em; flex-shrink: 0;" title="Keyword-triggered this turn">⌂</span>' : ''}
+                    ${prefixIcon}
                     <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(label)}</span>
-                    <span class="rt-router-kill-key" data-key="${k}" style="cursor:pointer; color: #ff5555; font-weight: bold; padding: 0 2px;" title="Deactivate">✕</span>
+                    ${actionHtml}
                 </span>`;
         }).join('') || '<span style="opacity:0.5; font-size:10px;">None</span>';
 
@@ -105,7 +122,7 @@ export function createRouterViewRenderer({
                 </div>`;
         }).join('') || '<span style="opacity:0.5; font-size:10px;">No logs yet.</span>';
 
-        // Attach kill handlers
+        // Attach kill handlers (non-pinned)
         keysContainer.querySelectorAll('.rt-router-kill-key').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const target = /** @type {HTMLElement} */ (e.target);
@@ -121,6 +138,21 @@ export function createRouterViewRenderer({
                     }
                     saveSettings();
                     runtimeState.renderRouterUI();
+                }
+            });
+        });
+
+        // Attach unpin handlers (pinned)
+        keysContainer.querySelectorAll('.rt-router-unpin-key').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const target = /** @type {HTMLElement} */ (e.currentTarget);
+                const key = target.getAttribute('data-key');
+                if (!key || typeof setLorebookEntryPinned !== 'function') return;
+                setLorebookEntryPinned(key, false);
+                runtimeState.renderRouterUI();
+                if (typeof globalThis._rpgRefreshAgentManifest === 'function') {
+                    void globalThis._rpgRefreshAgentManifest();
                 }
             });
         });

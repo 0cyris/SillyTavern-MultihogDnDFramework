@@ -577,6 +577,8 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
 
         activeWorldKeys: [],
 
+        pinnedRouterKeys: [],  // entries permanently activated by the user — immune to agent/keyword deactivation
+
         keywordActivatedKeys: [],  // entries activated by keyword scanner — auto-expire when keyword leaves scan window
 
         routerConnectionSource: "default",

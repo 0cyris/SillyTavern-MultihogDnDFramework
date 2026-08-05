@@ -1,4 +1,4 @@
-import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState } from './state-manager.js';
+import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState, computeUnpinnedActiveCount } from './state-manager.js';
 import { sendStateRequest, sendAgentTurn } from './llm-client.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { extractCurrentTimeStr, cleanMessageContent, parseInWorldTime, formatInWorldTime, findNthUserMessageStartIdx, formatAgentChatLogFromIndex, sanitizeLorebookRecordContent } from './memo-processor.js';
@@ -109,10 +109,13 @@ function stripSkeletonFromRouterPools() {
     const strip = (arr) => (arr || []).filter(id => !isSkeletonEntryId(id));
     const beforeRouter = JSON.stringify(settings.activeRouterKeys || []);
     const beforeKw = JSON.stringify(settings.keywordActivatedKeys || []);
+    const beforePinned = JSON.stringify(settings.pinnedRouterKeys || []);
     settings.activeRouterKeys = strip(settings.activeRouterKeys);
     settings.keywordActivatedKeys = strip(settings.keywordActivatedKeys);
+    settings.pinnedRouterKeys = strip(settings.pinnedRouterKeys);
     return beforeRouter !== JSON.stringify(settings.activeRouterKeys)
-        || beforeKw !== JSON.stringify(settings.keywordActivatedKeys);
+        || beforeKw !== JSON.stringify(settings.keywordActivatedKeys)
+        || beforePinned !== JSON.stringify(settings.pinnedRouterKeys);
 }
 
 /**
@@ -507,8 +510,10 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
             maxTokens: (settings.routerMaxTokens !== undefined && settings.routerMaxTokens !== null && settings.routerMaxTokens !== '') ? Number(settings.routerMaxTokens) : 1000,
         };
 
-        // Budget status — computed once and reused in both basic and agent context
-        const activeCount = settings.activeRouterKeys?.length || 0;
+        // Budget status — computed once and reused in both basic and agent context.
+        // Pinned entries are excluded so user pins never trigger BUDGET VIOLATION
+        // or consume the agent's activation slots.
+        const activeCount = computeUnpinnedActiveCount(settings.activeRouterKeys, settings.pinnedRouterKeys);
         const maxActive = settings.routerMaxActivations || 8;
         const overflow = activeCount - maxActive;
         const budgetLine = `Active entries: ${activeCount} / ${maxActive}`;
@@ -1556,10 +1561,11 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
     const deactivate = action.deactivate || [];
     let newActive = [...(settings.activeRouterKeys || [])];
     let newWorldActive = [...(settings.activeWorldKeys || [])];
+    const pinnedSet = new Set(settings.pinnedRouterKeys || []);
     
-    // Remove deactivations
-    newActive = newActive.filter(k => !deactivate.includes(k));
-    newWorldActive = newWorldActive.filter(k => !deactivate.includes(k));
+    // Remove deactivations — pinned entries are immune (silent no-op)
+    newActive = newActive.filter(k => !deactivate.includes(k) || pinnedSet.has(k));
+    newWorldActive = newWorldActive.filter(k => !deactivate.includes(k) || pinnedSet.has(k));
     
     // Add activations
     for (const k of activate) {
@@ -1734,6 +1740,8 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             settings.activeRouterKeys = (settings.activeRouterKeys || [])
                 .filter(k => k !== targetId);
             settings.activeWorldKeys = (settings.activeWorldKeys || [])
+                .filter(k => k !== targetId);
+            settings.pinnedRouterKeys = (settings.pinnedRouterKeys || [])
                 .filter(k => k !== targetId);
             newActive = newActive.filter(k => k !== targetId);
             newWorldActive = newWorldActive.filter(k => k !== targetId);
@@ -2008,6 +2016,7 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             // Also remove from active keys if present
             settings.activeRouterKeys = settings.activeRouterKeys.filter(k => k !== id);
             settings.activeWorldKeys = (settings.activeWorldKeys || []).filter(k => k !== id);
+            settings.pinnedRouterKeys = (settings.pinnedRouterKeys || []).filter(k => k !== id);
             changed = true;
         }
     }
@@ -2743,6 +2752,32 @@ export async function getLorebookManifest(skipUpdate = false) {
 
     const activeRouterSet = new Set(settings.activeRouterKeys || []);
     const activeWorldSet = new Set(settings.activeWorldKeys || []);
+    const pinnedSet = new Set(settings.pinnedRouterKeys || []);
+
+    // Reconcile pinned entries into the active pools so pins survive manual pill
+    // removal, rollbacks, or any other path that drops them from activeRouterKeys.
+    let pinReconciled = false;
+    for (const id of pinnedSet) {
+        if (isSkeletonEntryId(id)) continue;
+        const [bookName] = id.split('::');
+        if (!bookName) continue;
+        const isWorld = bookName.toLowerCase().endsWith('_world') || bookName.toLowerCase() === 'world';
+        if (isWorld) {
+            if (!activeWorldSet.has(id)) {
+                activeWorldSet.add(id);
+                if (!settings.activeWorldKeys) settings.activeWorldKeys = [];
+                if (!settings.activeWorldKeys.includes(id)) settings.activeWorldKeys.push(id);
+                pinReconciled = true;
+            }
+        } else if (!activeRouterSet.has(id)) {
+            activeRouterSet.add(id);
+            if (!settings.activeRouterKeys) settings.activeRouterKeys = [];
+            if (!settings.activeRouterKeys.includes(id)) settings.activeRouterKeys.push(id);
+            pinReconciled = true;
+        }
+    }
+    if (pinReconciled) void saveSettings();
+
     const booksToLoad = [...scopedSet].filter(n => !isSkeletonBookName(n));
     const loadedBooks = await Promise.all(booksToLoad.map(async (n) => {
         try {
@@ -2766,7 +2801,8 @@ export async function getLorebookManifest(skipUpdate = false) {
                 label: entry.comment || (entry.key?.[0]) || uid,
                 keys: entry.key || [],
                 content: entry.content,
-                is_active: activeRouterSet.has(id) || activeWorldSet.has(id)
+                is_active: activeRouterSet.has(id) || activeWorldSet.has(id),
+                is_pinned: pinnedSet.has(id),
             });
         }
     }
@@ -2787,7 +2823,7 @@ export async function deleteLorebookEntry(id) {
     delete book.entries[uid];
     await ctx.saveWorldInfo(bookName, book);
     
-    // Also remove from active list if it was there
+    // Also remove from active/pinned lists if it was there
     const settings = getSettings();
     if (settings.activeRouterKeys?.includes(id)) {
         settings.activeRouterKeys = settings.activeRouterKeys.filter(k => k !== id);
@@ -2795,7 +2831,50 @@ export async function deleteLorebookEntry(id) {
     if (settings.activeWorldKeys?.includes(id)) {
         settings.activeWorldKeys = settings.activeWorldKeys.filter(k => k !== id);
     }
+    if (settings.pinnedRouterKeys?.includes(id)) {
+        settings.pinnedRouterKeys = settings.pinnedRouterKeys.filter(k => k !== id);
+    }
     
+    return true;
+}
+
+/**
+ * Pin or unpin a lorebook entry so it stays permanently active for the Lorebook Agent.
+ * Pinning always activates the entry immediately. Unpinning only removes the pin —
+ * it does not force-deactivate the entry.
+ * @param {string} id Book::uid
+ * @param {boolean} pinned
+ * @returns {boolean}
+ */
+export function setLorebookEntryPinned(id, pinned) {
+    if (typeof id !== 'string' || !id.includes('::') || isSkeletonEntryId(id)) return false;
+    const settings = getSettings();
+    if (!Array.isArray(settings.pinnedRouterKeys)) settings.pinnedRouterKeys = [];
+
+    const [bookName] = id.split('::');
+    const isWorld = bookName.toLowerCase().endsWith('_world') || bookName.toLowerCase() === 'world';
+
+    if (pinned) {
+        if (!settings.pinnedRouterKeys.includes(id)) {
+            settings.pinnedRouterKeys.push(id);
+        }
+        // Pin implies active
+        if (isWorld) {
+            if (!Array.isArray(settings.activeWorldKeys)) settings.activeWorldKeys = [];
+            if (!settings.activeWorldKeys.includes(id)) settings.activeWorldKeys.push(id);
+        } else {
+            if (!Array.isArray(settings.activeRouterKeys)) settings.activeRouterKeys = [];
+            if (!settings.activeRouterKeys.includes(id)) settings.activeRouterKeys.push(id);
+        }
+        // Agent/user ownership — remove from keyword auto-expire pool
+        if (Array.isArray(settings.keywordActivatedKeys)) {
+            settings.keywordActivatedKeys = settings.keywordActivatedKeys.filter(k => k !== id);
+        }
+    } else {
+        settings.pinnedRouterKeys = settings.pinnedRouterKeys.filter(k => k !== id);
+    }
+
+    void saveSettings();
     return true;
 }
 
@@ -2890,6 +2969,9 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
 
     const currentActive = new Set((settings.activeRouterKeys || []).filter(id => !isSkeletonEntryId(id)));
     const currentKeyword = new Set(settings.keywordActivatedKeys || []);
+    const pinnedSet = new Set((settings.pinnedRouterKeys || []).filter(id => !isSkeletonEntryId(id)));
+    // Ensure pinned entries stay in the active pool for the duration of this scan
+    for (const id of pinnedSet) currentActive.add(id);
     const newlyTriggered = [];
 
     const directMatches = [];
@@ -2975,6 +3057,7 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
                 let evicted = 0;
                 for (const id of currentKeyword) {
                     if (evicted >= toEvict) break;
+                    if (pinnedSet.has(id)) continue; // never evict user-pinned entries
                     currentActive.delete(id);
                     currentKeyword.delete(id);
                     evicted++;
@@ -2997,6 +3080,7 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
 
         for (const id of currentKeyword) {
             if (newlyTriggered.includes(id)) continue;
+            if (pinnedSet.has(id)) continue; // user-pinned entries never auto-expire
 
             const [bookName, uid] = id.split('::');
             if (!bookName || uid === undefined) { autoExpired.push(id); continue; }
@@ -3035,8 +3119,10 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
     }
 
     // ── Persist ───────────────────────────────────────────────────────────────
+    // Re-assert pins in case any earlier path dropped them
+    for (const id of pinnedSet) currentActive.add(id);
     settings.activeRouterKeys = [...currentActive];
-    settings.keywordActivatedKeys = [...currentKeyword];
+    settings.keywordActivatedKeys = [...currentKeyword].filter(id => !pinnedSet.has(id));
     settings.lastKeywordTriggeredKeys = newlyTriggered;
     void saveSettings();
 

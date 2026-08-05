@@ -12,7 +12,7 @@
  * circular import. This will be cleaned up when index.js is split.
  */
 
-import { getSettings, hydrateWorldProgressionFromChatState, persistWorldProgressionTimer, persistRouterLastRunWatermark, getNpcRelationshipMax, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, applyRelTierBadgeElement, showRelationshipFloatFeedback, saveChatState, getActiveChatId, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, shouldProcessRegexRelationshipUpdates } from './state-manager.js';
+import { getSettings, hydrateWorldProgressionFromChatState, persistWorldProgressionTimer, persistRouterLastRunWatermark, getNpcRelationshipMax, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, applyRelTierBadgeElement, showRelationshipFloatFeedback, saveChatState, getActiveChatId, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, shouldProcessRegexRelationshipUpdates, stripCoreMarkersForNarrator } from './state-manager.js';
 import { syncCombatProfile, isCombatActive } from './llm-client.js';
 import { parseQuestsFromMemo, extractCurrentTimeStr, cleanMessageContent, formatInWorldTime, memoForGmContext } from './memo-processor.js';
 import { runRouterPass, saveSceneToLorebook, scanAssistantOutputForKeywords, parseInWorldMinutes, runWorldProgressionPass, updateLorebookEntry, getLorebookManifest, rollbackRouterPass, isRouterRunning } from './router.js';
@@ -783,7 +783,7 @@ function extractTextContent(msg) {
  * Automatically prepends any active NPC relationship status values if relationship bars are enabled.
  */
 function buildInjectedEntryText(id, entry, settings) {
-    let content = substituteLoreMacros(entry.content || '');
+    let content = stripCoreMarkersForNarrator(substituteLoreMacros(entry.content || ''));
     const rel = settings.npcRelationshipValues?.[id];
     if (rel && settings.npcRelationshipBars) {
         const relMax = getNpcRelationshipMax(settings);

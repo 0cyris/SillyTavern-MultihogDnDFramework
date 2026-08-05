@@ -2,6 +2,18 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.21] - 2026-08-05
+
+### Added
+- **Pin Lorebook Agent entries**: thumbtack pin on tree entries / NPC cards (and green Active Lore Keys pills) permanently activates an entry. Pins are exempt from budget counting, agent deactivation, and keyword auto-expire — handled in JS only, so the agent prompt is unchanged.
+- **Modular Repertoire book-name labels**: stock modules now show the real lorebook category (e.g. `Locations (LOC)`) instead of only the prompt tag; custom tags show a live `→ ..._Bookname` preview matching the router's naming rule.
+
+### Changed
+- **`[CORE]` markers stripped for the GM/narrator**: lore injected into the narrator prompt no longer includes `[CORE]`/`[/CORE]` bookkeeping tags (a blank line keeps the permanent-vs-chronicle break). Stored lorebook content and the Lorebook Agent's own context still keep the tags.
+
+### Fixed
+- **Full NPC Cards broken**: restored the `renderRelTierDetailed` dependency wiring so opening a Full NPC Card no longer throws `ReferenceError`.
+
 ## [6.9.20] - 2026-08-05
 
 ### Fixed

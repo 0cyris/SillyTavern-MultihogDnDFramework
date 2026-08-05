@@ -36,6 +36,7 @@ export function resolveInitialPanelContentMode(_storedMode) {
 export function createPanel(dependencies) {
     const {
         DEFAULT_MODULES,
+        MODULE_BOOK_CATEGORY,
         DEFAULT_NPC_SECTIONS,
         DEFAULT_PC_SECTIONS,
         activateCampaignBooks,
@@ -113,6 +114,7 @@ export function createPanel(dependencies) {
         scaleImageToLandscape,
         sendDirectPrompt,
         sendStateRequest,
+        setLorebookEntryPinned,
         setNpcRelationshipMaxForCurrentChat,
         setupDeltaResize,
         setupResizeObserver,
@@ -259,6 +261,7 @@ export function createPanel(dependencies) {
         getSettings,
         parseInWorldTime,
         saveSettings,
+        setLorebookEntryPinned,
     })
 
     // Assigned below when the agent panel is wired. Declared here so
@@ -576,6 +579,7 @@ export function createPanel(dependencies) {
             const cleanBtn = entryHdr.querySelector('.rt-agent-entry-clean');
             const editBtn = entryHdr.querySelector('.rt-agent-entry-edit');
             const delBtn = entryHdr.querySelector('.rt-agent-entry-delete');
+            const pinBtn = entryHdr.querySelector('.rt-agent-entry-pin');
 
             readPane.appendChild(keysRead);
             readPane.appendChild(coreRead);
@@ -796,6 +800,24 @@ export function createPanel(dependencies) {
                             // @ts-ignore
                             toastr.success(`Deleted "${item.label}"`, 'Lorebook Agent');
                         }
+                    }
+                });
+            }
+
+            if (pinBtn) {
+                pinBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const nextPinned = !item.is_pinned;
+                    const ok = setLorebookEntryPinned(item.id, nextPinned);
+                    if (ok) {
+                        item.is_pinned = nextPinned;
+                        if (nextPinned) item.is_active = true;
+                        await refreshManifest();
+                        if (typeof runtimeState.renderRouterUI === 'function') runtimeState.renderRouterUI();
+                        // @ts-ignore
+                        toastr.info(nextPinned
+                            ? `Pinned "${item.label}" — always active`
+                            : `Unpinned "${item.label}"`, 'Lorebook Agent');
                     }
                 });
             }
@@ -2358,6 +2380,15 @@ export function createPanel(dependencies) {
                                         ? `<img src="${escapeHtml(portraitSrc)}" alt="${escapeHtml(item.label)}">`
                                         : `<div class="rt-npc-portrait-placeholder">👤</div>`;
 
+                                    const isPinned = !!item.is_pinned;
+                                    const statusBadgeClass = isPinned ? 'active' : (item.is_active ? 'active' : 'inactive');
+                                    const statusBadgeText = isPinned
+                                        ? '📌 Pinned'
+                                        : (item.is_active ? '● Active' : '○ Inactive');
+                                    const statusBadgeStyle = isPinned
+                                        ? ' style="color:#34a853;border-color:rgba(52,168,83,0.45);"'
+                                        : '';
+
                                     card.innerHTML = `
                                 <div class="rt-npc-portrait-wrap">
                                     ${portraitHtml}
@@ -2366,13 +2397,14 @@ export function createPanel(dependencies) {
                                 <div class="rt-npc-info">
                                     <div class="rt-npc-name">${escapeHtml(item.label)}${isDirty ? ' <span style="color:#ffa500; font-size:8px;" title="Unsaved edits">●</span>' : ''}</div>
                                     <div class="rt-npc-desc">${escapeHtml(desc)}</div>
-                                    <span class="rt-npc-status-badge ${item.is_active ? 'active' : 'inactive'}">${item.is_active ? '● Active' : '○ Inactive'}</span>
+                                    <span class="rt-npc-status-badge ${statusBadgeClass}"${statusBadgeStyle}>${statusBadgeText}</span>
                                     ${s.npcRelationshipBars && renderRelBar ? `<div class="rt-npc-bars">
                                         ${renderRelBar(rel.friendship, 'friendship', item.id)}
                                         ${renderRelBar(rel.affection, 'affection', item.id)}
                                     </div>${renderRelTierRow(rel.friendship, rel.affection, getNpcRelationshipMax(s))}` : ''}
                                     <div class="rt-npc-actions">
                                         <button class="rt-npc-action-btn rt-npc-view" data-id="${item.id}" title="View NPC card"><i class="fa-solid fa-address-card"></i> Full NPC Card</button>
+                                        <button class="rt-npc-action-btn rt-npc-pin" data-id="${item.id}" title="${isPinned ? 'Pinned — always active for the Lorebook Agent' : 'Pin — keep this entry permanently active'}" style="${isPinned ? 'color:#34a853;' : ''}"><i class="fa-solid fa-thumbtack"></i></button>
                                         <button class="rt-npc-action-btn rt-npc-edit" data-id="${item.id}" title="Edit entry"><i class="fa-solid fa-pen-to-square"></i></button>
                                         <button class="rt-npc-action-btn rt-npc-clean" data-id="${item.id}" title="Cleanup entry"><i class="fa-solid fa-broom"></i></button>
                                         <button class="rt-npc-action-btn rt-npc-delete" data-id="${item.id}" title="Delete entry"><i class="fa-solid fa-trash"></i></button>
@@ -2469,6 +2501,22 @@ export function createPanel(dependencies) {
                                         const [bk, uid] = item.id.split('::');
                                         await runRouterPass(null, `__CLEANUP__::${bk}::${uid}`, null, true);
                                         await refreshManifest();
+                                    });
+
+                                    const pinBtn = card.querySelector('.rt-npc-pin');
+                                    if (pinBtn) pinBtn.addEventListener('click', async (e) => {
+                                        e.stopPropagation();
+                                        const nextPinned = !item.is_pinned;
+                                        const ok = setLorebookEntryPinned(item.id, nextPinned);
+                                        if (ok) {
+                                            item.is_pinned = nextPinned;
+                                            if (nextPinned) item.is_active = true;
+                                            await refreshManifest();
+                                            if (typeof runtimeState.renderRouterUI === 'function') runtimeState.renderRouterUI();
+                                            toastr['info'](nextPinned
+                                                ? `Pinned "${item.label}" — always active`
+                                                : `Unpinned "${item.label}"`, 'Lorebook Agent');
+                                        }
                                     });
 
                                     const delBtn = card.querySelector('.rt-npc-delete');
@@ -2704,8 +2752,14 @@ export function createPanel(dependencies) {
 
                                     let statusDotHtml = '';
                                     if (node.item) {
-                                        const statusColor = node.item.is_active ? 'var(--rt-accent)' : 'rgba(255,255,255,0.18)';
-                                        statusDotHtml = `<div style="width:5px; height:5px; border-radius:50%; background:${statusColor}; flex-shrink:0;" title="${node.item.is_active ? 'Active (visible to agent)' : 'Inactive'}"></div>`;
+                                        const isPinned = !!node.item.is_pinned;
+                                        const statusColor = isPinned
+                                            ? '#34a853'
+                                            : (node.item.is_active ? 'var(--rt-accent)' : 'rgba(255,255,255,0.18)');
+                                        const statusTitle = isPinned
+                                            ? 'Pinned — always active'
+                                            : (node.item.is_active ? 'Active (visible to agent)' : 'Inactive');
+                                        statusDotHtml = `<div style="width:5px; height:5px; border-radius:50%; background:${statusColor}; flex-shrink:0;" title="${statusTitle}"></div>`;
                                     } else if (!isDayNode) {
                                         statusDotHtml = `<div style="width:5px; height:5px; border-radius:50%; border:1px dashed rgba(255,255,255,0.25); box-sizing:border-box; flex-shrink:0;" title="Virtual parent placeholder (entry not created yet)"></div>`;
                                     }
@@ -2727,6 +2781,7 @@ export function createPanel(dependencies) {
                                     let viewLocHtml = '';
                                     let locThumbHtml = '';
                                     let relStatsHtml = '';
+                                    let pinHtml = '';
                                     let editHtml = '';
                                     let deleteHtml = '';
                                     let locFullPath = '';
@@ -2752,6 +2807,8 @@ export function createPanel(dependencies) {
                                             viewLocHtml = `<button class="rt-agent-entry-view-loc" data-id="${node.item.id}" style="background:rgba(94,184,212,0.12); border:1px solid rgba(94,184,212,0.35); border-radius:3px; color:#5eb8d4; cursor:pointer; font-size:10px; padding:1px 5px; flex-shrink:0; line-height:1.2;" title="View location detail"><i class="fa-solid fa-map"></i></button>`;
                                         }
                                         cleanHtml = !isWorldBook ? `<button class="rt-agent-entry-clean" data-id="${node.item.id}" style="background:none; border:none; color:#e67e22; cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0;" title="Run targeted cleanup for this entry"><i class="fa-solid fa-broom"></i></button>` : '';
+                                        const isPinned = !!node.item.is_pinned;
+                                        pinHtml = `<button class="rt-agent-entry-pin" data-id="${node.item.id}" style="background:none; border:none; color:${isPinned ? '#34a853' : 'var(--rt-text-muted)'}; cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0; ${isPinned ? 'opacity:1;' : 'opacity:0.55;'}" title="${isPinned ? 'Pinned — always active for the Lorebook Agent' : 'Pin — keep this entry permanently active'}"><i class="fa-solid fa-thumbtack"></i></button>`;
                                         editHtml = `<button class="rt-agent-entry-edit" data-id="${node.item.id}" style="background:none; border:none; color:var(--rt-accent); cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0;" title="Edit this lore entry"><i class="fa-solid fa-pen-to-square"></i></button>`;
                                         deleteHtml = `<button class="rt-agent-entry-delete" data-id="${node.item.id}" style="background:none; border:none; color:var(--rt-text-muted); cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0;" title="Delete entry"><i class="fa-solid fa-trash"></i></button>`;
                                     }
@@ -2765,6 +2822,7 @@ export function createPanel(dependencies) {
                             <span class="rt-agent-entry-label-span" style="${labelStyle}">${escapeHtml(node.name)}${isDirty ? ' <span style="color:#ffa500; font-size:8px;" title="Unsaved edits">●</span>' : ''}</span>
                             ${relStatsHtml}
                             ${tokensHtml}
+                            ${pinHtml}
                             ${editHtml}
                             ${cleanHtml}
                             ${deleteHtml}
@@ -2853,7 +2911,7 @@ export function createPanel(dependencies) {
 
                                     if (node.item) {
                                         entryHdr.addEventListener('click', (e) => {
-                                            if (/** @type {HTMLElement} */ (e.target).closest('.rt-agent-subfolder-toggle, .rt-agent-entry-delete, .rt-agent-entry-clean, .rt-agent-entry-edit, .rt-agent-entry-view-npc, .rt-agent-entry-view-loc, .rt-loc-thumb-wrap')) return;
+                                            if (/** @type {HTMLElement} */ (e.target).closest('.rt-agent-subfolder-toggle, .rt-agent-entry-delete, .rt-agent-entry-clean, .rt-agent-entry-edit, .rt-agent-entry-pin, .rt-agent-entry-view-npc, .rt-agent-entry-view-loc, .rt-loc-thumb-wrap')) return;
                                             const opening = entryBody.style.display === 'none';
                                             entryBody.style.display = opening ? 'flex' : 'none';
                                             entryHdr.style.background = opening ? 'rgba(255,255,255,0.05)' : '';
@@ -4134,9 +4192,15 @@ Rules:
 
                 const header = document.createElement('div');
                 header.style.cssText = 'display:flex; align-items:center; gap:4px; margin-bottom:3px;';
+                // Show the actual lorebook name this module writes to (e.g. "Locations") alongside
+                // its prompt tag (LOC) so the naming never appears to mismatch the user's own books.
+                const bookCategory = MODULE_BOOK_CATEGORY?.[id];
+                const moduleLabel = bookCategory
+                    ? `${bookCategory} <span style="opacity:0.6; font-weight:normal;" title="Prompt tag used in the Lorebook Agent's output — the actual lorebook is named ..._${bookCategory}">(${config.tag})</span>`
+                    : config.tag;
                 header.innerHTML = `
                         <input type="checkbox" class="rt-agent-module-check" ${config.enabled ? 'checked' : ''} style="cursor:pointer; margin:0; flex-shrink:0;">
-                        <span style="font-size:0.769em; font-weight:bold; opacity:0.7; flex:1;">${config.tag}</span>
+                        <span style="font-size:0.769em; font-weight:bold; opacity:0.7; flex:1;">${moduleLabel}</span>
                         <button class="rt-agent-module-reset" style="background:transparent; border:none; color:var(--rt-accent); cursor:pointer; font-size:0.692em; padding:0 4px; opacity:0.5;" title="Reset slots and instruction to default"><i class="fa-solid fa-arrow-rotate-left"></i></button>
                     `;
                 header.querySelector('.rt-agent-module-check').addEventListener('change', (e) => {
@@ -4207,12 +4271,21 @@ Rules:
                     const st = getSettings();
                     st.routerCustomTags[idx].tag = tagInp.value.toUpperCase();
                     saveSettings();
+                    renderAgentCustomTags();
                 });
                 header.appendChild(tagInp);
 
-                const spacer = document.createElement('span');
-                spacer.style.flex = '1';
-                header.appendChild(spacer);
+                // Live preview of the lorebook name this custom tag actually writes to, using the
+                // exact same rule as the router (see catMap fallback in router.js): capitalize the
+                // first letter, lowercase the rest. Keeps the UI honest about real book names.
+                const bookPreview = document.createElement('span');
+                bookPreview.style.cssText = 'font-size:0.692em; opacity:0.5; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+                const previewName = (t) => t ? (t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()) : '';
+                bookPreview.textContent = tag.tag ? `→ ..._${previewName(tag.tag)}` : '';
+                tagInp.addEventListener('input', () => {
+                    bookPreview.textContent = tagInp.value ? `→ ..._${previewName(tagInp.value)}` : '';
+                });
+                header.appendChild(bookPreview);
 
                 const delBtn = document.createElement('button');
                 delBtn.style.cssText = 'background:#422; color:#f99; border:none; font-size:0.692em; cursor:pointer; padding:1px 6px; border-radius:3px;';
