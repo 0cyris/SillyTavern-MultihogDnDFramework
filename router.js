@@ -988,6 +988,7 @@ ${relSection}
 - The player character is the speaker labeled "Player" (and prompt replacement "{{user}}"). In the chat logs, pay close attention to what name(s) or alias(es) the other characters use when addressing or referring to the "Player" (e.g., if they call the Player "Dave Davidson" or "Dave", then "Dave Davidson" is the player character).
 - Under no circumstances should you create an NPC entry for these names/aliases, because they refer to the player.
 - Always use the exact macro string \`{{user}}\` when referring to the player. Do NOT write the plain word "user", "player", "Player", or the player's roleplay character name (like "Dave Davidson") in plain text in any entry updates or descriptions.
+- Write \`{{user}}\` bare — never followed by a class, profession, title, or parenthetical (e.g. write "{{user}} acquires the handgun", NOT "{{user}} (Fighter) acquires the handgun" or "{{user}} (Bodybuilder) acquires..."). The player's class/role is tracked elsewhere (the CHARACTER module); repeating it in every chronicle line wastes tokens and is redundant.
 
 ## NPC CORE UPDATES (NPC only)
 If any field inside the permanent [CORE] block changes, is updated, or new information is revealed (${sectionNamesList}), output:

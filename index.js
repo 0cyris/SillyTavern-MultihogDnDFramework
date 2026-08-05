@@ -99,6 +99,22 @@ const refreshAll = () => {
 };
 
 /** Compact colored tier badge (e.g. "FRIENDLY") — hint shown as a tooltip. Used in NPC grid cards. */
+/**
+ * Resolve ST macros (e.g. {{user}}, {{char}}) for READ-ONLY display purposes only.
+ * Storage (currentMemo, lorebook entry content) must keep macros verbatim so that
+ * renaming a persona or character does not silently desync from history text —
+ * only the rendered view is substituted.
+ */
+export function substituteDisplayMacros(text) {
+    if (!text) return text;
+    try {
+        const substituteParams = SillyTavern.getContext()?.substituteParams;
+        return typeof substituteParams === 'function' ? substituteParams(text) : text;
+    } catch (_) {
+        return text;
+    }
+}
+
 function renderRelTierBadge(type, value, max) {
     const tier = type === 'friendship' ? getFriendshipTier(value, max) : getAffectionTier(value, max);
     return `<span class="rt-npc-tier-badge ${type}" style="${getRelTierBadgeStyle(type, value, max)}" title="${escapeHtml(tier.hint)}">${escapeHtml(tier.label)}</span>`;
@@ -3739,9 +3755,9 @@ export function refreshRenderedView() {
     const memo = runtimeState.historyViewIndex === -1
         ? s.currentMemo
         : (s.memoHistory[runtimeState.historyViewIndex] ?? '');
-    const displayMemo = runtimeState.historyViewIndex === -1
+    const displayMemo = substituteDisplayMacros(runtimeState.historyViewIndex === -1
         ? buildCombatDisplayMemo(memo, s.combatDefeatedUi)
-        : memo;
+        : memo);
     const xpAnimationContext = `${getActiveChatId() || 'global'}::${runtimeState.historyViewIndex === -1 ? 'live' : `history-${runtimeState.historyViewIndex}`}`;
 
     const collapsed = loadCollapsed();
@@ -3759,13 +3775,13 @@ export function refreshRenderedView() {
         let html;
 
         if (s.panelLayoutMode === 'tabs') {
-            const questsCtx = questsEnabled ? { quests: getDisplayQuests(memo), currentTime } : null;
+            const questsCtx = questsEnabled ? { quests: getDisplayQuests(displayMemo), currentTime } : null;
             html = renderTabModeView(displayMemo, _sectionPages, questsCtx);
         } else {
             html = renderMemoAsCards(displayMemo, null, _sectionPages);
             // Append quest log section if module is enabled and we are not on the onboarding screen
             if (questsEnabled) {
-                html += renderQuestLog(getDisplayQuests(memo), currentTime, collapsed, detached);
+                html += renderQuestLog(getDisplayQuests(displayMemo), currentTime, collapsed, detached);
             }
         }
 
@@ -3817,7 +3833,7 @@ export function refreshRenderedView() {
                 const capturedXp = captureXpGainAnimationState(body, xpAnimationContext);
                 const capturedBars = captureBarChangeAnimationState(body, xpAnimationContext);
                 if (tag === 'QUESTS') {
-                    body.innerHTML = renderQuestLog(getDisplayQuests(memo), currentTime, collapsed, detached, 'QUESTS');
+                    body.innerHTML = renderQuestLog(getDisplayQuests(displayMemo), currentTime, collapsed, detached, 'QUESTS');
                 } else {
                     body.innerHTML = renderMemoAsCards(displayMemo, tag, _sectionPages);
                 }

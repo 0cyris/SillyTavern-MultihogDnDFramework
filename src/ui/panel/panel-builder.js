@@ -6,6 +6,22 @@ import { buildPanelMarkup } from './panel-markup.js';
 import { createSceneViewController } from './panel-scene-view.js';
 import { bindAdventureCompanion, closeAdventureCompanion, refreshAdventureCompanionLayout } from '../../../adventure-companion.js';
 
+/**
+ * Resolve ST macros (e.g. {{user}}, {{char}}) for READ-ONLY display of Lorebook Agent
+ * entries. Storage keeps macros verbatim (renaming a persona should not desync history),
+ * and edit textareas always load the raw `item.content` — only rendered summaries/sections
+ * pass through this.
+ */
+function substituteDisplayMacros(text) {
+    if (!text) return text;
+    try {
+        const substituteParams = SillyTavern.getContext()?.substituteParams;
+        return typeof substituteParams === 'function' ? substituteParams(text) : text;
+    } catch (_) {
+        return text;
+    }
+}
+
 /** CHAT always owns the integrated tracker pane while it is open. */
 export function resolveModeAfterAgentAttach(chatOpen, storedMode) {
     return chatOpen ? 'tracker' : (storedMode === 'agent' ? 'agent' : 'tracker');
@@ -942,7 +958,7 @@ export function createPanel(dependencies) {
                                     <span style="font-size:16px;">${icon}</span> ${escapeHtml(name)}
                                 </div>
                                 <div style="font-size:15px;line-height:1.6;color:var(--SmartThemeBodyColor, inherit);border-left:3px solid ${sectionColor}44;margin-left:3px;padding:6px 0 6px 14px;">
-                                    ${lines.map(l => escapeHtml(l)).join('<br>')}
+                                    ${lines.map(l => escapeHtml(substituteDisplayMacros(l))).join('<br>')}
                                 </div>
                             </div>`;
                     }
@@ -953,9 +969,9 @@ export function createPanel(dependencies) {
                     html += parsed.dynamic.map(line => {
                         const match = line.match(/^(\[.+?\])\s*(.*)/);
                         if (match) {
-                            return `<div style="margin-bottom:8px;"><span style="color:#d4a940;font-weight:bold;font-family:monospace;font-size:12px;background:rgba(212,169,64,0.1);padding:2px 6px;border-radius:4px;margin-right:6px;">${escapeHtml(match[1])}</span><span>${escapeHtml(match[2])}</span></div>`;
+                            return `<div style="margin-bottom:8px;"><span style="color:#d4a940;font-weight:bold;font-family:monospace;font-size:12px;background:rgba(212,169,64,0.1);padding:2px 6px;border-radius:4px;margin-right:6px;">${escapeHtml(match[1])}</span><span>${escapeHtml(substituteDisplayMacros(match[2]))}</span></div>`;
                         }
-                        return `<div style="margin-bottom:8px;">${escapeHtml(line)}</div>`;
+                        return `<div style="margin-bottom:8px;">${escapeHtml(substituteDisplayMacros(line))}</div>`;
                     }).join('');
                     html += `</div>`;
                 }
@@ -976,7 +992,7 @@ export function createPanel(dependencies) {
                     let desc = '';
                     if (pc.bio) {
                         const cleanBio = pc.bio.replace(/\[\/?CORE\]/gi, '');
-                        desc = cleanBio.split('\n').map(l => l.trim()).filter(l => l && !/^\[ID:/i.test(l)).slice(0, 2).join(' ').substring(0, 260);
+                        desc = substituteDisplayMacros(cleanBio.split('\n').map(l => l.trim()).filter(l => l && !/^\[ID:/i.test(l)).slice(0, 2).join(' ').substring(0, 260));
                     }
                     const portraitSrc = resolvePortraitSrcForPlayerCharacter(s, pc.name);
 
@@ -1694,12 +1710,12 @@ export function createPanel(dependencies) {
                                     // Try to extract Appearance section content first
                                     const appMatch = cleanContent.match(/(?:Appearance\/Species|Appearance):\s*(.+?)(?=\s*(?:Personality|Brief Background|Habits|Behaviors|Relationship with|Friendship\/Rapport|Affection\/Interest):|$)/is);
                                     if (appMatch && appMatch[1].trim()) {
-                                        return appMatch[1].trim().substring(0, 260);
+                                        return substituteDisplayMacros(appMatch[1].trim().substring(0, 260));
                                     }
                                     // Fallback: first meaningful text
                                     const lines = cleanContent.split('\n').map(l => l.trim())
                                         .filter(l => l && !/^\[ID:/i.test(l) && !/^Friendship\/Rapport:/i.test(l) && !/^Affection\/Interest:/i.test(l));
-                                    return lines.slice(0, 2).join(' ').substring(0, 260);
+                                    return substituteDisplayMacros(lines.slice(0, 2).join(' ').substring(0, 260));
                                 };
 
                                 // Helper: Open the full NPC popup
@@ -2193,11 +2209,11 @@ export function createPanel(dependencies) {
                                     const cleanContent = content.replace(/\[\/?CORE\]/gi, '');
                                     const coreMatch = cleanContent.match(/(?:^|\n)\s*(?:\[CORE\])?\s*([\s\S]*?)(?=\n\s*(?:Atmosphere|Notable Features|History|Connections|Dangers|Resources):|$)/i);
                                     if (coreMatch?.[1]?.trim()) {
-                                        return coreMatch[1].trim().substring(0, 260);
+                                        return substituteDisplayMacros(coreMatch[1].trim().substring(0, 260));
                                     }
                                     const lines = cleanContent.split('\n').map(l => l.trim())
                                         .filter(l => l && !/^\[ID:/i.test(l));
-                                    return lines.slice(0, 2).join(' ').substring(0, 260);
+                                    return substituteDisplayMacros(lines.slice(0, 2).join(' ').substring(0, 260));
                                 };
 
                                 openLocationDetailPopup = async (item, fullPath) => {

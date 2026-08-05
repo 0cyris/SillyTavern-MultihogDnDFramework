@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.16] - 2026-08-05
+
+### Fixed
+- **{{user}} not substituted in read-only views**: the State Tracker sidebar (Character/Party cards, quest log) and the Lorebook Agent panel (NPC/Location summaries and campaign history) now resolve `{{user}}`/`{{char}}` macros for display. Stored memo/lorebook content and edit textareas still keep the raw macro, so renaming a persona doesn't desync history.
+- **Redundant class/profession in Lorebook Agent entries**: the Lorebook Agent is now explicitly instructed to write the bare `{{user}}` macro in chronicle/history lines, never followed by a class, profession, title, or parenthetical.
+
 ## [6.9.15] - 2026-08-05
 
 ### Added
