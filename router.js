@@ -52,19 +52,23 @@ function extractActiveCombatBlock(memo) {
 /** Router guidance when ACTIVE COMBAT STATE is injected this turn. */
 function buildCombatProfileRouterGuidance(hasCombat, mode = 'basic') {
     if (!hasCombat) return '';
+    const scopeRule = `- CRITICAL — ONE COMBATANT PER PROFILE: a Combat Profile is ONLY that single combatant's own stat block — their "Name: HP" line through their "Status:" line, nothing more. NEVER copy the "COMBAT ROUND N" header, the ENEMIES:/NON-PARTY ALLIES: section headers, or any *other* combatant's block into it. If you are updating Schwarzenegev, the Combat Profile content contains Schwarzenegev's block alone — Schwarzenegger's stats (or anyone else's) do NOT belong in it, even though they appear in the same [COMBAT] section.`;
     if (mode === 'agent') {
         return `
 ## COMBAT PROFILE (ACTIVE COMBAT STATE provided this turn)
 - **Existing NPCs** (listed in ACTIVE MEMORY with an ID): use \`commit({"core": [{"id": "Book::UID or NPC Name", "field": "Combat Profile", "content": "verbatim stats from [COMBAT]"}]})\`. Do NOT re-record the full NPC via \`record\` or embed a new \`[CORE]\` block in \`update\`.
 - **Brand-new combatants** with no lorebook entry yet: include \`Combat Profile:\` inside \`[CORE]\` in a \`record\` item.
-- Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.`;
+- Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.
+${scopeRule}
+- Example (updating only "Schwarzenegev", ignoring every other combatant listed alongside it): \`commit({"core": [{"id": "Schwarzenegev", "field": "Combat Profile", "content": "Schwarzenegev: 40/45 HP\\nAtt/def: Argument Ender (1 attack, +8 / 2d10+4 Piercing) | Armor (AC: 16)\\nSaves: Fort unknown, Ref unknown, Will unknown\\nAbilities: None declared\\nOther: Temporary allied combatant\\nStatus: (-) Wounded (until healed), Active (this combat)"}]})\``;
     }
     return `
 ## COMBAT PROFILE (ACTIVE COMBAT STATE provided this turn)
 - **Existing NPCs** (in ACTIVE MEMORY or ARCHIVE): output \`[[UPDATE_CORE: NPC Name | Combat Profile | verbatim stats from [COMBAT]]]\` — NOT a full \`[[NPC:...]]\` re-record.
 - **Brand-new combatants** with no existing entry: include \`Combat Profile:\` inside \`[CORE]\` in a new \`[[NPC:...]]\` record.
 - Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.
-- Example: \`[[UPDATE_CORE: Marcus Thorne | Combat Profile | HP: 12, AC: 11, Fort +1, Ref +0, Will +4, weapons: ...]]\``;
+${scopeRule}
+- Example: \`[[UPDATE_CORE: Marcus Thorne | Combat Profile | Marcus Thorne: 12/12 HP\\nAtt/def: Longsword (1 attack, +5 / 1d8+2 Slashing) | Chainmail (AC: 15)\\nSaves: Fort +4, Ref +2, Will +1\\nAbilities: None declared\\nStatus: Healthy]]\``;
 }
 
 /**

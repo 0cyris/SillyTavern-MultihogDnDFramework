@@ -2,6 +2,14 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.22] - 2026-08-05
+
+### Fixed
+- **Combat Profile dumps whole [COMBAT] block**: Lorebook Agent guidance now requires one combatant's own stat block only — never the `COMBAT ROUND` header, side headers, or sibling combatants — with examples matching the real per-entity format.
+
+### Changed
+- **Level-up skill points**: `<level_up_protocol>` now includes `+[2+INT mod, min 1] Skill Pts → +1 each to that many Key Skills (cap: skill bonus ≤ level+3)`.
+
 ## [6.9.21] - 2026-08-05
 
 ### Added
