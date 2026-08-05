@@ -73,4 +73,23 @@ describe('mergeMemo + hydratePartyRelocationStats — custom marker [PARTY] head
         expect(result).toContain('Status: Dying (Death Saves 0/3)');
         expect(result).not.toMatch(/\[PARTY\]\s*\[\/PARTY\]/);
     });
+
+    // Regression for Full Review Mode: weaker models sometimes emit a hollow `[TAG]\n[/TAG]`
+    // for a module with nothing to report (solo character, no active combat, no spells known)
+    // instead of omitting the section. Without this, the empty block got written verbatim into
+    // the persisted memo and re-injected as noise on every future turn.
+    it('treats an empty tag pair the same as an explicit REMOVED marker', () => {
+        const priorMemo = '[CHARACTER]\nSchwarzeNEET: 49/49 HP\n[/CHARACTER]\n\n[PARTY]\nGareth: 30/30 HP\n[/PARTY]';
+        const aiOutput = '[CHARACTER]\nSchwarzeNEET: 49/49 HP\n[/CHARACTER]\n\n[PARTY]\n[/PARTY]\n\n[COMBAT]\n[/COMBAT]\n\n[SPELLS]\n[/SPELLS]';
+
+        const merged = mergeMemo(priorMemo, aiOutput);
+
+        expect(merged).not.toMatch(/\[PARTY\]\s*\[\/PARTY\]/);
+        expect(merged).not.toMatch(/\[COMBAT\]\s*\[\/COMBAT\]/);
+        expect(merged).not.toMatch(/\[SPELLS\]\s*\[\/SPELLS\]/);
+        expect(merged).not.toContain('[PARTY]');
+        expect(merged).not.toContain('[COMBAT]');
+        expect(merged).not.toContain('[SPELLS]');
+        expect(merged).toContain('SchwarzeNEET: 49/49 HP');
+    });
 });

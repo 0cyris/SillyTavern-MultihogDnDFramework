@@ -2,6 +2,14 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.25] - 2026-08-06
+
+### Added
+- **Full Review Mode**: optional State Tracker operating mode (checkbox under Enable State Tracker) that wholesale-replaces the Core Prompt and User Prompt Suffix with a built-in "dump every module with real content" prompt. Recommended for weaker/local models that struggle with delta-only tracking. Custom Core Prompt / suffix are preserved and restored when the toggle is off. Documented in the Adventure Companion tutorial docs as the go-to fix when running Gemma / Mistral Small / Qwen / Llama / Phi as the tracker.
+
+### Fixed
+- **Empty `[TAG]…[/TAG]` pairs polluting the memo**: `mergeMemo` now treats hollow empty blocks (e.g. `[PARTY]\n[/PARTY]`) as removals instead of writing them into the persisted memo — a common Full Review failure mode on weak models. The Full Review prompt also no longer forbids omitting inapplicable modules.
+
 ## [6.9.24] - 2026-08-05
 
 ### Fixed

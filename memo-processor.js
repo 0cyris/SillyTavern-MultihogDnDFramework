@@ -406,7 +406,12 @@ export function mergeMemo(currentMemo, aiOutput) {
             continue;
         }
 
-        const isRemoval = /^(?:REMOVED|EXPIRED|CLEARED|NONE|END_COMBAT)$/i.test(newContent);
+        // An empty tag pair (e.g. `[PARTY]\n[/PARTY]`) carries zero information — treat it
+        // identically to an explicit removal marker so it never gets written into the
+        // persisted memo as literal clutter. This matters most for Full Review Mode, where
+        // weaker models sometimes emit a hollow block for a module with nothing to report
+        // instead of omitting the section entirely.
+        const isRemoval = newContent === '' || /^(?:REMOVED|EXPIRED|CLEARED|NONE|END_COMBAT)$/i.test(newContent);
 
         const escapedTag = escapeRegex(tag);
         let mergedContent = newContent;

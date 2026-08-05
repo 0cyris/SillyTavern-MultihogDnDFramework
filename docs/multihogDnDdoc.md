@@ -30,6 +30,8 @@ After acting for the player, the Adventure Companion responds with a brief, live
 
 The D&D setup is the default plug-and-play cartridge. You can scrap the stock system prompt and modules and track whatever you want — fantasy, slice-of-life, modern, sci-fi, or pure homebrew.
 
+**Local / weaker State Tracker models:** If the player mentions running the State Tracker on a local or smaller model (e.g. Gemma, Mistral Small, Qwen, Llama, Phi, or similar), proactively recommend enabling **Full Review Mode** under **State Tracker & Modules** (directly below **Enable State Tracker**). Explain that the default tracker prompt asks for delta updates only (“changed sections”), which weaker models often mishandle by dropping persistent modules; Full Review Mode replaces that Core Prompt with a complete every-module dump each pass. Tradeoff: more tokens and latency per tracker run, much more reliable memo consistency. Do **not** pretend you can flip the checkbox yourself — tell them where it is.
+
 ## Designer Note from Multihog
 This system is neither a full version of 5e nor 3.5e. It's rather a hybrid system that streamlines in places. For example, attacks per round are reduced to decrease the GM's cognitive load, ensuring reliability is high. This kind of "cut the corners where it makes sense" design is employed all over the system. For example, combat uses BAB, which is based on 3.5e/Pathfinder, but the LLM may use 5e spells and such. A lot of the system rides on LLMs' vast inherent knowledge about D&D, which enables Multihog to keep the system lean and not define every rule. A big part of the system prompt focuses on constraints, what NOT to allow the player to do, which is a crucial part of keeping the simulation feeling authentic. This is stuff such as resting limits (only every 9 hours by default) and forbidding the player from using items they don't have, etc.
 
@@ -67,6 +69,7 @@ These are recommendations, not rules.
 |------|------------|--------|
 | Narrator / GM | MiMo 2.5 Pro, Deepseek V4 Pro/latest Flash, or GPT-5.6 Luna | Needs **tool calling** if you use Hybrid RNG (tool-call mode). |
 | State Tracker + Lorebook Agent | Gemini Flash-Lite/Flash, Deepseek V4 Flash 0731, or GPT-5.6 Luna | All are seriously inexpensive and promising; there is no firm recommendation yet. |
+| State Tracker (local / smaller) | Gemma, Mistral Small, Qwen, Llama, Phi, and similar | Usable, but enable **Full Review Mode** (State Tracker → Core Prompt). See below. |
 | Adventure Companion | Claude Sonnet 5 / Opus 5, GPT-5.6 Sol, or another model of similar capability | The Companion benefits from a strong general-purpose model for nuanced discussion, framework help, and reliable action handling. |
 | Combat narrator (optional) | Any faster model | Use **Combat API Override** so combat uses a faster model while `[COMBAT]` is active. |
 
@@ -79,6 +82,8 @@ For the narrator, I'd recommend trying at least the following:
 - GPT-5.6 Luna, for its great cost-efficiency. Seems to be a decent model overall.
 
 *For the State Tracker and Lorebook Agent, I've been recommending the Gemini Flash-Lite and Flash models. However, now I'm not sure at all anymore. Deepseek V4 Flash 0731 recently came out and is very promising, and the same goes for GPT-5.6 Luna. These are seriously inexpensive models and seem to be heavy-hitters in terms of performance.*
+
+*Local / smaller State Tracker models (Gemma 4 and friends, Mistral Small, Qwen, Llama, Phi, etc.): turn on* ***Full Review Mode*** *in State Tracker & Modules (just below Enable State Tracker). The stock tracker asks for delta updates only; weaker models often drop unchanged-but-still-true modules. Full Review Mode replaces the Core Prompt so every pass dumps the complete verified state for every enabled module. Costs more tokens per run; far more reliable for local setups.*
 
 *If your model thinks too long in combat, enable* ***Combat API Override*** *in State Tracker settings — it auto-switches when the* *[COMBAT]* *tag is active in the tracker and switches back when combat ends.* ***This way you can have a faster model, so combat is faster.***
 
@@ -380,6 +385,22 @@ Adventure Companion has a separate connection selector with the same Main API / 
 
 **Combat API Override** switches the **main narrator** connection profile (not the State Extractor) while combat is active, then restores the baseline when combat ends.
 
+### Full Review Mode
+
+**Where:** State Tracker & Modules → checkbox **Full Review Mode (recommended for weaker/local models)**, directly below **Enable State Tracker**.
+
+**What it does:** While enabled, the ordinary Core Prompt is **fully replaced** each State Tracker pass by a built-in Full Review prompt. That prompt forbids `NO_CHANGES_DETECTED` and forbids omitting modules — every enabled section must be re-output in full, verified against the narrative and prior memo. The user-prompt suffix is also switched to ask for the complete verified memo.
+
+**Why it exists:** The default Core Prompt is a **delta** contract (“only output changed sections”). Strong cloud models usually handle that well. Local and smaller models often lose track of BLOCK PERSISTENCE / omit-unchanged rules and silently drop inventory, party, abilities, etc. Full Review Mode trades tokens and latency for a simpler, harder-to-misread contract.
+
+**Who should use it:** Anyone running State Tracker on a local or smaller model — Gemma (including Gemma 4), Mistral Small, Qwen, Llama, Phi, and similar. Also useful if a mid-tier cloud model keeps dropping modules. Not usually needed for strong cloud trackers if delta mode is already stable.
+
+**Important caveats:**
+
+- Custom edits in the Core Prompt and User Prompt Suffix are **ignored while Full Review Mode is on** (the UI shows the built-in Full Review versions, grayed out). Your custom text stays saved and returns when you turn the toggle off.
+- Raise response length generously — a full memo dump is larger than a delta update, and truncated tracker output is useless.
+- This is the per-turn operating mode. **Full Audit** remains a separate manual tool that rebuilds the memo from large chat history in chunks.
+
 ### Slash command
 
 `/statetracker` (alias `/st`):
@@ -593,6 +614,7 @@ The framework’s backbone is still **time + memo + optional lore/world layers**
 | Lorebook Agent ran on a roll-announcement `/sendas` | Auto-runs require the latest assistant speaker to be `{{char}}`; announcements under another name should not fire. If it still fires, check the script isn’t also generating or calling `/la`. |
 | Wrong campaign data or setup in a new chat | Check that Chat-Linked Mode and **Lock Control Room & Modules to each chat** are enabled. GLOBAL items intentionally share activation; CHAT-BOUND items restore that chat's saved setup. Lock-off mode is a temporary carry-over bypass. |
 | Tracker formatting broken after paste | Use 💬 Direct Prompt: “Reformat this sheet to stock module layout.” |
+| Modules disappear / drift on a local or small tracker model | Enable **Full Review Mode** (State Tracker & Modules, below Enable State Tracker). Delta-only updates are hard for weaker models; Full Review dumps every enabled module each pass. Also raise response length. |
 
 ---
 

@@ -765,30 +765,14 @@
                             title="When enabled (and Custom Sysprompt Mode is off), the framework system prompt is written to Quick Prompt Main. Your previous Main prompt is backed up automatically before the first overwrite and restored when you click the ⏻ button on the tracker panel (or uncheck this box) — so you can quickly return to normal, non-D&amp;D RP without changing profiles."></i>
                     </label>
 
-                    <div class="inline-drawer" style="margin-bottom: 8px;">
-                        <div class="inline-drawer-toggle inline-drawer-header" style="font-size: 0.88em;">
-                            <i class="fa-solid fa-sack-dollar" style="margin-right: 6px; opacity: 0.6;"></i>
-                            <b>Inventory</b>
-                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
-                        </div>
-                        <div class="inline-drawer-content">
-                            <div id="rpg_inventory_config_block" class="flex-container flexFlowColumn gap-1">
-                                <label class="checkbox_label">
-                                    <input id="rpg_tracker_show_total_value" type="checkbox" />
-                                    <span>Show Total Inventory Value</span>
-                                    <i class="fa-solid fa-circle-question interactable" title="When enabled, displays the calculated total value of all items in the inventory header bar."></i>
-                                </label>
-                                <div style="display: flex; align-items: center; gap: 8px; padding-left: 4px;">
-                                    <label style="font-size: 0.82em; opacity: 0.75; white-space: nowrap;">Item Worth
-                                        <i class="fa-solid fa-circle-question interactable" title="Controls how item worth values (e.g. ~120 GP) are shown in Inventory. Hover: stripped from display, shown as a tooltip on hover. Display: shown as an inline coin badge next to the item. Bare currency items (e.g. '45 GP') always render as a coin badge regardless of this setting."></i>
-                                    </label>
-                                    <select id="rpg_tracker_inventory_worth_mode" class="text_pole" style="font-size: 0.82em; padding: 2px 4px; height: 24px; flex: 1;">
-                                        <option value="hover">Hover (tooltip only)</option>
-                                        <option value="display">Display (inline badge)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                    <label class="checkbox_label" style="margin-bottom: 8px;" title="Forces the State Model to output the COMPLETE, verified state for every enabled module on every pass, instead of only the changed sections. Trades tokens/latency for reliability — recommended for weaker/local models that struggle to keep delta-tracked state consistent. While enabled, the Core Prompt and User Prompt Suffix (further below) are temporarily replaced by built-in Full Review versions; your custom edits are preserved and restored when you turn this off.">
+                        <input id="rpg_tracker_full_review_mode" type="checkbox" />
+                        <span>Full Review Mode</span>
+                        <span style="opacity:0.55; font-size:0.88em;">(recommended for weaker/local models)</span>
+                        <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Forces a complete state dump for every enabled module every pass instead of a delta ('only changed sections') update. Costs more tokens per pass but is far more reliable for models that struggle with delta tracking. Overrides the Core Prompt and User Prompt Suffix while active — your custom text is preserved and restored when disabled."></i>
+                    </label>
+                    <div id="rpg_tracker_full_review_note" style="display:none; font-size:0.85em; opacity:0.85; padding:6px 8px; border:1px solid rgba(255,221,136,0.3); border-radius:6px; background:rgba(255,221,136,0.06); margin-bottom:8px;">
+                        Full Review Mode is active — the Core Prompt and User Prompt Suffix boxes (further below) show the built-in Full Review versions being used. Your custom versions are saved and will reappear if you disable this.
                     </div>
 
                     <div class="inline-drawer">
@@ -827,6 +811,32 @@
                                 <label>Preset</label>
                                 <select id="rpg_tracker_completion_preset" class="text_pole"></select>
 
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="inline-drawer" style="margin-bottom: 8px; margin-top: 8px;">
+                        <div class="inline-drawer-toggle inline-drawer-header" style="font-size: 0.88em;">
+                            <i class="fa-solid fa-sack-dollar" style="margin-right: 6px; opacity: 0.6;"></i>
+                            <b>Inventory</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div id="rpg_inventory_config_block" class="flex-container flexFlowColumn gap-1">
+                                <label class="checkbox_label">
+                                    <input id="rpg_tracker_show_total_value" type="checkbox" />
+                                    <span>Show Total Inventory Value</span>
+                                    <i class="fa-solid fa-circle-question interactable" title="When enabled, displays the calculated total value of all items in the inventory header bar."></i>
+                                </label>
+                                <div style="display: flex; align-items: center; gap: 8px; padding-left: 4px;">
+                                    <label style="font-size: 0.82em; opacity: 0.75; white-space: nowrap;">Item Worth
+                                        <i class="fa-solid fa-circle-question interactable" title="Controls how item worth values (e.g. ~120 GP) are shown in Inventory. Hover: stripped from display, shown as a tooltip on hover. Display: shown as an inline coin badge next to the item. Bare currency items (e.g. '45 GP') always render as a coin badge regardless of this setting."></i>
+                                    </label>
+                                    <select id="rpg_tracker_inventory_worth_mode" class="text_pole" style="font-size: 0.82em; padding: 2px 4px; height: 24px; flex: 1;">
+                                        <option value="hover">Hover (tooltip only)</option>
+                                        <option value="display">Display (inline badge)</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>

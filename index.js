@@ -1,5 +1,5 @@
 import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped, formatTimeOfDay } from './constants.js';
-import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
+import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, FULL_REVIEW_STATE_SYSTEM_PROMPT, FULL_REVIEW_USER_PROMPT_SUFFIX, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
 import { snapshotChatSetup, chatSetupsMatch, syncChatSetupCatalogs, removeChatSetupCatalogEntries } from './src/state/chat-setup.js';
 import { buildDirectPromptSystemPrompt, DIRECT_PROMPT_SYSTEM_MODES } from './src/state/direct-prompt-system.js';
 import { diffTextLines, diffHasChanges } from './prompt-diff.js';
@@ -2055,7 +2055,8 @@ async function runStateModelPass(narrativeOutput, isFullContext = false, overrid
         const signal = runtimeState.stateController.signal;
 
         const modulesText = buildModulesInstructionText(settings);
-        let systemPrompt = settings.systemPromptTemplate.replace('{{modulesText}}', modulesText);
+        const coreTemplate = settings.fullReviewStateMode ? FULL_REVIEW_STATE_SYSTEM_PROMPT : settings.systemPromptTemplate;
+        let systemPrompt = coreTemplate.replace('{{modulesText}}', modulesText);
         if (settings.npcRelationshipBars && getRelationshipUpdateMode(settings) === RELATIONSHIP_UPDATE_MODES.STATE_TRACKER) {
             systemPrompt += `\n\n${buildStateTrackerRelationshipCommandInstruction(
                 getNpcRelationshipMax(settings),
@@ -2223,11 +2224,14 @@ async function runStateModelPass(narrativeOutput, isFullContext = false, overrid
                     `## TASK\nAnalyze the narrative chunk provided above. Rebuild the State Memo to ensure every detail is perfectly accurate to this point in the story. Correct any errors or omissions found in the Prior Memo.\n\n` +
                     `## OUTPUT THE COMPLETE VERIFIED STATE MEMO:`;
             } else {
+                const suffix = settings.fullReviewStateMode
+                    ? FULL_REVIEW_USER_PROMPT_SUFFIX
+                    : (settings.userPromptSuffix || `## OUTPUT ONLY CHANGED SECTIONS:`);
                 userPrompt =
                     worldLoreSection +
                     priorMemoText +
                     `## NARRATIVE HISTORY (Last ${chunks[i].length} messages)\n${chatLog}\n\n` +
-                    (settings.userPromptSuffix || `## OUTPUT ONLY CHANGED SECTIONS:`);
+                    suffix;
             }
 
             const result = await sendStateRequest(settings, systemPrompt, userPrompt);
@@ -5112,12 +5116,13 @@ function organizeConnectionSettingsUI() {
                         const sTempTracker = getSettings();
                         sTempTracker.stockPrompts = JSON.parse(JSON.stringify(DEFAULT_STOCK_PROMPTS));
                         const $corePromptEl = $('#rpg_tracker_core_prompt');
-                        if ($corePromptEl.length) {
-                            $corePromptEl.val(sTempTracker.systemPromptTemplate);
-                        }
                         const $suffixPromptEl = $('#rpg_tracker_user_prompt_suffix');
-                        if ($suffixPromptEl.length) {
-                            $suffixPromptEl.val(sTempTracker.userPromptSuffix);
+                        if (sTempTracker.fullReviewStateMode) {
+                            if ($corePromptEl.length) $corePromptEl.val(FULL_REVIEW_STATE_SYSTEM_PROMPT);
+                            if ($suffixPromptEl.length) $suffixPromptEl.val(FULL_REVIEW_USER_PROMPT_SUFFIX);
+                        } else {
+                            if ($corePromptEl.length) $corePromptEl.val(sTempTracker.systemPromptTemplate);
+                            if ($suffixPromptEl.length) $suffixPromptEl.val(sTempTracker.userPromptSuffix);
                         }
                         $('#rpg_tracker_npc_major_words').val(sTempTracker.npcMajorWords ?? 25);
                         $('#rpg_tracker_npc_minor_words').val(sTempTracker.npcMinorWords ?? 15);
@@ -5385,12 +5390,13 @@ function organizeConnectionSettingsUI() {
                                     const sTempTracker = getSettings();
                                     sTempTracker.stockPrompts = JSON.parse(JSON.stringify(DEFAULT_STOCK_PROMPTS));
                                     const $corePromptEl = $('#rpg_tracker_core_prompt');
-                                    if ($corePromptEl.length) {
-                                        $corePromptEl.val(sTempTracker.systemPromptTemplate);
-                                    }
                                     const $suffixPromptEl = $('#rpg_tracker_user_prompt_suffix');
-                                    if ($suffixPromptEl.length) {
-                                        $suffixPromptEl.val(sTempTracker.userPromptSuffix);
+                                    if (sTempTracker.fullReviewStateMode) {
+                                        if ($corePromptEl.length) $corePromptEl.val(FULL_REVIEW_STATE_SYSTEM_PROMPT);
+                                        if ($suffixPromptEl.length) $suffixPromptEl.val(FULL_REVIEW_USER_PROMPT_SUFFIX);
+                                    } else {
+                                        if ($corePromptEl.length) $corePromptEl.val(sTempTracker.systemPromptTemplate);
+                                        if ($suffixPromptEl.length) $suffixPromptEl.val(sTempTracker.userPromptSuffix);
                                     }
                                     $('#rpg_tracker_npc_major_words').val(sTempTracker.npcMajorWords ?? 25);
                                     $('#rpg_tracker_npc_minor_words').val(sTempTracker.npcMinorWords ?? 15);
@@ -7498,12 +7504,48 @@ RULES:
             await Popup.show.confirm('🎨 Rendering Tags Library', html, { okButton: 'Close', cancelButton: false });
         });
 
-        $('#rpg_tracker_core_prompt').val(settings.systemPromptTemplate).on('input', function () {
+        const fullReviewChk = $('#rpg_tracker_full_review_mode');
+        const fullReviewNote = $('#rpg_tracker_full_review_note');
+        const corePromptTextarea = $('#rpg_tracker_core_prompt');
+        const suffixPromptTextarea = $('#rpg_tracker_user_prompt_suffix');
+        const resetPromptBtn = $('#rpg_tracker_btn_reset_prompt');
+        const applyFullReviewUI = (enabled) => {
+            fullReviewNote.css('display', enabled ? 'block' : 'none');
+            corePromptTextarea.prop('disabled', enabled).css('opacity', enabled ? '0.4' : '1');
+            suffixPromptTextarea.prop('disabled', enabled).css('opacity', enabled ? '0.4' : '1');
+            resetPromptBtn.prop('disabled', enabled).css('opacity', enabled ? '0.4' : '1');
+            // Show the prompts that are actually sent while Full Review is on; the saved
+            // custom Core Prompt / suffix stay in settings and are restored on disable.
+            if (enabled) {
+                corePromptTextarea.val(FULL_REVIEW_STATE_SYSTEM_PROMPT);
+                suffixPromptTextarea.val(FULL_REVIEW_USER_PROMPT_SUFFIX);
+            } else {
+                corePromptTextarea.val(settings.systemPromptTemplate || '');
+                suffixPromptTextarea.val(settings.userPromptSuffix || '');
+            }
+        };
+        if (fullReviewChk.length) {
+            const fullReviewEnabled = !!settings.fullReviewStateMode;
+            fullReviewChk.prop('checked', fullReviewEnabled);
+            applyFullReviewUI(fullReviewEnabled);
+            fullReviewChk.on('change', function () {
+                settings.fullReviewStateMode = !!$(this).prop('checked');
+                applyFullReviewUI(settings.fullReviewStateMode);
+                saveSettings();
+            });
+        } else {
+            corePromptTextarea.val(settings.systemPromptTemplate || '');
+            suffixPromptTextarea.val(settings.userPromptSuffix || '');
+        }
+
+        corePromptTextarea.on('input', function () {
+            if (settings.fullReviewStateMode) return;
             settings.systemPromptTemplate = $(this).val();
             saveSettings();
         });
 
-        $('#rpg_tracker_user_prompt_suffix').val(settings.userPromptSuffix || '').on('input', function () {
+        suffixPromptTextarea.on('input', function () {
+            if (settings.fullReviewStateMode) return;
             settings.userPromptSuffix = $(this).val();
             saveSettings();
         });
@@ -10605,8 +10647,18 @@ RULES:
             // Inventory/Core Prompt
             $('#rpg_tracker_inventory_worth_mode').val(s.inventoryWorthMode || 'hover');
             $('#rpg_tracker_show_total_value').prop('checked', s.showTotalInventoryValue !== false);
-            $('#rpg_tracker_core_prompt').val(s.systemPromptTemplate || '');
-            $('#rpg_tracker_user_prompt_suffix').val(s.userPromptSuffix || '');
+            $('#rpg_tracker_full_review_mode').prop('checked', !!s.fullReviewStateMode);
+            if (s.fullReviewStateMode) {
+                $('#rpg_tracker_full_review_note').css('display', 'block');
+                $('#rpg_tracker_core_prompt').val(FULL_REVIEW_STATE_SYSTEM_PROMPT).prop('disabled', true).css('opacity', '0.4');
+                $('#rpg_tracker_user_prompt_suffix').val(FULL_REVIEW_USER_PROMPT_SUFFIX).prop('disabled', true).css('opacity', '0.4');
+                $('#rpg_tracker_btn_reset_prompt').prop('disabled', true).css('opacity', '0.4');
+            } else {
+                $('#rpg_tracker_full_review_note').css('display', 'none');
+                $('#rpg_tracker_core_prompt').val(s.systemPromptTemplate || '').prop('disabled', false).css('opacity', '1');
+                $('#rpg_tracker_user_prompt_suffix').val(s.userPromptSuffix || '').prop('disabled', false).css('opacity', '1');
+                $('#rpg_tracker_btn_reset_prompt').prop('disabled', false).css('opacity', '1');
+            }
 
             // Router Agent
             $('#rpg_tracker_router_enabled').prop('checked', !!s.routerEnabled);
