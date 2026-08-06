@@ -19,6 +19,8 @@ import { runRouterPass, saveSceneToLorebook, scanAssistantOutputForKeywords, par
 import { logTransaction } from './debug-viewer.js';
 import { recordSchedulerEvent } from './swipe-scheduler-debug.js';
 import { saveSettings } from './src/app/runtime-bridge.js';
+import { isPercentFormula, resolveDiceCompare } from './src/state/dice-compare.js';
+export { isPercentFormula, resolveDiceCompare };
 
 /** Resolve ST macros (e.g. {{user}}) in lore text at injection time — storage keeps macros verbatim. */
 function substituteLoreMacros(content) {
@@ -148,10 +150,6 @@ export const RNG_QUEUE_LEN = 12;
 export const RNG_QUEUE_VERSION = 'v7.0';
 export const RNG_QUEUE_TAG_D20 = `[RNG_QUEUE ${RNG_QUEUE_VERSION}]`;
 export const RNG_QUEUE_TAG_D100 = `[RNG_QUEUE_d100 ${RNG_QUEUE_VERSION}]`;
-// Small dedicated pool for "does X even exist?" checks (traps, hostile presence,
-// notable finds) — resolved BEFORE any detection/skill roll. Kept short since
-// these fire at most a couple of times a turn, unlike the per-action d20 lines.
-export const EXISTENCE_ROLL_COUNT = 3;
 
 export function rollDie(sides) {
     const buf = new Uint32Array(1);
@@ -192,20 +190,13 @@ export function formatRngQueueLine(lineNum, dice, d100Mode = false) {
     return `${lineNum}: d20=${dice.d20} d4=${dice.d4} d6=${dice.d6} d8=${dice.d8} d10=${dice.d10} d12=${dice.d12}`;
 }
 
-export function makeExistenceRolls(n = EXISTENCE_ROLL_COUNT) {
-    const out = [];
-    for (let i = 0; i < n; i++) out.push(rollDie(100));
-    return out;
-}
-
 export function buildRngBlock(queue, d100Mode = false) {
     const turnId = Date.now();
     const lines = queue.map((dice, i) => formatRngQueueLine(i + 1, dice, d100Mode));
     if (d100Mode) {
         return `${RNG_QUEUE_TAG_D100}\nturn_id=${turnId}\nscope=this_response\n${lines.join('\n')}\n[/RNG_QUEUE_d100]\n\n`;
     }
-    const existenceLine = `EXISTENCE ROLLS (d100): ${makeExistenceRolls().join(', ')}`;
-    return `${RNG_QUEUE_TAG_D20}\nturn_id=${turnId}\nscope=this_response\n${lines.join('\n')}\n${existenceLine}\n[/RNG_QUEUE]\n\n`;
+    return `${RNG_QUEUE_TAG_D20}\nturn_id=${turnId}\nscope=this_response\n${lines.join('\n')}\n[/RNG_QUEUE]\n\n`;
 }
 
 // ── Dice rolling ───────────────────────────────────────────────────────────────
@@ -390,6 +381,45 @@ export async function doDiceRoll(customDiceFormula, quiet = false) {
 
 // ── Tool & slash command registration ─────────────────────────────────────────
 
+/**
+ * Shared RollTheDice / RollTheDiceD100 action body.
+ * @param {object} args
+ * @param {{ defaultFormula?: string, forceLte?: boolean, isLegacy?: boolean }} [opts]
+ */
+async function executeDiceToolAction(args, opts = {}) {
+    const isLegacy = !!opts.isLegacy;
+    const requestedFormula = args?.formula || opts.defaultFormula || (isLegacy ? '1d6' : '1d20');
+    const roll = await doDiceRoll(requestedFormula, true);
+    const total = parseInt(roll.total) || 0;
+    const formula = roll.formula || requestedFormula;
+    const invalidNote = roll.invalidFormula
+        ? ` (requested formula "${roll.invalidFormula}" was invalid, defaulted to ${formula})`
+        : '';
+
+    if (isLegacy) {
+        return (args.who
+            ? `${args.who} rolls a ${formula}. The result is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`
+            : `The result of a ${formula} roll is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`) + invalidNote;
+    }
+
+    const dc = Number(args?.dc) || 0;
+    const compare = opts.forceLte ? 'lte' : resolveDiceCompare(args?.compare, formula);
+    let result = (args.who
+        ? `${args.who} rolls a ${formula} against DC ${dc}. The result is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`
+        : `The result of a ${formula} roll against DC ${dc} is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`) + invalidNote;
+
+    if (dc > 0) {
+        if (compare === 'lte') {
+            const success = total <= dc;
+            result += ` (Result: ${total} ≤ ${dc}% → ${success ? 'HIT' : 'MISS'})`;
+        } else {
+            const success = total >= dc;
+            result += ` (Result: ${success ? 'SUCCESS' : 'FAILURE'})`;
+        }
+    }
+    return result;
+}
+
 export function registerDiceFunctionTool() {
     try {
         const ctx = SillyTavern.getContext();
@@ -404,10 +434,11 @@ export function registerDiceFunctionTool() {
         const settings = getSettings();
         const isLegacy = settings.legacyDiceNaming;
 
-        // Register d20 tool if enabled
+        // Unified roller: skill/attack DCs (gte) and percentage/existence checks (lte / 1d100).
+        // Global d100 Mode still uses RollTheDiceD100 below; it is not removed.
         if (settings.rngToolD20) {
             const baseFormula = '1d20';
-            const formulaDescription = `A SINGLE dice formula to roll per invocation, e.g. "${baseFormula}", "2d6+3", "${baseFormula}+5". Supports one or more die groups joined by + or - (e.g. "${baseFormula}+1d4+2"), and keep/drop modifiers (e.g. "2d20kh1" for advantage, "2d20kl1" for disadvantage). Provide EXACTLY ONE formula string per call — do NOT comma-separate multiple formulas in one invocation. When several independent rolls are needed, issue multiple parallel RollTheDice invocations in the same turn (e.g. initiative for each combatant, or random-event occurrence + type).`;
+            const formulaDescription = `A SINGLE dice formula to roll per invocation, e.g. "${baseFormula}", "1d100", "2d6+3", "${baseFormula}+5". Supports one or more die groups joined by + or - (e.g. "${baseFormula}+1d4+2"), and keep/drop modifiers (e.g. "2d20kh1" for advantage, "2d20kl1" for disadvantage). Provide EXACTLY ONE formula string per call — do NOT comma-separate multiple formulas in one invocation. When several independent rolls are needed, issue multiple parallel RollTheDice invocations in the same turn (e.g. initiative for each combatant, existence check then detection, or random-event occurrence + type). Use formula "1d100" with compare "lte" for percentage / existence checks.`;
 
             const rollDiceSchema = isLegacy ? {
                 type: 'object',
@@ -421,7 +452,8 @@ export function registerDiceFunctionTool() {
                 properties: {
                     who: { type: 'string', description: 'The name of the persona rolling the dice' },
                     formula: { type: 'string', description: formulaDescription },
-                    dc: { type: 'number', description: 'The Difficulty Class (DC) for this roll. Anchors the difficulty before the roll is made. A roll ≥ dc = SUCCESS.' },
+                    dc: { type: 'number', description: 'For skill/attack checks (compare=gte): Difficulty Class — roll ≥ dc = SUCCESS. For percentage / existence checks (compare=lte or formula 1d100): the trigger % chance — roll ≤ dc = HIT. Always pass the probability directly (e.g. 35 for Dangerous-tier existence). Anchors difficulty BEFORE the roll is made.' },
+                    compare: { type: 'string', description: 'Optional. "gte" (default for non-d100 formulas): roll ≥ dc = SUCCESS. "lte" (default for 1d100 / percentage formulas): roll ≤ dc% = HIT. Use lte for existence checks and other percentage odds.' },
                 },
                 required: ['who', 'formula', 'dc'],
             };
@@ -429,37 +461,18 @@ export function registerDiceFunctionTool() {
             registerFunctionTool({
                 name: 'RollTheDice',
                 displayName: isLegacy ? 'Dice Roll' : 'Dice Roll (with DC)',
-                description: 'Rolls the dice using the provided formula and returns the numeric result. Use when it is necessary to roll the dice to determine the outcome of an action or when the user requests it. Each invocation takes one formula (e.g. "1d20+3"). For multiple independent rolls, issue parallel invocations in the same turn — never comma-join formulas into one call.',
+                description: 'Rolls dice using the provided formula and returns the numeric result. Use for skill/attack checks (1d20+mod vs DC, compare gte) and percentage / existence checks (1d100 vs %, compare lte). Each invocation takes one formula. For multiple independent rolls, issue parallel invocations in the same turn — never comma-join formulas into one call.',
                 parameters: rollDiceSchema,
-                action: async (args) => {
-                    const requestedFormula = args?.formula || (isLegacy ? '1d6' : '1d20');
-                    const roll = await doDiceRoll(requestedFormula, true);
-                    const total = parseInt(roll.total) || 0;
-                    const formula = roll.formula || requestedFormula;
-                    const invalidNote = roll.invalidFormula ? ` (requested formula "${roll.invalidFormula}" was invalid, defaulted to ${formula})` : '';
-
-                    if (isLegacy) {
-                        return (args.who
-                            ? `${args.who} rolls a ${formula}. The result is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`
-                            : `The result of a ${formula} roll is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`) + invalidNote;
-                    }
-
-                    const dc = Number(args?.dc) || 0;
-                    let result = (args.who
-                        ? `${args.who} rolls a ${formula} against DC ${dc}. The result is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`
-                        : `The result of a ${formula} roll against DC ${dc} is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`) + invalidNote;
-
-                    if (dc > 0) {
-                        const success = (total >= dc);
-                        result += ` (Result: ${success ? 'SUCCESS' : 'FAILURE'})`;
-                    }
-                    return result;
-                },
+                action: async (args) => executeDiceToolAction(args, {
+                    defaultFormula: isLegacy ? '1d6' : '1d20',
+                    isLegacy,
+                }),
                 formatMessage: () => '',
             });
         }
 
-        // Register d100 tool if enabled
+        // Explicit global d100 Mode / dedicated d100 tool — kept for percentage-based rulesets.
+        // Thin alias of the unified roller with forced 1d100 + lte semantics.
         if (settings.rngToolD100) {
             const baseFormula = '1d100';
             const formulaDescription = `A SINGLE dice formula to roll per invocation, e.g. "${baseFormula}", "2d6+3", "${baseFormula}+5". Supports one or more die groups joined by + or - (e.g. "${baseFormula}+1d4+2"), and keep/drop modifiers. Provide EXACTLY ONE formula string per call — do NOT comma-separate multiple formulas in one invocation. When several independent rolls are needed, issue multiple parallel RollTheDiceD100 invocations in the same turn.`;
@@ -477,26 +490,12 @@ export function registerDiceFunctionTool() {
             registerFunctionTool({
                 name: 'RollTheDiceD100',
                 displayName: 'Dice Roll d100 (with DC)',
-                description: 'Rolls a d100 (1-100) using the provided formula and returns the numeric result. Use for percentage probability checks. Each invocation takes one formula (e.g. "1d100"). For multiple independent rolls, issue parallel invocations in the same turn. The dc parameter is the direct success/trigger percentage (roll ≤ dc = success).',
+                description: 'Rolls a d100 (1-100) using the provided formula and returns the numeric result. Use for percentage-based rulesets (global d100 Mode) and percentage probability checks. Each invocation takes one formula (e.g. "1d100"). For multiple independent rolls, issue parallel invocations in the same turn. The dc parameter is the direct success/trigger percentage (roll ≤ dc = success). In a normal d20 game, prefer RollTheDice with formula "1d100" and compare "lte" instead.',
                 parameters: rollDiceSchema,
-                action: async (args) => {
-                    const requestedFormula = args?.formula || '1d100';
-                    const roll = await doDiceRoll(requestedFormula, true);
-                    const total = parseInt(roll.total) || 0;
-                    const formula = roll.formula || requestedFormula;
-                    const invalidNote = roll.invalidFormula ? ` (requested formula "${roll.invalidFormula}" was invalid, defaulted to ${formula})` : '';
-
-                    const dc = Number(args?.dc) || 0;
-                    let result = (args.who
-                        ? `${args.who} rolls a ${formula} against DC ${dc}. The result is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`
-                        : `The result of a ${formula} roll against DC ${dc} is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`) + invalidNote;
-
-                    if (dc > 0) {
-                        const success = (total <= dc);
-                        result += ` (Result: ${total} ≤ ${dc}% → ${success ? 'HIT' : 'MISS'})`;
-                    }
-                    return result;
-                },
+                action: async (args) => executeDiceToolAction(args, {
+                    defaultFormula: '1d100',
+                    forceLte: true,
+                }),
                 formatMessage: () => '',
             });
         }

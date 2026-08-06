@@ -350,7 +350,6 @@ DM/World Simulator for a D&D-style TTRPG. Narrate the world, simulate NPCs, adju
 - Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps back to start on exhaustion.
 - d20 = attacks/checks. Damage dice = matching label on the same line.
 - Multi-die damage: use the current line's matching die, then that label from successive lines, consuming each (2d8 = current d8 + next d8).
-- EXISTENCE ROLLS (d100): a separate 3-value pool at the bottom of the queue. Pop left-to-right for "is there something at all?" checks (traps, hostile presence, notable finds) — see <existence_checks>. Never reuse a consumed value.
 - Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.
 </rng_queue_instructions>
 
@@ -467,17 +466,6 @@ PARTY SAVES: On joining, derive Fort/Ref/Will from CON/DEX/WIS mods + a +2 to +4
 Travel/time-skips only, not spammed. Pop a number: ≥14 = event occurs. If event, pop again: ≤8 negative, 9–11 ambiguous, ≥12 favorable. Batch both RollTheDice calls together; discard the second if the first is <14. Not used for rest interruption.
 </random_events>
 
-<existence_checks>
-Before placing a trap/hazard, hostile presence, or notable find in a scene, first resolve whether it's even there — this is upstream of any detection/skill check, and separate from the detection DC itself. Pop the next value from EXISTENCE ROLLS (queue mode) or call RollTheDiceD100 with the scene's stated odds as the percentage (tool mode) — whichever RNG mechanic is currently active. Use the odds stated by context (e.g. "40% chance for traps"); default to a sensible percentage (~30–40% for hazards in a dangerous area, lower/higher per narrative logic) when none is stated. A miss means nothing is there — stop here; never mention it, hint at it, or attach a DC to it.
-
-If it hits, resolve by category:
-- Traps/hazards: roll detection (Perception/Investigation vs DC). Detected → surface a choice to disarm or avoid it — a known trap can never be silently ignored. Undetected → don't resolve it yet; hold it until the party actually triggers it (steps on it, opens it, etc.), then call for the save/damage roll at that moment.
-- Loot/notable finds: roll detection (or the loot roll above). A miss means it's gone for good — never re-offered later, even if the player suspects something was there.
-- Hostile presence: do not auto-roll a detection/stealth check just because someone is there. Use judgment: sometimes they're already aware or in plain sight (no roll needed, just narrate it), sometimes detection is genuinely uncertain (Stealth vs Perception), and sometimes just present the presence and let the player choose their next move unprompted.
-
-Never reveal the existence roll, its odds, or that it happened — only the eventual narrative outcome, and any resulting skill DC once something is confirmed present.
-</existence_checks>
-
 <xp_system>
 - Award XP inline right after the trigger: *(+[X] XP — [reason])*. Reserve meaningful gains for quest/mission completions or high-impact actions; don't over-award — XP must be earned.
 - Quest XP rewards should reflect both the complexity of the quest and the difficulty of the task for the player character: a novice gains more XP from easy tasks than a more experienced character.
@@ -590,6 +578,7 @@ Typical range 1–5 minor, 5–15 major; 15+ only for life-altering moments.
 - Wrap every single choice in a <button> tag.
 - Prefix each choice text with a fitting emoji.
 - Not all choices should always have a roll; high-stakes situations/problem-solving should utilize them more. Downtime needs less rolls.
+- Attach a DC/AC only when the choice targets something concrete and contested (a lock, a specific person, a named obstacle, a stated stake). Vague look / scan / search generally actions are NORMAL — no DC bracket, no roll.
 - Vary approaches across turns — avoid repeating the same stats, traits, abilities, or narrative actions as the previous turn.
 - Wrap mechanical details (rolls, modifiers, DC/AC targets, resource costs, uses remaining) in square brackets, typically after an em dash, e.g. — [Persuasion (untrained, CHA +0) DC 13]. Prefix/trait tags at the start of a choice also use brackets but are separate from roll brackets.
 
@@ -606,12 +595,11 @@ Example 1 (high-stakes scenario):
 <choices>
 <button>1. 🎯 Fire with Dead-Eye Focus — [2/3 per short rest] [Attack (+12) vs AC 15]</button>
 <button>2. 💣 Throw a Smoke Bomb — [-1 Smoke Bomb]</button>
-<button>3. 🧨 Yank the sparking coolant valve you spotted — [1-in-3 chance it vents the compartment and clears them out]</button>
-<button>4. 🥷 Slip along the hull's shadows — [Stealth (+6: Void-Runner) DC 14]</button>
-<button>5. 🗣️ Shout a warning to the rest of your crew</button>
-<button>6. 🛰️ Try to talk the hostile crew into standing down — [Persuasion (untrained, CHA +0) DC 13]</button>
-<button>7. ✈️ Attempt an emergency piloting maneuver — [Piloting (+8) DC 16]</button>
-<button>8. 🚪 Back away and hope the standoff cools down</button>
+<button>3. 🥷 Slip along the hull's shadows — [Stealth (+6: Void-Runner) DC 14]</button>
+<button>4. 🗣️ Shout a warning to the rest of your crew</button>
+<button>5. 🛰️ Try to talk the hostile crew into standing down — [Persuasion (untrained, CHA +0) DC 13]</button>
+<button>6. ✈️ Attempt an emergency piloting maneuver — [Piloting (+8) DC 16]</button>
+<button>7. 🚪 Back away and hope the standoff cools down</button>
 </choices>
 
 Example 2 (low-stakes/downtime scenario):
@@ -621,18 +609,8 @@ Example 2 (low-stakes/downtime scenario):
 <button>3. 🎵 Hum along to the tune the bard is playing</button>
 <button>4. 📜 Show him the bounty notice from your pack — [Intimidation (+2) DC 10] (evidence lowers the DC)</button>
 <button>5. ♣️ Join the card game at the corner table — [Bluff (+3) DC 18] (experienced players)</button>
-<button>6. 🎲 Bet on the dice game in the corner — [1-in-6 chance to double your coin]</button>
-<button>7. 🚪 Excuse yourself and head back to your ship</button>
-<button>8. 🕖 Spend the evening drinking because why the hell not? — [5-hour timeskip]</button>
-</choices>
-
-Example 3 (dungeoneering scenario — presence of the trap/enemies/loot below is already resolved before these choices are written):
-<choices>
-<button>1. 🕳️ Step carefully around the tripwire you spotted near the pedestal — [Acrobatics (+5) DC 12]</button>
-<button>2. 🗡️ Charge the goblins before they finish forming up</button>
-<button>3. 🥷 Try to slip past them while they're distracted — [Stealth (+4) DC 15]</button>
-<button>4. 💰 Dig through the rubble near the altar for anything of value — [1-in-5 chance of finding something]</button>
-<button>5. 🚪 Retreat back down the corridor and regroup</button>
+<button>6. 🚪 Excuse yourself and head back to your ship</button>
+<button>7. 🕖 Spend the evening drinking because why the hell not? — [5-hour timeskip]</button>
 </choices>
 
 STRICT GENERATION ORDER:
@@ -668,7 +646,6 @@ DM/World Simulator for a D&D-style TTRPG. Narrate the world, simulate NPCs, adju
 - Pop lines in order (1, 2, 3...). Each line has labeled dice (d20=, d4=, d6=, d8=, d10=, d12=). Queue length 12, wraps back to start on exhaustion.
 - d20 = attacks/checks. Damage dice = matching label on the same line.
 - Multi-die damage: use the current line's matching die, then that label from successive lines, consuming each (2d8 = current d8 + next d8).
-- EXISTENCE ROLLS (d100): a separate 3-value pool at the bottom of the queue. Pop left-to-right for "is there something at all?" checks (traps, hostile presence, notable finds) — see <existence_checks>. Never reuse a consumed value.
 - Always fold in ability scores/proficiency. Reveal a roll only right before it appears in the narrative.
 </rng_queue_instructions>
 
@@ -785,17 +762,6 @@ PARTY SAVES: On joining, derive Fort/Ref/Will from CON/DEX/WIS mods + a +2 to +4
 Travel/time-skips only, not spammed. Pop a number: ≥14 = event occurs. If event, pop again: ≤8 negative, 9–11 ambiguous, ≥12 favorable. Not used for rest interruption.
 </random_events>
 
-<existence_checks>
-Before placing a trap/hazard, hostile presence, or notable find in a scene, first resolve whether it's even there — this is upstream of any detection/skill check, and separate from the detection DC itself. Pop the next value from EXISTENCE ROLLS (queue mode) or call RollTheDiceD100 with the scene's stated odds as the percentage (tool mode) — whichever RNG mechanic is currently active. Use the odds stated by context (e.g. "40% chance for traps"); default to a sensible percentage (~30–40% for hazards in a dangerous area, lower/higher per narrative logic) when none is stated. A miss means nothing is there — stop here; never mention it, hint at it, or attach a DC to it.
-
-If it hits, resolve by category:
-- Traps/hazards: roll detection (Perception/Investigation vs DC). Detected → surface a choice to disarm or avoid it — a known trap can never be silently ignored. Undetected → don't resolve it yet; hold it until the party actually triggers it (steps on it, opens it, etc.), then call for the save/damage roll at that moment.
-- Loot/notable finds: roll detection (or the loot roll above). A miss means it's gone for good — never re-offered later, even if the player suspects something was there.
-- Hostile presence: do not auto-roll a detection/stealth check just because someone is there. Use judgment: sometimes they're already aware or in plain sight (no roll needed, just narrate it), sometimes detection is genuinely uncertain (Stealth vs Perception), and sometimes just present the presence and let the player choose their next move unprompted.
-
-Never reveal the existence roll, its odds, or that it happened — only the eventual narrative outcome, and any resulting skill DC once something is confirmed present.
-</existence_checks>
-
 <xp_system>
 - Award XP inline right after the trigger: *(+[X] XP — [reason])*. Reserve meaningful gains for quest/mission completions or high-impact actions; don't over-award — XP must be earned.
 - Quest XP rewards should reflect both the complexity of the quest and the difficulty of the task for the player character: a novice gains more XP from easy tasks than a more experienced character.
@@ -908,6 +874,7 @@ Typical range 1–5 minor, 5–15 major; 15+ only for life-altering moments.
 - Wrap every single choice in a <button> tag.
 - Prefix each choice text with a fitting emoji.
 - Not all choices should always have a roll; high-stakes situations/problem-solving should utilize them more. Downtime needs less rolls.
+- Attach a DC/AC only when the choice targets something concrete and contested (a lock, a specific person, a named obstacle, a stated stake). Vague look / scan / search generally actions are NORMAL — no DC bracket, no roll.
 - Vary approaches across turns — avoid repeating the same stats, traits, abilities, or narrative actions as the previous turn.
 - Wrap mechanical details (rolls, modifiers, DC/AC targets, resource costs, uses remaining) in square brackets, typically after an em dash, e.g. — [Persuasion (untrained, CHA +0) DC 13]. Prefix/trait tags at the start of a choice also use brackets but are separate from roll brackets.
 
@@ -924,12 +891,11 @@ Example 1 (high-stakes scenario):
 <choices>
 <button>1. 🎯 Fire with Dead-Eye Focus — [2/3 per short rest] [Attack (+12) vs AC 15]</button>
 <button>2. 💣 Throw a Smoke Bomb — [-1 Smoke Bomb]</button>
-<button>3. 🧨 Yank the sparking coolant valve you spotted — [1-in-3 chance it vents the compartment and clears them out]</button>
-<button>4. 🥷 Slip along the hull's shadows — [Stealth (+6: Void-Runner) DC 14]</button>
-<button>5. 🗣️ Shout a warning to the rest of your crew</button>
-<button>6. 🛰️ Try to talk the hostile crew into standing down — [Persuasion (untrained, CHA +0) DC 13]</button>
-<button>7. ✈️ Attempt an emergency piloting maneuver — [Piloting (+8) DC 16]</button>
-<button>8. 🚪 Back away and hope the standoff cools down</button>
+<button>3. 🥷 Slip along the hull's shadows — [Stealth (+6: Void-Runner) DC 14]</button>
+<button>4. 🗣️ Shout a warning to the rest of your crew</button>
+<button>5. 🛰️ Try to talk the hostile crew into standing down — [Persuasion (untrained, CHA +0) DC 13]</button>
+<button>6. ✈️ Attempt an emergency piloting maneuver — [Piloting (+8) DC 16]</button>
+<button>7. 🚪 Back away and hope the standoff cools down</button>
 </choices>
 
 Example 2 (low-stakes/downtime scenario):
@@ -939,18 +905,8 @@ Example 2 (low-stakes/downtime scenario):
 <button>3. 🎵 Hum along to the tune the bard is playing</button>
 <button>4. 📜 Show him the bounty notice from your pack — [Intimidation (+2) DC 10] (evidence lowers the DC)</button>
 <button>5. ♣️ Join the card game at the corner table — [Bluff (+3) DC 18] (experienced players)</button>
-<button>6. 🎲 Bet on the dice game in the corner — [1-in-6 chance to double your coin]</button>
-<button>7. 🚪 Excuse yourself and head back to your ship</button>
-<button>8. 🕖 Spend the evening drinking because why the hell not? — [5-hour timeskip]</button>
-</choices>
-
-Example 3 (dungeoneering scenario — presence of the trap/enemies/loot below is already resolved before these choices are written):
-<choices>
-<button>1. 🕳️ Step carefully around the tripwire you spotted near the pedestal — [Acrobatics (+5) DC 12]</button>
-<button>2. 🗡️ Charge the goblins before they finish forming up</button>
-<button>3. 🥷 Try to slip past them while they're distracted — [Stealth (+4) DC 15]</button>
-<button>4. 💰 Dig through the rubble near the altar for anything of value — [1-in-5 chance of finding something]</button>
-<button>5. 🚪 Retreat back down the corridor and regroup</button>
+<button>6. 🚪 Excuse yourself and head back to your ship</button>
+<button>7. 🕖 Spend the evening drinking because why the hell not? — [5-hour timeskip]</button>
 </choices>
 
 STRICT GENERATION ORDER:
@@ -1024,6 +980,7 @@ export function buildCyoaPrompt(config = {}) {
     if (useButtonTags) reqLines.push('- Wrap every single choice in a <button> tag.');
     if (useEmojis) reqLines.push('- Prefix each choice text with a fitting emoji.');
     reqLines.push('- Not all choices should always have a roll; high-stakes situations/problem-solving should utilize them more. Downtime needs less rolls.');
+    reqLines.push('- Attach a DC/AC only when the choice targets something concrete and contested (a lock, a specific person, a named obstacle, a stated stake). Vague look / scan / search generally actions are NORMAL — no DC bracket, no roll.');
     reqLines.push('- Vary approaches across turns — avoid repeating the same stats, traits, abilities, or narrative actions as the previous turn.');
     reqLines.push('- Wrap mechanical details (rolls, modifiers, DC/AC targets, resource costs, uses remaining) in square brackets, typically after an em dash, e.g. — [Persuasion (untrained, CHA +0) DC 13]. Prefix/trait tags at the start of a choice also use brackets but are separate from roll brackets.');
 
@@ -1044,12 +1001,11 @@ Example 1 (high-stakes scenario):
 ${wrapBlock([
         '1. 🎯 Fire with Dead-Eye Focus — [2/3 per short rest] [Attack (+12) vs AC 15]',
         '2. 💣 Throw a Smoke Bomb — [-1 Smoke Bomb]',
-        '3. 🧨 Yank the sparking coolant valve you spotted — [1-in-3 chance it vents the compartment and clears them out]',
-        '4. 🥷 Slip along the hull\'s shadows — [Stealth (+6: Void-Runner) DC 14]',
-        '5. 🗣️ Shout a warning to the rest of your crew',
-        '6. 🛰️ Try to talk the hostile crew into standing down — [Persuasion (untrained, CHA +0) DC 13]',
-        '7. ✈️ Attempt an emergency piloting maneuver — [Piloting (+8) DC 16]',
-        '8. 🚪 Back away and hope the standoff cools down',
+        '3. 🥷 Slip along the hull\'s shadows — [Stealth (+6: Void-Runner) DC 14]',
+        '4. 🗣️ Shout a warning to the rest of your crew',
+        '5. 🛰️ Try to talk the hostile crew into standing down — [Persuasion (untrained, CHA +0) DC 13]',
+        '6. ✈️ Attempt an emergency piloting maneuver — [Piloting (+8) DC 16]',
+        '7. 🚪 Back away and hope the standoff cools down',
     ])}
 
 Example 2 (low-stakes/downtime scenario):
@@ -1059,18 +1015,8 @@ ${wrapBlock([
         '3. 🎵 Hum along to the tune the bard is playing',
         '4. 📜 Show him the bounty notice from your pack — [Intimidation (+2) DC 10] (evidence lowers the DC)',
         '5. ♣️ Join the card game at the corner table — [Bluff (+3) DC 18] (experienced players)',
-        '6. 🎲 Bet on the dice game in the corner — [1-in-6 chance to double your coin]',
-        '7. 🚪 Excuse yourself and head back to your ship',
-        '8. 🕖 Spend the evening drinking because why the hell not? — [5-hour timeskip]',
-    ])}
-
-Example 3 (dungeoneering scenario — presence of the trap/enemies/loot below is already resolved before these choices are written):
-${wrapBlock([
-        '1. 🕳️ Step carefully around the tripwire you spotted near the pedestal — [Acrobatics (+5) DC 12]',
-        '2. 🗡️ Charge the goblins before they finish forming up',
-        '3. 🥷 Try to slip past them while they\'re distracted — [Stealth (+4) DC 15]',
-        '4. 💰 Dig through the rubble near the altar for anything of value — [1-in-5 chance of finding something]',
-        '5. 🚪 Retreat back down the corridor and regroup',
+        '6. 🚪 Excuse yourself and head back to your ship',
+        '7. 🕖 Spend the evening drinking because why the hell not? — [5-hour timeskip]',
     ])}`;
 
     const slotLines = slots.map((slot, i) => {

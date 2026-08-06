@@ -241,8 +241,9 @@ Hybrid RNG is ideal outside of CYOA mode because without CYOA mode, the GM can s
 
 Non-legacy tool schema requires the narrator to declare **who**, **formula**, and **dc** *before* seeing the result:
 
-- **d20:** success if `total >= dc`.
-- **d100:** roll-under; success if `total <= dc` (dc is a percentage).
+- **Skill / attack (default):** `compare: "gte"` — success if `total >= dc`.
+- **Percentage odds:** `formula: "1d100"`, `compare: "lte"` (auto-inferred for pure d100 formulas) — hit if `total <= dc` (dc is a percentage).
+- **Global d100 Mode** still registers `RollTheDiceD100` as a dedicated roll-under tool for percentage-based rulesets.
 
 Legacy dice logic omits DC (vanilla-style SillyTavern tool provided by the devs). The narrator model must support **tool calling** for Hybrid / tool modes, and function calling must be enabled in the Chat Completion preset. Legacy dice are NOT recommended but can provide some utility in edge-cases.
 
