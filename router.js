@@ -1,4 +1,4 @@
-import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState, computeUnpinnedActiveCount } from './state-manager.js';
+import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState, computeUnpinnedActiveCount, extractCharacterBlock, isPcCoreTarget, isAppearanceField, isEquipmentField, isCombatProfileField, getEligibleCoreFieldNames, patchLabeledSection } from './state-manager.js';
 import { sendStateRequest, sendAgentTurn } from './llm-client.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { extractCurrentTimeStr, cleanMessageContent, parseInWorldTime, formatInWorldTime, findNthUserMessageStartIdx, formatAgentChatLogFromIndex, sanitizeLorebookRecordContent } from './memo-processor.js';
@@ -47,6 +47,51 @@ function isSkeletonEntryId(entryId) {
 function extractActiveCombatBlock(memo) {
     const match = memo?.match(/\[COMBAT\]([\s\S]*?)\[\/COMBAT\]/i);
     return match ? `[COMBAT]${match[1].trim()}[/COMBAT]` : null;
+}
+
+/** Resolve the linked Player Character card for the active chat, if any. */
+function getLinkedPlayerCharacter() {
+    try {
+        const settings = getSettings();
+        const chatId = SillyTavern.getContext()?.chatId;
+        if (!chatId || !settings.chatStates?.[chatId]?.playerCharacter) return null;
+        return settings.chatStates[chatId].playerCharacter;
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Apply a Body or Equipment (only) patch to the linked PC card's flat bio string.
+ * Species/Personality/Background/etc. are never mutable by the Lorebook Agent for
+ * the PC — those are the player's own, set at character creation.
+ * @returns {{ ok: boolean, error?: string }}
+ */
+function applyPcCoreUpdate(pc, field, content) {
+    if (!pc) return { ok: false, error: 'No Player Character card linked' };
+    if (!isAppearanceField(field) && !isEquipmentField(field)) {
+        return { ok: false, error: 'PC updates are limited to Body and Equipment' };
+    }
+    const targetField = isEquipmentField(field) ? 'Equipment' : 'Body';
+    const result = patchLabeledSection(pc.bio || '', targetField, content, { isPc: true });
+    if (!result.ok) return { ok: false, error: result.error || 'Failed to patch PC bio' };
+    pc.bio = result.text;
+    pc.timestamp = Date.now();
+    try {
+        const chatId = SillyTavern.getContext()?.chatId;
+        if (chatId) saveChatState(chatId);
+        else void saveSettings();
+    } catch (_) {
+        void saveSettings();
+    }
+    try {
+        if (typeof globalThis._rpgRefreshLorebookAgentViews === 'function') {
+            void globalThis._rpgRefreshLorebookAgentViews();
+        } else if (typeof globalThis._rpgRenderRouterUI === 'function') {
+            globalThis._rpgRenderRouterUI();
+        }
+    } catch (_) {}
+    return { ok: true };
 }
 
 /** Router guidance when ACTIVE COMBAT STATE is injected this turn. */
@@ -535,6 +580,30 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
         const combatProfileGuidanceBasic = buildCombatProfileRouterGuidance(!!activeCombatBlock, 'basic');
         const combatProfileGuidanceAgent = buildCombatProfileRouterGuidance(!!activeCombatBlock, 'agent');
 
+        // Cold-start: once per chat, seed the LA prompt with the PC [CHARACTER] block so
+        // Equipment updates can be grounded in actual equipped gear/mechanics. Later passes
+        // rely on narrative cues only — no repeated CHARACTER/INVENTORY injection.
+        let pcCharacterSeedSection = '';
+        if (!settings.pcCharacterBlockSeeded) {
+            const characterBlock = extractCharacterBlock(settings.currentMemo);
+            if (characterBlock) {
+                pcCharacterSeedSection =
+                    `## PLAYER CHARACTER SHEET (initial reference — one-time)\n` +
+                    `This is the Player Character's mechanical sheet from chargen / the CHARACTER module. ` +
+                    `Use it as ground truth for what is currently equipped when judging Equipment updates. ` +
+                    `It will NOT be re-injected on later passes — after this, infer gear/look changes from the narrative only.\n` +
+                    `${characterBlock}\n\n`;
+            }
+            settings.pcCharacterBlockSeeded = true;
+            try {
+                const seedChatId = ctx.chatId || SillyTavern.getContext()?.chatId;
+                if (seedChatId) saveChatState(seedChatId);
+                else void saveSettings();
+            } catch (_) {
+                void saveSettings();
+            }
+        }
+
         const sysTemplate = adjustPromptTimestamps(settings.routerSystemPromptTemplate || 'You are the Lorebook Agent. Maintain narrative consistency and manage lorebooks.', settings);
         const basePrompt = sysTemplate
             .replace(/\{\{campaignRoot\}\}/g, prefix || 'World Chronicle')
@@ -648,7 +717,7 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
 8. Do NOT consolidate entries of different categories (e.g., do NOT merge an NPC or Location into a Quest or Event). Consolidation is strictly for true duplicates representing the exact same entity or concept (e.g., two entries for the same NPC).
 9. Do NOT merge multiple distinct chronological events into a single entry to "reduce fragmentation". Each distinct event must remain as a separate entry so it triggers on its own keywords.
 10. NEVER modify, shorten, or delete content within \`[CORE] ... [/CORE]\` blocks under any circumstances. Keep the tags and their inner content completely unchanged. The system programmatically overwrites any modifications to the CORE block with the original, so editing it is useless.
-11. For legacy NPC entries lacking these tags, identify their persistent sections (Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
+11. For legacy NPC entries lacking these tags, identify their persistent sections (Species, Body, Equipment, Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
 12. Compress turn-by-turn or granular combat status logs (e.g., creature HP changes, turn-by-turn action lists, temporary conditions mid-fight) into high-level updates: for long combats, preserve the initiation (who/what attacked {{user}}), a progress summary every ~5 rounds (capturing major shifts or stalemates), and the final outcome.
 13. Output your reasoning first, then the tags.`;
 
@@ -670,7 +739,7 @@ For each flagged entry:
 7. Do NOT consolidate entries of different categories (e.g., do NOT merge an NPC or Location into a Quest or Event). Consolidation is strictly for true duplicates representing the exact same entity (e.g., two entries for the same NPC).
 8. Do NOT merge multiple distinct chronological events into a single entry to "reduce fragmentation". Each distinct historical event must remain as its own entry so it triggers on its specific keywords.
 9. NEVER modify, shorten, or delete content within \`[CORE] ... [/CORE]\` blocks under any circumstances. Keep the tags and their inner content completely unchanged. The system programmatically overwrites any modifications to the CORE block with the original, so editing it is useless.
-10. For legacy NPC entries lacking these tags, identify their persistent sections (Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
+10. For legacy NPC entries lacking these tags, identify their persistent sections (Species, Body, Equipment, Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
 11. Compress turn-by-turn or granular combat status logs (e.g., creature HP changes, turn-by-turn action lists, temporary conditions mid-fight) into high-level updates: for long combats, preserve the initiation (who/what attacked {{user}}), a progress summary every ~5 rounds (capturing major shifts or stalemates), and the final outcome.
 12. Call commit exactly once at the end. Do not call it per-entry.`;
 
@@ -718,7 +787,7 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
                 const cleanupAction = parseBasicTags(basicResp, archiveBooks);
                 cleanupAction.reason = targetEntryId ? `Targeted cleanup: ${targetEntryId}.` : 'Cleanup pass (basic mode).';
                 if (cleanupAction.rewrite.length > 0 || cleanupAction.consolidate.length > 0) {
-                    await applyAction(cleanupAction, archiveBooks, currentTime, breadcrumb);
+                    await applyAction(cleanupAction, archiveBooks, currentTime, breadcrumb, isManual);
                     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
                     broadcastStep('finish', `Cleanup done in ${totalTime}s — ${cleanupAction.rewrite.length} rewritten, ${cleanupAction.consolidate.length} consolidated.`);
                 } else {
@@ -877,7 +946,7 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
                 let observation = '';
                 if (toolName === 'commit') {
                     args.reason = targetEntryId ? `Targeted cleanup: ${targetEntryId}.` : 'Cleanup pass (agent mode).';
-                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb);
+                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb, isManual);
                     archiveBooks = await fetchArchiveBooks();
                     if (commitResult.errors.length > 0) {
                         observation = `Committed with warnings: ${commitResult.errors.join(', ')}`;
@@ -937,6 +1006,22 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
             coreSections = DEFAULT_NPC_SECTIONS;
         }
         const sectionNamesList = coreSections.map(s => s.name).join(', ');
+        // Body and Equipment are exclusive to their dedicated tools; automatic passes may
+        // only additionally touch Combat Profile via commit.core / UPDATE_CORE. Species and
+        // the other identity fields (Personality, Background, Habits, Strengths, Flaws) only
+        // unlock on a manual/Direct Prompt pass.
+        const eligibleCoreFields = getEligibleCoreFieldNames(coreSections, isManual);
+        const eligibleCoreFieldsList = eligibleCoreFields.join(', ');
+        const autoPassCoreRestriction = !isManual
+            ? `\n- AUTOMATIC PASS RESTRICTION: Combat Profile is the only [CORE] field you may update this pass via UPDATE_CORE / commit.core. Do not modify Species, Personality, Background, Habits, Strengths, or Flaws unless the user gave an explicit instruction this turn (Direct Prompt). Body/Equipment changes use UPDATE_APPEARANCE / UPDATE_EQUIPMENT instead.`
+            : `\n- DIRECT PROMPT PASS: you may update any eligible [CORE] identity field (${eligibleCoreFieldsList}) when the user's instruction warrants it. Body/Equipment still use UPDATE_APPEARANCE / UPDATE_EQUIPMENT.`;
+        const pcAppearanceGuidance = `
+- You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
+- You may update the Player Character's own Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new equipment text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
+- Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
+- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.`;
+        const existingNpcChronicleNudge = `
+- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
 
         // -- Basic Mode (tag-based, one-shot, no tool calling) -----------------
         if (settings.routerBasicMode) {
@@ -968,12 +1053,22 @@ ${buildRouterRelationshipInstruction(getNpcRelationshipMax(settings))}
 ` : '';
 
             // coreSections and sectionNamesList are defined above
-            let exampleCoreLines = '';
-            if (coreSections[0]) exampleCoreLines += `${coreSections[0].name}: A burly human blacksmith with a scar on his cheek.\n`;
-            if (coreSections[1]) exampleCoreLines += `${coreSections[1].name}: Gruff but reliable.\n`;
-            if (coreSections[2]) exampleCoreLines += `${coreSections[2].name}: Retired from the militia to open his own forge.\n`;
-            if (coreSections[3]) exampleCoreLines += `${coreSections[3].name}: Wipes his brow with a greasy rag.\n`;
-            exampleCoreLines = exampleCoreLines.trim();
+            const exampleLineByName = {
+                'species': 'Human.',
+                'body': 'A burly man with a scar on his cheek.',
+                'equipment': 'Leather apron, heavy gloves, a hammer at his belt.',
+                'appearance/species': 'A burly human blacksmith with a scar on his cheek.',
+                'appearance': 'A burly human blacksmith with a scar on his cheek.',
+                'personality': 'Gruff but reliable.',
+                'brief background': 'Retired from the militia to open his own forge.',
+                'background': 'Retired from the militia to open his own forge.',
+                'habits/behaviors': 'Wipes his brow with a greasy rag.',
+                'habits & behaviors': 'Wipes his brow with a greasy rag.',
+            };
+            let exampleCoreLines = coreSections.slice(0, 6)
+                .map(sec => `${sec.name}: ${exampleLineByName[sec.name.trim().toLowerCase()] || 'Notable detail here.'}`)
+                .join('\n')
+                .trim();
 
             const basicSystemPrompt = `You are the Research Assistant. Your task is to identify and record important narrative entities and events.
 
@@ -998,16 +1093,21 @@ ${relSection}
 - Under no circumstances should you create an NPC entry for these names/aliases, because they refer to the player.
 - Always use the exact macro string \`{{user}}\` when referring to the player. Do NOT write the plain word "user", "player", "Player", or the player's roleplay character name (like "Dave Davidson") in plain text in any entry updates or descriptions.
 - Write \`{{user}}\` bare — never followed by a class, profession, title, or parenthetical (e.g. write "{{user}} acquires the handgun", NOT "{{user}} (Fighter) acquires the handgun" or "{{user}} (Bodybuilder) acquires..."). The player's class/role is tracked elsewhere (the CHARACTER module); repeating it in every chronicle line wastes tokens and is redundant.
+${pcAppearanceGuidance}
 
 ## NPC CORE UPDATES (NPC only)
-If any field inside the permanent [CORE] block changes, is updated, or new information is revealed (${sectionNamesList}), output:
+- Body changes: output \`[[UPDATE_APPEARANCE: Book::UID or NPC Name | new body text]]\`. Body is signature/default physical look — not a transient outfit-of-the-scene.
+- Equipment changes: output \`[[UPDATE_EQUIPMENT: Book::UID or NPC Name | new equipment text]]\` whenever the narrative explicitly shows a change to what they're wearing/wielding.
+- Eligible UPDATE_CORE fields this pass: ${eligibleCoreFieldsList}.
   [[UPDATE_CORE: Book::UID or NPC Name | FieldName | New field text]]
-Use the exact FieldName (e.g. ${sectionNamesList}). Do NOT log core updates as normal event/update entries.
+Use the exact FieldName. Do NOT log core updates as normal event/update entries.${autoPassCoreRestriction}${existingNpcChronicleNudge}
 
 ## DO NOT RE-RECORD EXISTING ENTITIES
 Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anything, check ACTIVE MEMORY and ARCHIVE INDEX for a matching name (they may be listed under a different label — check keywords too).
 - If the entity ALREADY EXISTS (in ACTIVE MEMORY, in NEWLY ACTIVATED, or in the ARCHIVE INDEX): do NOT output a new [[NPC:...]]/[[LOC:...]]/[[FAC:...]] tag with a fresh [CORE] block for them, even if you don't currently see their full content. Instead:
-  - To change/add a [CORE] field: use [[UPDATE_CORE: Name | FieldName | new text]].
+  - To change Body: use [[UPDATE_APPEARANCE: Name | new text]].
+  - To change Equipment: use [[UPDATE_EQUIPMENT: Name | new text]].
+  - To change/add another eligible [CORE] field: use [[UPDATE_CORE: Name | FieldName | new text]].
   - To append a chronicle/timeline note: use the module's normal update format (e.g. re-use the [[EVENT:...]] name to accumulate, or update the existing entry) — never a second [CORE] block.
   - To bring an archived entry into full view first: use [[ACTIVATE: Name]].
 - Only use a fresh [[NPC:...]]/[[LOC:...]]/[[FAC:...]] record for entities that are BRAND NEW and have never appeared in ACTIVE MEMORY or ARCHIVE INDEX before.
@@ -1035,7 +1135,7 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
 
             const questMatchB = settings.currentMemo?.match(/\[QUESTS\]([\s\S]*?)\[\/QUESTS\]/i);
             const questBlockB = questMatchB ? `[QUESTS]${questMatchB[1].trim()}[/QUESTS]` : 'None';
-            const basicUserPrompt = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockB}\n\n${activeCombatSection}## NARRATIVE\n${recentChatString}\n\n${manualPrompt ? `## INSTRUCTION\n${manualPrompt}\n\n` : ''}`;
+            const basicUserPrompt = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockB}\n\n${pcCharacterSeedSection}${activeCombatSection}## NARRATIVE\n${recentChatString}\n\n${manualPrompt ? `## INSTRUCTION\n${manualPrompt}\n\n` : ''}`;
 
             broadcastStep('thought', 'Thinking...');
             const basicResp = await sendStateRequest(routerSettings, finalBasicSystemPrompt, basicUserPrompt, _routerSignal);
@@ -1045,14 +1145,14 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             broadcastStep('thought', 'Parsing tags...');
             const basicAction = parseBasicTags(basicResp, archiveBooks);
 
-            if (basicAction.record.length > 0 || basicAction.update.length > 0 || basicAction.activate.length > 0 || basicAction.delete_ids?.length > 0 || basicAction.rel?.length > 0 || basicAction.appearance?.length > 0 || basicAction.core?.length > 0) {
+            if (basicAction.record.length > 0 || basicAction.update.length > 0 || basicAction.activate.length > 0 || basicAction.delete_ids?.length > 0 || basicAction.rel?.length > 0 || basicAction.appearance?.length > 0 || basicAction.equipment?.length > 0 || basicAction.core?.length > 0) {
                 const summaries = [];
                 if (basicAction.record.length) summaries.push(`New: ${basicAction.record.length}`);
                 if (basicAction.update.length) summaries.push(`Updates: ${basicAction.update.length}`);
                 if (basicAction.activate.length) summaries.push(`Activations: ${basicAction.activate.length}`);
-                if (basicAction.core?.length || basicAction.appearance?.length) summaries.push(`Core: ${(basicAction.core?.length || 0) + (basicAction.appearance?.length || 0)}`);
+                if (basicAction.core?.length || basicAction.appearance?.length || basicAction.equipment?.length) summaries.push(`Core: ${(basicAction.core?.length || 0) + (basicAction.appearance?.length || 0) + (basicAction.equipment?.length || 0)}`);
                 basicAction.reason = (thoughtMatchB ? thoughtMatchB[1].trim() : 'Tag-based update.') + ` (${summaries.join(', ')})`;
-                await applyAction(basicAction, archiveBooks, currentTime, breadcrumb);
+                await applyAction(basicAction, archiveBooks, currentTime, breadcrumb, isManual);
                 basicSummaryText = summaries.join(', ');
             } else {
                 broadcastStep('finish', 'Basic Mode: No tags found.');
@@ -1162,12 +1262,25 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
 
             commitProperties.appearance = {
                 type: 'array',
-                description: 'Surgically update the Appearance field inside an NPC\'s [CORE] block. Only use when the NPC\'s physical appearance changes significantly.',
+                description: 'Surgically update Body (signature/default physical look) for an NPC [CORE] or the linked Player Character card. Not for worn gear — use commit.equipment for that. For the PC, set id to "{{user}}", "player", "pc", or the PC\'s name.',
                 items: {
                     type: 'object',
                     properties: {
-                        id:      { type: 'string', description: 'Book::UID of the NPC entry.' },
-                        content: { type: 'string', description: 'New appearance text. Replaces only the Appearance field inside [CORE].' }
+                        id:      { type: 'string', description: 'Book::UID / NPC name, or "{{user}}" / "player" / "pc" / PC name for the Player Character card.' },
+                        content: { type: 'string', description: 'New Body text. Replaces only the Body field.' }
+                    },
+                    required: ['id', 'content']
+                }
+            };
+
+            commitProperties.equipment = {
+                type: 'array',
+                description: 'Surgically update Equipment (currently worn/carried gear) for an NPC [CORE] or the linked Player Character card. Use whenever the narrative explicitly shows their equipped weapons/armor/clothing changing. For the PC, set id to "{{user}}", "player", "pc", or the PC\'s name.',
+                items: {
+                    type: 'object',
+                    properties: {
+                        id:      { type: 'string', description: 'Book::UID / NPC name, or "{{user}}" / "player" / "pc" / PC name for the Player Character card.' },
+                        content: { type: 'string', description: 'New Equipment text. Replaces only the Equipment field.' }
                     },
                     required: ['id', 'content']
                 }
@@ -1175,12 +1288,12 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
 
             commitProperties.core = {
                 type: 'array',
-                description: `Surgically update one of the fields inside an NPC's [CORE] block (${sectionNamesList}). Only use when new information is revealed or permanent changes occur.`,
+                description: `Surgically update an eligible [CORE] field on an NPC (${eligibleCoreFieldsList}). Body/Equipment use commit.appearance/commit.equipment instead. ${!isManual ? 'AUTOMATIC PASS: Combat Profile only.' : 'DIRECT PROMPT PASS: identity fields (including Species) unlocked when the user instruction warrants it.'}`,
                 items: {
                     type: 'object',
                     properties: {
-                        id:      { type: 'string', description: 'Book::UID or plain NPC name (from ACTIVE MEMORY).' },
-                        field:   { type: 'string', enum: coreSections.map(s => s.name), description: 'The exact field inside [CORE] to update.' },
+                        id:      { type: 'string', description: 'Book::UID or plain NPC name (from ACTIVE MEMORY). Not used for the Player Character — PC Body/Equipment use commit.appearance/commit.equipment.' },
+                        field:   { type: 'string', enum: eligibleCoreFields, description: 'The exact eligible [CORE] field to update this pass.' },
                         content: { type: 'string', description: 'New field content text.' }
                     },
                     required: ['id', 'field', 'content']
@@ -1252,10 +1365,22 @@ Maximum Active Entities: **${settings.routerMaxActivations || 8}**.
 - Entries whose keywords appeared in the latest narrator output may already appear under **NEWLY ACTIVATED THIS TURN** with full content — you do not need to activate those again.
 - Always use exact Book::UID format (e.g. "Eldoria_NPCs::0") for activate/update/deactivate/delete_ids.
 
+## PLAYER CHARACTER SAFEGUARD
+- Do NOT create a lorebook entry for the player character under any circumstances.
+- Always use the exact macro string \`{{user}}\` when referring to the player in entry contents — bare, never with a class/profession parenthetical.
+${pcAppearanceGuidance}
+
+## NPC CORE UPDATES
+- Body: use \`commit.appearance\` (signature/default physical look only — not a transient outfit-of-the-scene).
+- Equipment: use \`commit.equipment\` whenever their visibly worn/carried gear changes.
+- Eligible commit.core fields this pass: ${eligibleCoreFieldsList}.${autoPassCoreRestriction}${existingNpcChronicleNudge}
+
 ## DO NOT RE-RECORD EXISTING ENTITIES
 Before using \`record\` for anyone or anything, check ACTIVE MEMORY, NEWLY ACTIVATED THIS TURN, and the ARCHIVE INDEX for a matching name (check keywords too, they may be listed under a different label).
 - If the entity ALREADY EXISTS anywhere in that context — even if you only see its label in the ARCHIVE INDEX with no full content — do NOT call \`record\` for it. Instead:
-  - To change/add a [CORE] field (identity, appearance, or Combat Profile): use \`commit({"core": [{"id": "Book::UID or Name", "field": "...", "content": "..."}]})\`.
+  - To change Body: use \`commit({"appearance": [{"id": "Book::UID or Name", "content": "..."}]})\`.
+  - To change Equipment: use \`commit({"equipment": [{"id": "Book::UID or Name", "content": "..."}]})\`.
+  - To change/add another eligible [CORE] field: use \`commit({"core": [{"id": "Book::UID or Name", "field": "...", "content": "..."}]})\`.
   - To append new chronicle text: use \`commit({"update": [{"id": "Book::UID or Name", "content": "..."}]})\`.
   - To see its full content first: use \`read_entry\` or \`grep_lore\`, or \`activate\` it.
 - Only use \`record\` for entities that are BRAND NEW and have never appeared in ACTIVE MEMORY, NEWLY ACTIVATED, or the ARCHIVE INDEX before.
@@ -1282,8 +1407,8 @@ Include the entity name/title itself (without timestamps like "[Day 1]") as a ke
 ${Object.values(settings.routerModules || {}).filter(m => m.enabled).map(m => `- ${m.tag}: ${m.instruction}`).join('\n')}${(settings.routerCustomTags || []).length ? '\n\n### CUSTOM CATEGORIES\n' + (settings.routerCustomTags || []).map(m => `- ${m.tag.toUpperCase()}: ${m.instruction}`).join('\n') : ''}${combatProfileGuidanceAgent}`;
 
             const commitActionSchema = settings.npcRelationshipBars
-                ? `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "core": [...]}) — write all changes and finish`
-                : `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "core": [...]}) — write all changes and finish`;
+                ? `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "appearance": [...], "equipment": [...], "core": [...]}) — write all changes and finish`
+                : `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "appearance": [...], "equipment": [...], "core": [...]}) — write all changes and finish`;
 
             const commitRelDescription = settings.npcRelationshipBars
                 ? `\ncommit rel items: {"id": "Book::UID or NPC Name", "field": "friendship"|"affection", "delta": ±N} — set INITIAL relationship values for newly recorded NPCs only (signed integer delta)`
@@ -1316,12 +1441,14 @@ Available actions:
 - grep_lore({"query": "..."}) ? search lorebooks for entries matching a keyword
 - inspect_book({"book_name": "..."}) ? list UIDs in a lorebook
 - read_entry({"uid": "Book::0"}) ? read full content of an entry
-- commit({${settings.npcRelationshipBars ? '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "core": [...]' : '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "core": [...]'}}) ? write all changes and finish
+- commit({${settings.npcRelationshipBars ? '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "appearance": [...], "equipment": [...], "core": [...]' : '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "appearance": [...], "equipment": [...], "core": [...]'}}) ? write all changes and finish
 
 commit record items: {"label": "Name only (NO tag prefix)", "keys": ["kw1","kw2"], "content": "...", "category": "NPC|LOC|FAC|QUEST|EVENT"}
 commit update items: {"id": "Book::UID", "content": "new text to append"}
 commit rename items: {"id": "Book::UID", "label": "New Name (optional)", "keys": ["kw1","kw2"] (optional, max 6)}${commitRelDescription}
-commit core items: {"id": "Book::UID or NPC Name", "field": "${coreSections.map(s => s.name).join('|')}", "content": "new field content"} — surgically updates a field inside [CORE] on NPC entries only (prefer over re-recording the full NPC)
+commit appearance items: {"id": "Book::UID or NPC Name or {{user}}", "content": "new body text"} — surgically updates Body (NPC [CORE] or linked PC card)
+commit equipment items: {"id": "Book::UID or NPC Name or {{user}}", "content": "new equipment text"} — surgically updates Equipment (NPC [CORE] or linked PC card)
+commit core items: {"id": "Book::UID or NPC Name", "field": "${eligibleCoreFields.join('|')}", "content": "new field content"} — surgically updates an eligible [CORE] field on NPC entries only (Body/Equipment use commit.appearance/commit.equipment; automatic passes = Combat Profile only)
 
 ## EXAMPLE
 Thought: I see a new faction called Iron Syndicate. I will record it.
@@ -1330,7 +1457,7 @@ ${adjustedSharedContext}`;
 
             const questMatchA = settings.currentMemo?.match(/\[QUESTS\]([\s\S]*?)\[\/QUESTS\]/i);
             const questBlockA = questMatchA ? `[QUESTS]${questMatchA[1].trim()}[/QUESTS]` : 'None';
-            const contextMessage = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None yet.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockA}\n\n${activeCombatSection}## NARRATIVE\n${recentChatString}${manualPrompt ? `\n\n## INSTRUCTION\n${manualPrompt}` : ''}`;
+            const contextMessage = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None yet.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockA}\n\n${pcCharacterSeedSection}${activeCombatSection}## NARRATIVE\n${recentChatString}${manualPrompt ? `\n\n## INSTRUCTION\n${manualPrompt}` : ''}`;
 
             /** @type {Array<{role:string, content:string|null, tool_calls?:any[], tool_call_id?:string}>} */
             const messages = [
@@ -1405,7 +1532,7 @@ ${adjustedSharedContext}`;
                 let observation = '';
 
                 if (toolName === 'commit') {
-                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb);
+                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb, isManual);
                     archiveBooks = await fetchArchiveBooks();
                     keyringText = buildKeyringText(archiveBooks, settings.activeRouterKeys);
                     updateActiveEntries();
@@ -1550,13 +1677,15 @@ ${adjustedSharedContext}`;
  * @param {string} [breadcrumb=''] - The current location hierarchy string (Main :: Sub).
  * @returns {Promise<{success: boolean, errors: string[], recordedIds: string[]}>}
  */
-async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb = '') {
+async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb = '', isManual = false) {
     const settings = getSettings();
     const ctx = SillyTavern.getContext();
     let changed = false;
     const errors = [];
     const allBookNames = Object.keys(allBooks);
     const TIMESTAMP_REGEX = /(?:\[Day\s+\d+|\[\d{1,2}\/\d{1,2}\/\d+)\b/i;
+    const linkedPc = getLinkedPlayerCharacter();
+    const linkedPcName = linkedPc?.name || '';
 
     const timePrefix = currentTime ? `[${currentTime}] ` : '';
 
@@ -2163,8 +2292,10 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
     }
 
     // 6. Core identity updates — surgical replacement of specified fields inside [CORE]
+    //    (or the linked Player Character card for Body/Equipment only).
     const coreUpdates = [
-        ...(action.appearance || []).map(item => ({ id: item.id, field: 'Appearance/Species', content: item.content })),
+        ...(action.appearance || []).map(item => ({ id: item.id, field: 'Body', content: item.content })),
+        ...(action.equipment || []).map(item => ({ id: item.id, field: 'Equipment', content: item.content })),
         ...(action.core || [])
     ];
 
@@ -2174,6 +2305,25 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             errors.push(`Invalid core update item: ${JSON.stringify(item)}`);
             continue;
         }
+
+        // PC sentinel — Body/Equipment only, patches chatStates[chatId].playerCharacter.bio
+        if (isPcCoreTarget(id, linkedPcName)) {
+            const pcResult = applyPcCoreUpdate(linkedPc, field, newContent);
+            if (!pcResult.ok) {
+                errors.push(`PC core update failed for "${id}": ${pcResult.error}`);
+            } else {
+                changed = true;
+            }
+            continue;
+        }
+
+        // Automatic passes may only mutate Combat Profile via commit.core / UPDATE_CORE.
+        // Body/Equipment arrive via action.appearance/action.equipment (mapped above) and are always allowed.
+        if (!isManual && !isAppearanceField(field) && !isEquipmentField(field) && !isCombatProfileField(field)) {
+            errors.push(`Automatic pass rejected core update of "${field}" on "${id}" — only Combat Profile (and Body/Equipment via their dedicated tools) are allowed without a Direct Prompt.`);
+            continue;
+        }
+
         const resolvedId = await resolveLoreEntryId(id, allBooks, newlyCreatedMap);
         if (!resolvedId) {
             errors.push(`Could not resolve core update target "${id}" to a Book::UID`);
@@ -2190,86 +2340,29 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             continue;
         }
         const entryContent = book.entries[uid].content || '';
-        
+
         // Match the [CORE]...[/CORE] block
         const coreMatch = entryContent.match(/\[CORE\]([\s\S]*?)\[\/CORE\]/i);
         if (!coreMatch) {
             errors.push(`[CORE] block not found for ${id} — no update made.`);
             continue;
         }
-        
-        const coreBody = coreMatch[1];
-        
-        // Define field aliases for matching
-        let fieldPatterns = [];
-        const normField = field.trim().toLowerCase();
-        if (normField.includes('appearance') || normField.includes('species')) {
-            fieldPatterns = ['Appearance/Species', 'Appearance'];
-        } else if (normField.includes('personality')) {
-            fieldPatterns = ['Personality'];
-        } else if (normField.includes('background')) {
-            fieldPatterns = ['Brief Background', 'Background'];
-        } else if (normField.includes('habit') || normField.includes('behavior')) {
-            fieldPatterns = ['Habits/Behaviors', 'Habits', 'Behaviors'];
-        } else if (normField.includes('combat')) {
-            fieldPatterns = ['Combat Profile'];
-        } else {
-            fieldPatterns = [field];
-        }
 
-        const escapedPatterns = fieldPatterns.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-        const otherHeaders = ['Appearance/Species', 'Appearance', 'Personality', 'Brief Background', 'Background', 'Habits/Behaviors', 'Habits', 'Behaviors', 'Relationship'];
+        const coreBody = coreMatch[1];
+        let extraHeaders = [];
         try {
             const s = getSettings();
             const coreSecs = (s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0) ? s.npcCoreSections : DEFAULT_NPC_SECTIONS;
-            coreSecs.forEach(sec => {
-                if (!otherHeaders.includes(sec.name)) otherHeaders.push(sec.name);
-            });
+            extraHeaders = coreSecs.map(sec => sec.name).filter(Boolean);
         } catch (_) {}
-        // Also discover any lazily-appended fields present in the actual coreBody (e.g. "Combat Profile")
-        for (const rawLine of coreBody.split('\n')) {
-            const hm = rawLine.trim().match(/^([A-Z][A-Za-z0-9 \/&]+?)\s*:/);
-            if (hm) {
-                const nm = hm[1].trim();
-                if (!otherHeaders.includes(nm)) otherHeaders.push(nm);
-            }
-        }
-        // Escape headers; prevent short aliases from matching inside longer ones
-        // (e.g. "Background" inside "Brief Background", "Behaviors" inside "Habits/Behaviors").
-        const otherHeadersRegexStr = otherHeaders.map(h => {
-            const esc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            if (h === 'Background') return '(?<!Brief\\s)Background';
-            if (h === 'Behaviors') return '(?<!Habits\\/)(?<!Habits & )(?<!Habits and )Behaviors';
-            if (h === 'Appearance') return '(?<!/)Appearance(?!\\/Species)';
-            return esc;
-        }).join('|');
 
-        // Match from the target field's colon to the next core field header or the end of the string
-        const targetFieldRegex = new RegExp(`(?:(${escapedPatterns.join('|')})\\s*:)([\\s\\S]*?)(?=(?:${otherHeadersRegexStr})\\s*:|$)`, 'i');
-        const fieldMatch = coreBody.match(targetFieldRegex);
-        
-        if (!fieldMatch) {
-            // Lazily append the field to the end of the [CORE] block (e.g. first-time Combat Profile)
-            const fieldName = fieldPatterns[0] || field.trim();
-            const replacement = `${fieldName}: ${newContent.trim()}\n`;
-            let newCoreBody = coreBody.trimEnd();
-            newCoreBody = newCoreBody ? `${newCoreBody}\n${replacement}` : replacement;
-
-            book.entries[uid].content = entryContent.replace(coreMatch[0], `[CORE]\n${newCoreBody}[/CORE]`);
-            await ctx.saveWorldInfo(bookName, book);
-            changed = true;
+        const patched = patchLabeledSection(coreBody, field, newContent, { extraHeaders });
+        if (!patched.ok) {
+            errors.push(`Core field patch failed for ${id}: ${patched.error || 'unknown error'}`);
             continue;
         }
 
-        const matchedFieldName = fieldMatch[1];
-        const targetSubstring = `${matchedFieldName}:${fieldMatch[2]}`;
-        
-        // Perform replacement
-        const replacement = `${matchedFieldName}: ${newContent.trim()}\n`;
-        const newCoreBody = coreBody.replace(targetSubstring, replacement);
-        
-        // Update entry content
-        book.entries[uid].content = entryContent.replace(coreMatch[0], `[CORE]${newCoreBody}[/CORE]`);
+        book.entries[uid].content = entryContent.replace(coreMatch[0], `[CORE]${patched.text}[/CORE]`);
         await ctx.saveWorldInfo(bookName, book);
         changed = true;
     }
@@ -2442,7 +2535,7 @@ export async function reapplyRouterPass(prePassSnapshot, postPassState) {
  * Parses basic narrative tags [[TAG: ...]]
  */
 function parseBasicTags(text, archiveBooks) {
-    const action = { record: [], update: [], activate: [], deactivate: [], delete_ids: [], rewrite: [], consolidate: [], rel: [], appearance: [], core: [] };
+    const action = { record: [], update: [], activate: [], deactivate: [], delete_ids: [], rewrite: [], consolidate: [], rel: [], appearance: [], equipment: [], core: [] };
     const settings = getSettings();
 
     // REWRITE tag parser
@@ -2476,7 +2569,7 @@ function parseBasicTags(text, archiveBooks) {
         }
     }
 
-    // UPDATE_APPEARANCE tag parser: [[UPDATE_APPEARANCE: Book::UID | new appearance text]]
+    // UPDATE_APPEARANCE tag parser: [[UPDATE_APPEARANCE: Book::UID | new appearance text]] (patches Body)
     const appearRegex = /\[\[UPDATE_APPEARANCE:\s*([^|]+)\|([\s\S]*?)\]\]/gi;
     let am;
     while ((am = appearRegex.exec(text)) !== null) {
@@ -2484,6 +2577,17 @@ function parseBasicTags(text, archiveBooks) {
         const content = am[2].trim();
         if (id && content) {
             action.appearance.push({ id, content });
+        }
+    }
+
+    // UPDATE_EQUIPMENT tag parser: [[UPDATE_EQUIPMENT: Book::UID | new equipment text]] (patches Equipment)
+    const equipRegex = /\[\[UPDATE_EQUIPMENT:\s*([^|]+)\|([\s\S]*?)\]\]/gi;
+    let eqm;
+    while ((eqm = equipRegex.exec(text)) !== null) {
+        const id      = eqm[1].trim();
+        const content = eqm[2].trim();
+        if (id && content) {
+            action.equipment.push({ id, content });
         }
     }
 
@@ -2531,7 +2635,7 @@ function parseBasicTags(text, archiveBooks) {
 
     while ((match = tagRegex.exec(text)) !== null) {
         const tagName = match[1].toUpperCase();
-        if (tagName === 'REWRITE' || tagName === 'CONSOLIDATE' || tagName === 'REL' || tagName === 'UPDATE_APPEARANCE' || tagName === 'UPDATE_CORE') continue; // Collision protection
+        if (tagName === 'REWRITE' || tagName === 'CONSOLIDATE' || tagName === 'REL' || tagName === 'UPDATE_APPEARANCE' || tagName === 'UPDATE_EQUIPMENT' || tagName === 'UPDATE_CORE') continue; // Collision protection
 
         const inner = match[2];
         const parts = inner.split('|').map(p => p.trim());

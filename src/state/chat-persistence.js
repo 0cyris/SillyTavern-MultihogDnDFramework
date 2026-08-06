@@ -331,6 +331,7 @@ export function saveChatState(chatId, opts = {}) {
         routerLookback: s.routerLookback || 4,
         routerLastRunChatLength: s.routerLastRunChatLength ?? 0,
         routerLastRunAt: s.routerLastRunAt ?? 0,
+        pcCharacterBlockSeeded: !!s.pcCharacterBlockSeeded,
         routerDirectPrompt: s.routerDirectPrompt || '',
         routerDirectLookback: s.routerDirectLookback || 10,
         routerDefaultPosition: s.routerDefaultPosition ?? 4,

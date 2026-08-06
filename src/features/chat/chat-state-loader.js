@@ -69,6 +69,7 @@ export function createChatStateLoader({
     s.routerLookback = saved.routerLookback || 4;
     s.routerLastRunChatLength = saved.routerLastRunChatLength ?? 0;
     s.routerLastRunAt = saved.routerLastRunAt ?? 0;
+    s.pcCharacterBlockSeeded = !!saved.pcCharacterBlockSeeded;
     s.routerDirectPrompt = saved.routerDirectPrompt || '';
     s.worldProgressionLookback = saved.worldProgressionLookback ?? 20;
     s.worldProgressionHistoryLookback = saved.worldProgressionHistoryLookback ?? 0;

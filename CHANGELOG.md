@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.28] - 2026-08-06
+
+### Added
+- **Species / Body / Equipment CORE split**: Lorebook Agent NPC/PC Core Sections replace the old combined `Appearance/Species` with Species (static), Body (lasting physical look), and Equipment (worn/carried gear). LA can sync PC Body/Equipment; automatic cadence passes may only touch Combat Profile via CORE tools (other identity fields require Direct Prompt). One-shot per-chat `[CHARACTER]` seed grounds first-pass Equipment. Prompt-defaults upgrade UI can reset NPC/PC Core Sections. Card-list synopsis + docs/tests included.
+
 ## [6.9.27] - 2026-08-06
 
 ### Added

@@ -72,6 +72,181 @@ export function computeUnpinnedActiveCount(activeKeys, pinnedKeys) {
     return (Array.isArray(activeKeys) ? activeKeys : []).filter(k => !pinnedSet.has(k)).length;
 }
 
+/** Extract canonical [CHARACTER] block from the current memo, if present. */
+export function extractCharacterBlock(memo) {
+    const match = memo?.match(/\[CHARACTER\]([\s\S]*?)\[\/CHARACTER\]/i);
+    return match ? `[CHARACTER]${match[1].trim()}[/CHARACTER]` : null;
+}
+
+/**
+ * True when a core/appearance update target refers to the linked Player Character
+ * rather than a lorebook NPC entry.
+ * @param {string} id
+ * @param {string} [pcName]
+ * @returns {boolean}
+ */
+export function isPcCoreTarget(id, pcName = '') {
+    if (!id || typeof id !== 'string') return false;
+    const norm = id.trim().toLowerCase();
+    if (!norm) return false;
+    if (norm === '{{user}}' || norm === 'player' || norm === 'pc' || norm === 'user') return true;
+    if (pcName && norm === String(pcName).trim().toLowerCase()) return true;
+    return false;
+}
+
+/**
+ * True for the always-on "Body" visual field (signature/default look, no gear).
+ * Also matches the legacy combined "Appearance/Species" header from entries
+ * written before the Species/Body/Equipment split, so old data keeps working.
+ * Deliberately does NOT match a bare "Species" field — that moved to the
+ * manual-only identity bucket alongside Personality/Background/etc.
+ * @param {string} field
+ */
+export function isAppearanceField(field) {
+    const n = (field || '').trim().toLowerCase();
+    return n.includes('body') || n.includes('appearance');
+}
+
+/** True for the always-on "Equipment" (worn gear) field. @param {string} field */
+export function isEquipmentField(field) {
+    const n = (field || '').trim().toLowerCase();
+    return n.includes('equipment') || n.includes('gear') || n.includes('worn');
+}
+
+/** True for the static "Species" identity field (manual-only, like Personality). @param {string} field */
+export function isSpeciesField(field) {
+    const n = (field || '').trim().toLowerCase();
+    return n === 'species' || n.startsWith('species ') || n.startsWith('species/') || n.startsWith('species:');
+}
+
+/** @param {string} field */
+export function isCombatProfileField(field) {
+    const n = (field || '').trim().toLowerCase();
+    return n.includes('combat');
+}
+
+/**
+ * Fields eligible for commit.core / [[UPDATE_CORE:...]] this pass.
+ * Body and Equipment are never in this list — they belong exclusively to the
+ * dedicated appearance/equipment tools. Automatic passes are limited to Combat
+ * Profile; Direct Prompt / manual passes unlock the remaining identity fields
+ * (including Species, which — unlike Body/Equipment — is never auto-updated).
+ * @param {Array<{name?: string}>} coreSections
+ * @param {boolean} isManual
+ * @returns {string[]}
+ */
+export function getEligibleCoreFieldNames(coreSections, isManual) {
+    const names = (Array.isArray(coreSections) ? coreSections : [])
+        .map(s => (s && typeof s.name === 'string' ? s.name : ''))
+        .filter(Boolean);
+    const withoutVisualFields = names.filter(n => !isAppearanceField(n) && !isEquipmentField(n));
+    if (!isManual) {
+        const combat = withoutVisualFields.filter(n => isCombatProfileField(n));
+        return combat.length ? combat : ['Combat Profile'];
+    }
+    return withoutVisualFields.length ? withoutVisualFields : names.filter(n => !isAppearanceField(n) && !isEquipmentField(n));
+}
+
+/**
+ * Resolve field-name aliases used when surgically patching a labeled section.
+ * "Body" additionally falls back to the legacy combined "Appearance/Species"
+ * header so a Body/appearance update on a pre-split entry patches that header
+ * in place instead of creating a duplicate "Body:" line.
+ * @param {string} field
+ * @param {{ isPc?: boolean }} [opts]
+ * @returns {string[]}
+ */
+export function resolveCoreFieldPatterns(field, opts = {}) {
+    const normField = (field || '').trim().toLowerCase();
+    if (normField.includes('species')) return ['Species'];
+    if (normField.includes('equipment') || normField.includes('gear') || normField.includes('worn')) {
+        return ['Equipment'];
+    }
+    if (normField.includes('body') || normField.includes('appearance')) {
+        return ['Body', 'Appearance/Species', 'Appearance'];
+    }
+    if (normField.includes('personality')) return ['Personality'];
+    if (normField.includes('background')) {
+        return opts.isPc ? ['Background', 'Brief Background'] : ['Brief Background', 'Background'];
+    }
+    if (normField.includes('habit') || normField.includes('behavior')) {
+        return opts.isPc
+            ? ['Habits & Behaviors', 'Habits/Behaviors', 'Habits', 'Behaviors']
+            : ['Habits/Behaviors', 'Habits & Behaviors', 'Habits', 'Behaviors'];
+    }
+    if (normField.includes('combat')) return ['Combat Profile'];
+    if (normField.includes('strength')) return ['Strengths'];
+    if (normField.includes('flaw')) return ['Flaws'];
+    return [field.trim()];
+}
+
+/**
+ * Patch (or lazily append) a labeled section inside a flat bio / [CORE] body.
+ * @param {string} text
+ * @param {string} field
+ * @param {string} newContent
+ * @param {{ isPc?: boolean, extraHeaders?: string[] }} [opts]
+ * @returns {{ ok: boolean, text?: string, error?: string }}
+ */
+export function patchLabeledSection(text, field, newContent, opts = {}) {
+    if (!field || newContent == null || String(newContent).trim() === '') {
+        return { ok: false, error: 'Missing field or content' };
+    }
+    const body = typeof text === 'string' ? text : '';
+    const fieldPatterns = resolveCoreFieldPatterns(field, opts);
+    const escapedPatterns = fieldPatterns.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+    const otherHeaders = [
+        'Species',
+        'Body', 'Appearance/Species', 'Appearance',
+        'Equipment',
+        'Personality',
+        'Brief Background', 'Background',
+        'Habits/Behaviors', 'Habits & Behaviors', 'Habits', 'Behaviors',
+        'Strengths', 'Flaws',
+        'Combat Profile',
+        'Relationship',
+    ];
+    for (const h of (opts.extraHeaders || [])) {
+        if (h && !otherHeaders.includes(h)) otherHeaders.push(h);
+    }
+    for (const rawLine of body.split('\n')) {
+        const hm = rawLine.trim().match(/^([A-Z][A-Za-z0-9 \/&]+?)\s*:/);
+        if (hm) {
+            const nm = hm[1].trim();
+            if (!otherHeaders.includes(nm)) otherHeaders.push(nm);
+        }
+    }
+
+    const otherHeadersRegexStr = otherHeaders.map(h => {
+        const esc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (h === 'Background') return '(?<!Brief\\s)Background';
+        if (h === 'Behaviors') return '(?<!Habits\\/)(?<!Habits & )(?<!Habits and )Behaviors';
+        if (h === 'Appearance') return '(?<!/)Appearance(?!\\/Species)';
+        return esc;
+    }).join('|');
+
+    const targetFieldRegex = new RegExp(
+        `(?:(${escapedPatterns.join('|')})\\s*:)([\\s\\S]*?)(?=(?:${otherHeadersRegexStr})\\s*:|$)`,
+        'i'
+    );
+    const fieldMatch = body.match(targetFieldRegex);
+    const replacementValue = String(newContent).trim();
+
+    if (!fieldMatch) {
+        const fieldName = fieldPatterns[0] || field.trim();
+        const replacement = `${fieldName}: ${replacementValue}\n`;
+        let newBody = body.trimEnd();
+        newBody = newBody ? `${newBody}\n${replacement}` : replacement;
+        return { ok: true, text: newBody };
+    }
+
+    const matchedFieldName = fieldMatch[1];
+    const targetSubstring = `${matchedFieldName}:${fieldMatch[2]}`;
+    const replacement = `${matchedFieldName}: ${replacementValue}\n`;
+    return { ok: true, text: body.replace(targetSubstring, replacement) };
+}
+
 /**
  * Strips the [CORE]/[/CORE] bookkeeping markers from a lorebook entry before it
  * reaches the GM/narrator. These tags exist purely so the Lorebook Agent knows

@@ -1509,6 +1509,7 @@ function resetUnseenChatState(s) {
     s.activeWorldKeys = [];
     s.keywordActivatedKeys = [];
     s.routerLog = [];
+    s.pcCharacterBlockSeeded = false;
     s.customPortraits = {};
     s.customLocationImages = {};
     s.worldProgressionLastFiredAtMinutes = -1;
@@ -5136,7 +5137,12 @@ function organizeConnectionSettingsUI() {
                         $('#rpg_tracker_ignore_npc_limits').prop('checked', !!sTempTracker.ignoreNpcImportLimits);
                         if (typeof refreshOrderList === 'function') refreshOrderList();
 
-                        // 3. Lorebook Agent
+                        // 3. NPC / PC Core Sections (Edit NPC Sections / Edit PC Sections)
+                        // Must run before Lorebook Agent rebuild so NPC instruction embeds the new schemas.
+                        fresh.npcCoreSections = JSON.parse(JSON.stringify(DEFAULT_NPC_SECTIONS));
+                        fresh.pcCoreSections = JSON.parse(JSON.stringify(DEFAULT_PC_SECTIONS));
+
+                        // 4. Lorebook Agent
                         if (extensionSettings[MODULE_NAME]) {
                             delete extensionSettings[MODULE_NAME].routerSystemPromptTemplate;
                             delete extensionSettings[MODULE_NAME].routerModularPromptTemplate;
@@ -5170,7 +5176,7 @@ function organizeConnectionSettingsUI() {
                             }
                         }
 
-                        // 4. World Progression
+                        // 5. World Progression
                         if (extensionSettings[MODULE_NAME]) {
                             delete extensionSettings[MODULE_NAME].worldProgressionSystemPrompt;
                             delete extensionSettings[MODULE_NAME].worldProgressionSkeletonSystemPrompt;
@@ -5186,7 +5192,7 @@ function organizeConnectionSettingsUI() {
 
                         acknowledgePromptDefaults(fresh);
                         toastr['info'](`Prompts auto-updated to latest defaults (v${currentVersion}).`, 'RPG Tracker');
-                        console.log(`[RPG Tracker] Automatically reset all prompts to defaults for version ${currentVersion}.`);
+                        console.log(`[RPG Tracker] Automatically reset all prompts/sections to defaults for version ${currentVersion}.`);
                     })();
                 } else {
                     const { Popup } = SillyTavern.getContext();
@@ -5245,6 +5251,10 @@ function organizeConnectionSettingsUI() {
                                             <input type="checkbox" id="rt-reset-world" ${chk('world')} style="cursor:pointer;">
                                             <span>World Progression Prompts${changedCats.has('world') ? ' <span class="rt-prompt-cat-changed">changed</span>' : ''}</span>
                                         </label>
+                                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; margin: 0;">
+                                            <input type="checkbox" id="rt-reset-sections" ${chk('sections')} style="cursor:pointer;">
+                                            <span>NPC / PC Core Sections${changedCats.has('sections') ? ' <span class="rt-prompt-cat-changed">changed</span>' : ''}</span>
+                                        </label>
                                     </div>
                                     <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 2px 0;">
                                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; font-weight:bold; margin: 0;">
@@ -5264,6 +5274,7 @@ function organizeConnectionSettingsUI() {
                             let trackerReset = changedCats.has('tracker');
                             let loreReset = changedCats.has('lorebook');
                             let worldReset = changedCats.has('world');
+                            let sectionsReset = changedCats.has('sections');
                             let alwaysAuto = false;
 
                             setTimeout(() => {
@@ -5272,13 +5283,15 @@ function organizeConnectionSettingsUI() {
                                 const trackerCb = document.getElementById('rt-reset-tracker');
                                 const loreCb = document.getElementById('rt-reset-lorebook');
                                 const worldCb = document.getElementById('rt-reset-world');
+                                const sectionsCb = document.getElementById('rt-reset-sections');
                                 const alwaysCb = document.getElementById('rt-reset-always-auto');
-                                const cbs = [sysCb, trackerCb, loreCb, worldCb];
+                                const cbs = [sysCb, trackerCb, loreCb, worldCb, sectionsCb];
 
                                 if (sysCb) sysCb.addEventListener('change', () => { sysReset = sysCb.checked; });
                                 if (trackerCb) trackerCb.addEventListener('change', () => { trackerReset = trackerCb.checked; });
                                 if (loreCb) loreCb.addEventListener('change', () => { loreReset = loreCb.checked; });
                                 if (worldCb) worldCb.addEventListener('change', () => { worldReset = worldCb.checked; });
+                                if (sectionsCb) sectionsCb.addEventListener('change', () => { sectionsReset = sectionsCb.checked; });
                                 if (alwaysCb) alwaysCb.addEventListener('change', () => { alwaysAuto = alwaysCb.checked; });
 
                                 if (allCb) {
@@ -5289,6 +5302,7 @@ function organizeConnectionSettingsUI() {
                                         trackerReset = val;
                                         loreReset = val;
                                         worldReset = val;
+                                        sectionsReset = val;
                                     });
                                 }
 
@@ -5334,6 +5348,7 @@ function organizeConnectionSettingsUI() {
                                 trackerReset = changedCats.has('tracker');
                                 loreReset = changedCats.has('lorebook');
                                 worldReset = changedCats.has('world');
+                                sectionsReset = changedCats.has('sections');
                             }
 
                             // CUSTOM1 = snapshot current config as a named Game Cartridge, then update everything.
@@ -5353,6 +5368,7 @@ function organizeConnectionSettingsUI() {
                                 trackerReset = true;
                                 loreReset = true;
                                 worldReset = true;
+                                sectionsReset = true;
                             }
 
                             // AFFIRMATIVE / CUSTOM1 / CUSTOM2 update prompts; Keep Custom is 0/false.
@@ -5411,6 +5427,18 @@ function organizeConnectionSettingsUI() {
                                     if (typeof refreshOrderList === 'function') refreshOrderList();
                                     resetCount++;
                                     console.log('[RPG Tracker] State tracker prompts reset to defaults.');
+                                }
+
+                                // Core sections before Lorebook so NPC instruction rebuild sees the new schemas.
+                                if (sectionsReset) {
+                                    fresh.npcCoreSections = JSON.parse(JSON.stringify(DEFAULT_NPC_SECTIONS));
+                                    fresh.pcCoreSections = JSON.parse(JSON.stringify(DEFAULT_PC_SECTIONS));
+                                    // Keep the live Lorebook NPC instruction in sync even if lorebook wasn't selected.
+                                    if (!loreReset && fresh.routerModules?.npc) {
+                                        fresh.routerModules.npc.instruction = buildNpcInstruction(fresh.npcMajorWords, fresh.npcMinorWords, false);
+                                    }
+                                    resetCount++;
+                                    console.log('[RPG Tracker] NPC/PC core sections reset to defaults.');
                                 }
 
                                 if (loreReset) {

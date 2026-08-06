@@ -3,7 +3,9 @@
  */
 
 export const DEFAULT_NPC_SECTIONS = [
-    { id: 'sec_appearance', name: 'Appearance/Species', description: 'Species, build, age, features, usual attire — not current pose or activity.', icon: '👁️', color: '#d4a940' },
+    { id: 'sec_species', name: 'Species', description: 'Species/race and any subtype — static identity that essentially never changes after the NPC is first recorded.', icon: '🧬', color: '#0ea5e9' },
+    { id: 'sec_body', name: 'Body', description: 'Signature/default physical look: build, age, face, hair, eyes, skin, scars, natural body language. Not a transient outfit-of-the-scene, pose, or momentary activity — only changes that become their new lasting look. Do NOT describe worn gear here — see Equipment.', icon: '👁️', color: '#d4a940' },
+    { id: 'sec_equipment', name: 'Equipment', description: 'Currently worn/carried gear — weapons, armor, clothing, accessories. Updates whenever what they visibly have equipped changes; copy from what the narrative explicitly shows them wearing/wielding.', icon: '🎽', color: '#f59e0b' },
     { id: 'sec_personality', name: 'Personality', description: 'Stable temperament and drives — not today\'s mood, fear, or stress.', icon: '🧠', color: '#8b5cf6' },
     { id: 'sec_background', name: 'Brief Background', description: 'Standing role, origin, history — not their part in the current plot.', icon: '📜', color: '#3b82f6' },
     { id: 'sec_habits', name: 'Habits/Behaviors', description: 'Recurring mannerisms and patterns — not one scene\'s behavior.', icon: '🔄', color: '#10b981' },
@@ -13,7 +15,9 @@ export const DEFAULT_NPC_SECTIONS = [
 ];
 
 export const DEFAULT_PC_SECTIONS = [
-    { id: 'sec_appearance', name: 'Appearance/Species', description: '[Describe physical features and species: body type, height, hair, eyes, skin tone, distinguishing marks, scars, and natural body language. You MUST explicitly state their Species, Ethnicity, and Gender based on the character card and Player Preferences. You MUST explicitly incorporate any appearance notes provided in the card/preferences. Do NOT describe clothing, armor, or worn gear — those are handled dynamically elsewhere and will change.]', icon: '👁️', color: '#d4a940' },
+    { id: 'sec_species', name: 'Species', description: '[State species, ethnicity, and gender based on the character card and Player Preferences. Weave into flowing prose — do NOT prefix with a literal "Species:", "Ethnicity:", or "Gender:" sub-label. Static identity — essentially frozen after character creation.]', icon: '🧬', color: '#0ea5e9' },
+    { id: 'sec_body', name: 'Body', description: '[Describe physical features: body type, height, hair, eyes, skin tone, distinguishing marks, scars, and natural body language. You MUST explicitly incorporate any appearance notes provided in the card/preferences. Do NOT describe clothing, armor, or worn gear here — those belong in Equipment.]', icon: '👁️', color: '#d4a940' },
+    { id: 'sec_equipment', name: 'Equipment', description: '[Describe currently worn/carried gear — weapons, armor, clothing, accessories — grounded in the character card\'s CHARACTER/inventory state if available. Updates as gear changes over the course of play.]', icon: '🎽', color: '#f59e0b' },
     { id: 'sec_personality', name: 'Personality', description: '[Describe temperament, how they act around others, and emotional tendencies. You MUST incorporate any traits provided.]', icon: '🧠', color: '#8b5cf6' },
     { id: 'sec_background', name: 'Background', description: '[Provide backstory context grounded in the character card. You MUST incorporate any background hints provided. Brief but meaningful.]', icon: '📜', color: '#3b82f6' },
     { id: 'sec_habits', name: 'Habits & Behaviors', description: '[Describe recurring mannerisms, habits, quirks, or behavioral patterns.]', icon: '🔄', color: '#10b981' },

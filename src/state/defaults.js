@@ -589,6 +589,10 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
 
         keywordActivatedKeys: [],  // entries activated by keyword scanner — auto-expire when keyword leaves scan window
 
+        // One-shot per chat: first Lorebook Agent pass may inject the PC [CHARACTER] block
+        // as cold-start gear/equipment ground truth. Flipped true after that first pass.
+        pcCharacterBlockSeeded: false,
+
         routerConnectionSource: "default",
 
         routerOpenaiUrl: "",

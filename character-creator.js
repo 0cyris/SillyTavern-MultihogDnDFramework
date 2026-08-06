@@ -785,8 +785,9 @@ Rules:
 - Total word count across all sections: approximately ${wordCount} words.
 - Write in third person (he/she/they).
 - Keep the prose grounded and natural. Avoid purple prose, excessive em-dashes, or clichés (e.g. "deliberate step", "breath hitched").
-- Do not include a preamble, title, or closing statement. Output ONLY the six sections.
+- Do not include a preamble, title, or closing statement. Output ONLY the ${coreSections.length} sections listed above.
 - CRITICAL: You MUST faithfully and explicitly incorporate ALL provided traits, background hints, species, gender, and appearance hints from the character card and the PLAYER PREFERENCES. Do not ignore user-provided details.
+- CRITICAL: Do NOT describe worn clothing, armor, or gear in the Body section — that belongs exclusively in the Equipment section (if present).
 - CRITICAL: Never output template macro strings such as {{char}}, {{user}}, or any other {{...}} placeholders. Always replace them with the actual character's name or a fitting proper name.
 - Use recent story messages only for voice, relationships, and ongoing situation — do not invent stats that contradict the character card.`;
 
@@ -1399,8 +1400,9 @@ ${wordCount === 'same'
     : `- Total word count across all sections: approximately ${wordCount} words.`}
 - Write in third person (he/she/they).
 - Keep prose grounded and natural. Avoid purple prose.
-- Do not include a preamble, title, or closing statement. Output ONLY the six sections.
+- Do not include a preamble, title, or closing statement. Output ONLY the ${coreSections.length} sections listed above.
 - Faithfully incorporate all provided traits, species, gender, and appearance from the card.
+- Do NOT describe worn clothing, armor, or gear in the Body section — that belongs exclusively in the Equipment section (if present).
 - CRITICAL: The world reference below is for setting context only — do NOT copy text from it.
 - CRITICAL: Never output template macro strings such as {{char}}, {{user}}, or any other {{...}} placeholders. Always replace them with the actual character's name or a fitting proper name.`;
 

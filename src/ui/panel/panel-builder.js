@@ -4,6 +4,7 @@ import { wireAgentWorldProgression } from './panel-world-progression.js';
 import { wireAgentActivity } from './panel-agent-activity.js';
 import { buildPanelMarkup } from './panel-markup.js';
 import { createSceneViewController } from './panel-scene-view.js';
+import { getCardAppearanceSynopsis as buildCardAppearanceSynopsis } from './card-synopsis.js';
 import { bindAdventureCompanion, closeAdventureCompanion, refreshAdventureCompanionLayout } from '../../../adventure-companion.js';
 
 /**
@@ -887,16 +888,20 @@ export function createPanel(dependencies) {
                 // insert a newline before "Background", leaving a stray "Brief" under Personality).
                 const legacyNames = 'Appearance\\/Species|Appearance|Personality|Brief Background|(?<!Brief\\s)Background|Habits(?:\\/|\\s*&\\s*|\\s+and\\s+)Behaviors|Habits|(?<!Habits\\/)(?<!Habits & )(?<!Habits and )Behaviors|Strengths|Flaws|Relationship with\\s*\\{\\{user\\}\\}|(?<!Friendship\\/)(?<!Affection\\/)Relationship';
 
-                // Discover any lazily-appended fields (e.g. "Combat Profile:") not in the known sets
+                // Discover any lazily-appended fields (e.g. "Combat Profile:") not in the known sets.
+                // Excludes common inline sub-labels (e.g. "Species:", "Ethnicity:", "Gender:") that
+                // models sometimes write as a leading label *inside* the Appearance/Species prose —
+                // those are not real CORE sections and must never be split into their own header.
                 const knownNamesForScan = new Set(customSecs.map(s => s.name.trim().toLowerCase()));
                 const legacySet = new Set(['appearance/species','appearance','personality','brief background','background','habits/behaviors','habits','behaviors','strengths','flaws','relationship']);
+                const inlineSubLabelBlacklist = new Set(['species', 'ethnicity', 'gender', 'age', 'race', 'body type', 'height', 'build']);
                 const discoveredNames = [];
                 for (const rawLine of coreContent.split('\n')) {
                     const hm = rawLine.trim().match(/^([A-Z][A-Za-z0-9 \/&]+?)\s*:/);
                     if (hm) {
                         const nm = hm[1].trim();
                         const nmLc = nm.toLowerCase();
-                        if (!knownNamesForScan.has(nmLc) && !legacySet.has(nmLc)) {
+                        if (!knownNamesForScan.has(nmLc) && !legacySet.has(nmLc) && !inlineSubLabelBlacklist.has(nmLc)) {
                             discoveredNames.push(escRgx(nm));
                         }
                     }
@@ -950,11 +955,15 @@ export function createPanel(dependencies) {
             };
 
             const sectionIcons = {
-                'General': '📋', 'Appearance/Species': '👁️', 'Appearance': '👁️', 'Personality': '🧠',
+                'General': '📋', 'Species': '🧬', 'Body': '👁️', 'Equipment': '🎽',
+                'Appearance/Species': '👁️', 'Appearance': '👁️', 'Personality': '🧠',
                 'Brief Background': '📜', 'Habits/Behaviors': '🔄', 'Habits': '🔄',
                 'Behaviors': '🔄', 'Relationship': '❤️',
                 'Strengths': '⚡', 'Flaws': '⚠️',
             };
+
+            const getCardAppearanceSynopsis = (content) =>
+                buildCardAppearanceSynopsis(content, substituteDisplayMacros);
 
             const renderSectionsHtml = (rawContent, isPC = false) => {
                 const parsed = parseNpcSections(rawContent, isPC);
@@ -967,8 +976,10 @@ export function createPanel(dependencies) {
                         const config = customSecs.find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
                         const icon = config ? config.icon : (sectionIcons[name] || '📋');
                         const sectionColor = config ? config.color : (
-                            (name === 'Appearance/Species' || name === 'Appearance') ? '#d4a940' :
-                                name === 'Personality' ? '#8b5cf6' :
+                            name === 'Species' ? '#0ea5e9' :
+                                (name === 'Body' || name === 'Appearance/Species' || name === 'Appearance') ? '#d4a940' :
+                                    name === 'Equipment' ? '#f59e0b' :
+                                        name === 'Personality' ? '#8b5cf6' :
                                     name === 'Brief Background' ? '#3b82f6' :
                                         name.includes('Habit') || name.includes('Behavior') ? '#10b981' :
                                             name === 'Strengths' ? '#22c55e' :
@@ -1011,11 +1022,7 @@ export function createPanel(dependencies) {
                 if (runtimeState.currentChatId && s.chatStates?.[runtimeState.currentChatId]?.playerCharacter) {
                     const pc = s.chatStates[runtimeState.currentChatId].playerCharacter;
 
-                    let desc = '';
-                    if (pc.bio) {
-                        const cleanBio = pc.bio.replace(/\[\/?CORE\]/gi, '');
-                        desc = substituteDisplayMacros(cleanBio.split('\n').map(l => l.trim()).filter(l => l && !/^\[ID:/i.test(l)).slice(0, 2).join(' ').substring(0, 260));
-                    }
+                    const desc = getCardAppearanceSynopsis(pc.bio || '');
                     const portraitSrc = resolvePortraitSrcForPlayerCharacter(s, pc.name);
 
                     const pcDiv = document.createElement('div');
@@ -1724,21 +1731,8 @@ export function createPanel(dependencies) {
                                     return `<span class="rt-agent-entry-rel-stats" data-entry-id="${escapeHtml(entryId)}" style="display:inline-flex;align-items:center;gap:5px;margin-left:6px;flex-shrink:0;">${fmtVal(rel.friendship, 'friendship')}${fmtVal(rel.affection, 'affection')}</span>`;
                                 };
 
-                                // Helper: get brief synopsis for the card (pulls from Appearance section or first text)
-                                getNpcDescription = (content) => {
-                                    if (!content) return '';
-                                    // Strip [CORE] and [/CORE] tags before parsing
-                                    const cleanContent = content.replace(/\[\/?CORE\]/gi, '');
-                                    // Try to extract Appearance section content first
-                                    const appMatch = cleanContent.match(/(?:Appearance\/Species|Appearance):\s*(.+?)(?=\s*(?:Personality|Brief Background|Habits|Behaviors|Relationship with|Friendship\/Rapport|Affection\/Interest):|$)/is);
-                                    if (appMatch && appMatch[1].trim()) {
-                                        return substituteDisplayMacros(appMatch[1].trim().substring(0, 260));
-                                    }
-                                    // Fallback: first meaningful text
-                                    const lines = cleanContent.split('\n').map(l => l.trim())
-                                        .filter(l => l && !/^\[ID:/i.test(l) && !/^Friendship\/Rapport:/i.test(l) && !/^Affection\/Interest:/i.test(l));
-                                    return substituteDisplayMacros(lines.slice(0, 2).join(' ').substring(0, 260));
-                                };
+                                // Helper: get brief synopsis for the card (Species+Body, legacy Appearance, or first text)
+                                getNpcDescription = getCardAppearanceSynopsis;
 
                                 // Helper: Open the full NPC popup
                                 openNpcDetailPopup = async (item, rel) => {
