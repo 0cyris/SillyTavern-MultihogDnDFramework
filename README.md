@@ -135,5 +135,7 @@ These are recommendations, not rules — experiment. Different models shine for 
 
 ---
 
+<img width="465" height="432" alt="image" src="https://github.com/user-attachments/assets/a2c8a500-dbdf-4949-b2ee-bad025fd44e5" />
+
 ## Got a Question or Ideas?
 You can find me in the SillyTavern Discord extensions forum. Join the Discord and then head to the sub-forum there: https://discord.gg/sillytavern
