@@ -99,6 +99,8 @@ For the narrator, I'd recommend trying at least the following:
 
 3. If you decide to use the hybrid RNG mode that combines tool calls with the pre-seeded RNG Queue used by the extension, ensure function calling is enabled. Otherwise the `RollTheDice` tool will not work.
 
+It's also recommended to go to Connections & Models and hook up the various components to suitable models. The respective drawers contain hints as to what kind of a model to pick. If there's no hint, then it doesn't matter much. Preferably choose a relatively strong model for the narrator/GM (ST main API connection), of course. DeepSeek V4 Pro/MiMo 2.5 Pro tier or better.
+
 ### Narrator character
 
 Create (or load) a SillyTavern character card that acts as the narrator — e.g. “Simulation Engine” or “Game Master.” The framework injects mechanical truth into prompts; the card supplies voice and framing.
@@ -106,10 +108,6 @@ Create (or load) a SillyTavern character card that acts as the narrator — e.g.
 For the initial setup described above, leave the narrator card fields empty; the framework handles the narrator logic through its system prompt.
 
 The system rejects the traditional ST use of character cards, which are meant for 1-on-1 chats because RP of this kind necessarily introduces lots and lots of characters. Therefore it would make no sense to attribute the GM outputs to any one character. It functions more like a book in format, where there is a "narrator" under which everything happens.
-
-### Enable the framework
-
-Turn the extension on in settings. With **Custom Sysprompt Mode** off, the framework writes its assembled GM prompt into SillyTavern’s **Quick Prompt → Main**. It can back up your previous Main prompt and restore it when the tracker is disabled (if Main prompt backup is enabled).
 
 ### Instant Action (fastest path)
 

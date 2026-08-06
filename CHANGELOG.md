@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.26] - 2026-08-06
+
+### Changed
+- **Tutorial docs**: First-Time Setup now recommends wiring Connections & Models to suitable components, and drops the redundant "Enable the framework" subsection.
+
 ## [6.9.25] - 2026-08-06
 
 ### Added
