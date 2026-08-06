@@ -79,6 +79,12 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 3. **Prompt Injection & Execution:** The State Memo and RNG Queue are injected seamlessly into your outgoing prompt to act as the "source of truth." For narrative actions, the framework dynamically catches and resolves the AI's `RollTheDice` tool calls.
 4. **World Progression Skeleton & Settings:** Optionally, create a "world skeleton" for the World Progression component to inject broader macroscopic content into the context/world in the world reports. Optionally set up the randomizers from the WP settings to determine how much skeleton and organic (Lorebook Agent) content is used in world updates.
 
+### Initial Setup Video Guide
+
+https://youtu.be/dKKFQqrH7qQ
+
+---
+
 ## Suggested Companions
 
 - 🧠 **[Summaryception](https://github.com/Lodactio/Extension-Summaryception):** A brilliant summarizer/context compression extension. Also handy for crunching all the combat mechanics of the context into summarized history.
