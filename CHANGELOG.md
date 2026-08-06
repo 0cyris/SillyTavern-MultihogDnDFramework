@@ -2,6 +2,14 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.27] - 2026-08-06
+
+### Added
+- **Existence checks**: d20 RNG queues now include a short `EXISTENCE ROLLS (d100):` pool (3 values) for upstream "is there something at all?" rolls (traps/hazards, hostile presence, notable finds) before any detection/skill DC. New `<existence_checks>` sysprompt section with category-specific follow-ups (traps held until triggered; missed loot gone forever; enemies contextual, not auto-stealth). CYOA examples gain pure-percentage chance brackets plus a dungeoneering Example 3.
+
+### Changed
+- Removed stale embedded `<RNG_constraints>` text that banned queue use for traps/exploration (contradicted Pre-Seeded / existence-check design).
+
 ## [6.9.26] - 2026-08-06
 
 ### Changed

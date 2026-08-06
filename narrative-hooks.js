@@ -148,6 +148,10 @@ export const RNG_QUEUE_LEN = 12;
 export const RNG_QUEUE_VERSION = 'v7.0';
 export const RNG_QUEUE_TAG_D20 = `[RNG_QUEUE ${RNG_QUEUE_VERSION}]`;
 export const RNG_QUEUE_TAG_D100 = `[RNG_QUEUE_d100 ${RNG_QUEUE_VERSION}]`;
+// Small dedicated pool for "does X even exist?" checks (traps, hostile presence,
+// notable finds) — resolved BEFORE any detection/skill roll. Kept short since
+// these fire at most a couple of times a turn, unlike the per-action d20 lines.
+export const EXISTENCE_ROLL_COUNT = 3;
 
 export function rollDie(sides) {
     const buf = new Uint32Array(1);
@@ -188,13 +192,20 @@ export function formatRngQueueLine(lineNum, dice, d100Mode = false) {
     return `${lineNum}: d20=${dice.d20} d4=${dice.d4} d6=${dice.d6} d8=${dice.d8} d10=${dice.d10} d12=${dice.d12}`;
 }
 
+export function makeExistenceRolls(n = EXISTENCE_ROLL_COUNT) {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(rollDie(100));
+    return out;
+}
+
 export function buildRngBlock(queue, d100Mode = false) {
     const turnId = Date.now();
     const lines = queue.map((dice, i) => formatRngQueueLine(i + 1, dice, d100Mode));
     if (d100Mode) {
         return `${RNG_QUEUE_TAG_D100}\nturn_id=${turnId}\nscope=this_response\n${lines.join('\n')}\n[/RNG_QUEUE_d100]\n\n`;
     }
-    return `${RNG_QUEUE_TAG_D20}\nturn_id=${turnId}\nscope=this_response\n${lines.join('\n')}\n[/RNG_QUEUE]\n\n`;
+    const existenceLine = `EXISTENCE ROLLS (d100): ${makeExistenceRolls().join(', ')}`;
+    return `${RNG_QUEUE_TAG_D20}\nturn_id=${turnId}\nscope=this_response\n${lines.join('\n')}\n${existenceLine}\n[/RNG_QUEUE]\n\n`;
 }
 
 // ── Dice rolling ───────────────────────────────────────────────────────────────
