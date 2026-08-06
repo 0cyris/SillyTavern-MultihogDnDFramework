@@ -2,14 +2,18 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.31] - 2026-08-07
+
+### Changed
+- **CYOA prompt**: restored to the pre-discipline wording (removed the "DC only on concrete targets / vague scans = NORMAL" rule — it made the model too conservative and encouraged silent rolls without committing DCs in choice text). Matches the v6.9.22 CYOA/sysprompt text.
+
 ## [6.9.29] - 2026-08-07
 
 ### Changed
-- **CYOA DC discipline**: choices may attach a DC/AC only when they target something concrete and contested. Vague look / scan / search generally actions stay NORMAL (no DC bracket, no roll). Restores the lean pre-existence-check sysprompt approach.
 - **Unified RollTheDice**: the d20 tool can also handle percentage odds via `formula: "1d100"` + `compare: "lte"` (auto-inferred for pure d100 formulas). Global **d100 Mode** and `RollTheDiceD100` remain for percentage-based rulesets.
 
 ### Removed
-- Upstream existence-check / risk-scale prompt machinery and the per-turn `EXISTENCE ROLLS (d100)` queue pool (too much prompt weight for the ROI; the real failure mode was CYOA offering DCs on vague scans).
+- Upstream existence-check / risk-scale prompt machinery and the per-turn `EXISTENCE ROLLS (d100)` queue pool (too much prompt weight for the ROI).
 
 ## [6.9.28] - 2026-08-06
 

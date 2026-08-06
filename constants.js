@@ -578,7 +578,6 @@ Typical range 1–5 minor, 5–15 major; 15+ only for life-altering moments.
 - Wrap every single choice in a <button> tag.
 - Prefix each choice text with a fitting emoji.
 - Not all choices should always have a roll; high-stakes situations/problem-solving should utilize them more. Downtime needs less rolls.
-- Attach a DC/AC only when the choice targets something concrete and contested (a lock, a specific person, a named obstacle, a stated stake). Vague look / scan / search generally actions are NORMAL — no DC bracket, no roll.
 - Vary approaches across turns — avoid repeating the same stats, traits, abilities, or narrative actions as the previous turn.
 - Wrap mechanical details (rolls, modifiers, DC/AC targets, resource costs, uses remaining) in square brackets, typically after an em dash, e.g. — [Persuasion (untrained, CHA +0) DC 13]. Prefix/trait tags at the start of a choice also use brackets but are separate from roll brackets.
 
@@ -874,7 +873,6 @@ Typical range 1–5 minor, 5–15 major; 15+ only for life-altering moments.
 - Wrap every single choice in a <button> tag.
 - Prefix each choice text with a fitting emoji.
 - Not all choices should always have a roll; high-stakes situations/problem-solving should utilize them more. Downtime needs less rolls.
-- Attach a DC/AC only when the choice targets something concrete and contested (a lock, a specific person, a named obstacle, a stated stake). Vague look / scan / search generally actions are NORMAL — no DC bracket, no roll.
 - Vary approaches across turns — avoid repeating the same stats, traits, abilities, or narrative actions as the previous turn.
 - Wrap mechanical details (rolls, modifiers, DC/AC targets, resource costs, uses remaining) in square brackets, typically after an em dash, e.g. — [Persuasion (untrained, CHA +0) DC 13]. Prefix/trait tags at the start of a choice also use brackets but are separate from roll brackets.
 
@@ -980,7 +978,6 @@ export function buildCyoaPrompt(config = {}) {
     if (useButtonTags) reqLines.push('- Wrap every single choice in a <button> tag.');
     if (useEmojis) reqLines.push('- Prefix each choice text with a fitting emoji.');
     reqLines.push('- Not all choices should always have a roll; high-stakes situations/problem-solving should utilize them more. Downtime needs less rolls.');
-    reqLines.push('- Attach a DC/AC only when the choice targets something concrete and contested (a lock, a specific person, a named obstacle, a stated stake). Vague look / scan / search generally actions are NORMAL — no DC bracket, no roll.');
     reqLines.push('- Vary approaches across turns — avoid repeating the same stats, traits, abilities, or narrative actions as the previous turn.');
     reqLines.push('- Wrap mechanical details (rolls, modifiers, DC/AC targets, resource costs, uses remaining) in square brackets, typically after an em dash, e.g. — [Persuasion (untrained, CHA +0) DC 13]. Prefix/trait tags at the start of a choice also use brackets but are separate from roll brackets.');
 
