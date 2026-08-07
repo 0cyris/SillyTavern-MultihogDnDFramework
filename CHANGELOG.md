@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.33] - 2026-08-07
+
+### Changed
+- **CYOA prompt**: nudge line now reads "Not every looking around needs to be an investigation check, but investigating something specific should be."
+
 ## [6.9.32] - 2026-08-07
 
 ### Changed
@@ -11,7 +16,7 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 
 ### Changed
 - **CYOA prompt**: restored to the pre-discipline wording (removed the "DC only on concrete targets / vague scans = NORMAL" rule — it made the model too conservative and encouraged silent rolls without committing DCs in choice text). Matches the v6.9.22 CYOA/sysprompt text.
-- **CYOA prompt**: added one soft nudge line — "Not every looking around needs to be an investigation check."
+- **CYOA prompt**: added one soft nudge line — "Not every looking around needs to be an investigation check, but investigating something specific should be."
 
 ## [6.9.29] - 2026-08-07
 
