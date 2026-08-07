@@ -2,11 +2,12 @@
  * Bundled prompt snapshots, prompt-diff badges, and factory cartridge payload.
  */
 
-import { DEFAULT_STOCK_PROMPTS, RT_PROMPTS } from '../../constants.js';
+import { buildCyoaModeBlock, DEFAULT_STOCK_PROMPTS, RT_PROMPTS } from '../../constants.js';
 import { DEFAULT_MODULES } from './default-modules.js';
 import { buildDefaultSettings } from './defaults.js';
 import { DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS } from './schema-sections.js';
 import { adjustPromptTimestamps } from './router-utils.js';
+import { buildNarrativePacingSection } from './narrative-pacing.js';
 
 /**
  * Stable text form of NPC/PC CORE section schemas for fingerprint + upgrade diffs.
@@ -74,7 +75,12 @@ export function normalizeBundledPromptsSnapshot(value) {
  * Structured snapshot of all factory-shipped prompt defaults.
  * Fingerprint and upgrade-dialog diffs both derive from this object so they cannot drift.
  * @returns {{
- *   sysprompt: { main: string, legacy: string },
+ *   sysprompt: {
+ *     main: string,
+ *     legacy: string,
+ *     narrativePacingModes: Record<string, string>,
+ *     periodicContextInject: string,
+ *   },
  *   tracker: { systemPromptTemplate: string, userPromptSuffix: string, stockPrompts: Record<string, string> },
  *   lorebook: {
  *     routerSystemPromptTemplate: string,
@@ -99,6 +105,26 @@ export function buildBundledPromptsSnapshot() {
         sysprompt: {
             main: RT_PROMPTS['sysprompt.txt'] || '',
             legacy: RT_PROMPTS['sysprompt_legacy.txt'] || '',
+            // Runtime-built <narrative> variants + periodic inject contract — not in the
+            // raw sysprompt.txt body (transform/interceptor apply them), so they must be
+            // fingerprinted here or Prompt Defaults Updated never sees those changes.
+            narrativePacingModes: {
+                normal: buildNarrativePacingSection('normal'),
+                shorter_outputs: buildNarrativePacingSection('shorter_outputs'),
+                high_agency: buildNarrativePacingSection('high_agency'),
+                downtime: buildNarrativePacingSection('downtime'),
+            },
+            // Live builder output (not the static RT_PROMPTS <CYOA_mode> stub) — CYOA is
+            // interceptor-injected, so builder edits must be fingerprinted here.
+            cyoaModeBlock: buildCyoaModeBlock({}),
+            periodicContextInject: [
+                'revision: 2026-08-08-every-turn-strip-refresh',
+                'everyTurn: true',
+                'order: narrative pacing tags → <CYOA_mode> → RNG queue',
+                'placement: user-message core (strip previous CYOA/pacing from older user turns; refresh current turn)',
+                'includes: <CYOA_mode> when CYOA enabled; active narrative pacing tags (high_agency_mode_on / output_length / slice_of_life_mode_on)',
+                'CYOA_mode is omitted from Quick Prompt Main (interceptor-only).',
+            ].join('\n'),
         },
         tracker: {
             systemPromptTemplate: defaults.systemPromptTemplate || '',
@@ -155,6 +181,19 @@ export function getSnapshotCategoryBlocks(snap, category) {
         const blocks = [{ label: 'sysprompt.txt', text: snap.sysprompt?.main || '' }];
         if (snap.sysprompt?.legacy) {
             blocks.push({ label: 'sysprompt_legacy.txt', text: snap.sysprompt.legacy });
+        }
+        const modes = snap.sysprompt?.narrativePacingModes || {};
+        for (const key of Object.keys(modes).sort()) {
+            blocks.push({ label: `narrative pacing: ${key}`, text: modes[key] || '' });
+        }
+        if (snap.sysprompt?.cyoaModeBlock) {
+            blocks.push({ label: 'CYOA mode (injected builder)', text: snap.sysprompt.cyoaModeBlock });
+        }
+        if (snap.sysprompt?.periodicContextInject) {
+            blocks.push({
+                label: 'context inject contract (CYOA + pacing)',
+                text: snap.sysprompt.periodicContextInject,
+            });
         }
         return blocks;
     }

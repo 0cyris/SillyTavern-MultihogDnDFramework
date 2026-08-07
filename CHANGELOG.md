@@ -2,6 +2,14 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.0] - 2026-08-08
+
+### Changed
+- **CYOA injection**: `<CYOA_mode>` is no longer written into Quick Prompt Main. When CYOA is enabled, the built CYOA block is injected every turn into the user-message core (with active narrative pacing tags), immediately above the RNG queue. Prior CYOA/pacing copies are stripped from older user turns first.
+- **Narrative pacing tags**: mode instructions are nested as `<high_agency_mode_on>`, `<output_length>`, and `<slice_of_life_mode_on>` inside `<narrative>`, and the active tags are re-injected every turn with CYOA.
+- **CYOA prompt**: removed the generic “USER-DEFINED: Use the exact complete choice text…” type line.
+- **Prompt Defaults Updated**: fingerprint now includes runtime narrative pacing variants, the live CYOA builder block, and the context-inject contract so interceptor/builder changes surface in the upgrade dialog.
+
 ## [6.9.41] - 2026-08-07
 
 ### Fixed

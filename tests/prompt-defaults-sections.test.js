@@ -26,6 +26,21 @@ describe('prompt-defaults Character Sheets category', () => {
         expect(snap.sections?.npcCoreSections).not.toContain('name: Appearance/Species');
     });
 
+    it('fingerprints runtime narrative pacing tags, CYOA builder, and inject contract', () => {
+        const snap = buildBundledPromptsSnapshot();
+        expect(snap.sysprompt?.narrativePacingModes?.high_agency).toContain('<high_agency_mode_on>');
+        expect(snap.sysprompt?.narrativePacingModes?.shorter_outputs).toContain('<output_length>');
+        expect(snap.sysprompt?.narrativePacingModes?.downtime).toContain('<slice_of_life_mode_on>');
+        expect(snap.sysprompt?.cyoaModeBlock).toContain('<CYOA_mode>');
+        expect(snap.sysprompt?.cyoaModeBlock).not.toContain('USER-DEFINED: Use the exact complete choice text');
+        expect(snap.sysprompt?.periodicContextInject).toContain('everyTurn: true');
+        expect(snap.sysprompt?.periodicContextInject).toContain('CYOA_mode');
+        const blocks = getSnapshotCategoryBlocks(snap, 'sysprompt');
+        expect(blocks.some(b => b.label === 'narrative pacing: high_agency')).toBe(true);
+        expect(blocks.some(b => b.label === 'CYOA mode (injected builder)')).toBe(true);
+        expect(blocks.some(b => b.label === 'context inject contract (CYOA + pacing)')).toBe(true);
+    });
+
     it('treats empty stored sections as matching shipped defaults for live impact badges', () => {
         const snap = buildBundledPromptsSnapshot();
         const live = getLivePromptCategoryBlocks({ npcCoreSections: [], pcCoreSections: [] }, 'sections');

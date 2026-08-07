@@ -952,8 +952,12 @@ If the player is clearly abusing the rules to get something like infinite XP or 
 
 // ── CYOA prompt builder ──────────────────────────────────────────────────────
 
-/** Inject CYOA instructions into the user-message core block every N generations. */
-export const CYOA_INJECT_EVERY_N = 3;
+/**
+ * CYOA + active narrative pacing tags are injected every turn into the
+ * user-message core block (narrative length note → CYOA → RNG queue),
+ * after stripping any previous copy from the current/older user messages.
+ */
+export const CONTEXT_INJECT_EVERY_TURN = true;
 
 export const DEFAULT_CYOA_SLOTS = [
     { type: 'narrative' },
@@ -1021,8 +1025,7 @@ export function buildCyoaPrompt(config = {}) {
 - NORMAL: Plain action/speech (e.g. "Open the door")
 - NARRATIVE-DECIDED: Pick whichever format fits best based on context
 - TRAIT/ABILITY: Prefix with [Trait Name] (e.g. "[Illithid] Read his mind")
-- PREFIX: Prefix with a specific bracketed label (e.g. "[Attack] Swing the sword")
-- USER-DEFINED: Use the exact complete choice text specified for that choice`;
+- PREFIX: Prefix with a specific bracketed label (e.g. "[Attack] Swing the sword")`;
 
     // Style examples stay rich on purpose; counts may differ from STRICT GENERATION ORDER.
     const examples = `EXAMPLES:

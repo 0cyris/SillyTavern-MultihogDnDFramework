@@ -14,38 +14,54 @@
 
 import { getSettings, hydrateWorldProgressionFromChatState, persistWorldProgressionTimer, persistRouterLastRunWatermark, getNpcRelationshipMax, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, applyRelTierBadgeElement, showRelationshipFloatFeedback, saveChatState, getActiveChatId, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, shouldProcessRegexRelationshipUpdates, stripCoreMarkersForNarrator } from './state-manager.js';
 import { syncCombatProfile, isCombatActive } from './llm-client.js';
-import { parseQuestsFromMemo, extractCurrentTimeStr, cleanMessageContent, formatInWorldTime, memoForGmContext } from './memo-processor.js';
+import { parseQuestsFromMemo, extractCurrentTimeStr, cleanMessageContent, formatInWorldTime, memoForGmContext, stripPromptInjectionsFromUserText, stripCyoaAndPacingInjections } from './memo-processor.js';
 import { runRouterPass, saveSceneToLorebook, scanAssistantOutputForKeywords, parseInWorldMinutes, runWorldProgressionPass, updateLorebookEntry, getLorebookManifest, rollbackRouterPass, isRouterRunning } from './router.js';
 import { logTransaction } from './debug-viewer.js';
 import { recordSchedulerEvent } from './swipe-scheduler-debug.js';
 import { saveSettings } from './src/app/runtime-bridge.js';
 import { isPercentFormula, resolveDiceCompare } from './src/state/dice-compare.js';
-import { buildCyoaModeBlock, CYOA_INJECT_EVERY_N } from './constants.js';
+import { buildCyoaModeBlock } from './constants.js';
 import { isEffectiveSectionEnabled } from './src/state/section-enabled.js';
+import { buildNarrativeModeTags, hasInjectableNarrativePacing } from './src/state/narrative-pacing.js';
 export { isPercentFormula, resolveDiceCompare };
 
-/**
- * Count story assistant messages (exclude user + interceptor narrator splices).
- * @param {object[]} chat
- * @returns {number}
- */
-function countStoryAssistantMessages(chat) {
-    if (!Array.isArray(chat)) return 0;
-    let n = 0;
-    for (const m of chat) {
-        if (!m || m.is_user) continue;
-        if (m.extra?.rpg_cyoa_inject) continue;
-        if (m.extra?.type === 'narrator') continue;
-        const role = String(m.role || '').toLowerCase();
-        if (role === 'user' || role === 'system' || role === 'human' || role === 'player') continue;
-        n++;
+/** Write plain text back onto a chat message (string or multimodal content). */
+function setChatMessageText(msg, text) {
+    if (!msg) return;
+    if (typeof msg.content === 'string') {
+        msg.content = text;
+    } else if (Array.isArray(msg.content)) {
+        const nonText = msg.content.filter(p => p && p.type !== 'text');
+        msg.content = [{ type: 'text', text }, ...nonText];
     }
-    return n;
+    if (typeof msg.mes === 'string' || msg.mes == null) {
+        msg.mes = text;
+    }
 }
 
-/** @param {object[]} chat */
-function shouldInjectCyoaThisTurn(chat) {
-    return countStoryAssistantMessages(chat) % CYOA_INJECT_EVERY_N === 0;
+/**
+ * Strip prior CYOA/pacing from older user turns; recover raw typed text on the
+ * current user turn so pacing + CYOA + RNG can be freshly re-injected.
+ * @param {object[]} chat
+ * @param {number} currentUserIdx
+ */
+function prepareUserMessagesForContextInject(chat, currentUserIdx) {
+    if (!Array.isArray(chat)) return;
+    for (let i = 0; i < chat.length; i++) {
+        const m = chat[i];
+        if (!m) continue;
+        const role = String(m.role || '').toLowerCase();
+        const isUser = m.is_user || role === 'user' || role === 'human' || role === 'player';
+        if (!isUser) continue;
+
+        const raw = extractTextContent(m);
+        if (i === currentUserIdx) {
+            setChatMessageText(m, stripPromptInjectionsFromUserText(raw));
+        } else {
+            const cleaned = stripCyoaAndPacingInjections(raw);
+            if (cleaned !== raw) setChatMessageText(m, cleaned);
+        }
+    }
 }
 
 /** Resolve ST macros (e.g. {{user}}) in lore text at injection time — storage keeps macros verbatim. */
@@ -934,7 +950,8 @@ export function installInterceptor() {
 
         const routerActive = !!settings.routerEnabled;
         const cyoaActive = isEffectiveSectionEnabled('CYOA_mode', settings);
-        if (!settings.enabled && !routerActive && !cyoaActive) {
+        const pacingInject = hasInjectableNarrativePacing(settings.narrativePacing);
+        if (!settings.enabled && !routerActive && !cyoaActive && !pacingInject) {
             if (settings.debugMode) console.groupEnd();
             return;
         }
@@ -1003,8 +1020,15 @@ export function installInterceptor() {
         }
 
         const msg = chat[idx];
+
+        // Strip prior CYOA/pacing from older turns; unwrap current turn to raw typed text
+        // so pacing + CYOA + RNG can be freshly injected every generation.
+        if (!skipInjection) {
+            prepareUserMessagesForContextInject(chat, idx);
+        }
+
         const content = extractTextContent(msg);
-        let injections = "";     // core: RNG Queue + State Memo + Quests (always → user msg)
+        let injections = "";     // core: pacing + CYOA + RNG + State Memo + Quests → user msg
         let loreInjections = ""; // lore: keyword/agent entries (configurable depth)
         let wpInjections = "";   // world progression reports (configurable depth)
         
@@ -1015,34 +1039,33 @@ export function installInterceptor() {
             if (skipInjection) console.log("[RPG Tracker] Path 1 active: skipping user-message injection; keyword scan will still run.");
         }
 
-        // Core user-message injection: PC / relations / CYOA / RNG / memo / quests.
-        // CYOA can inject even when the State Tracker master toggle is off.
-        if (!skipInjection && (settings.enabled || cyoaActive)) {
+        // Core user-message injection every turn: PC / relations / pacing / CYOA / RNG / memo / quests.
+        // CYOA / pacing tags can inject even when the State Tracker master toggle is off.
+        if (!skipInjection && (settings.enabled || cyoaActive || pacingInject)) {
             if (settings.enabled) {
                 // [PLAYER_CHARACTER] — always injected at the top of the core block
                 const curChatId = SillyTavern.getContext().chatId || globalThis._rpgCurrentChatId?.();
                 if (curChatId && settings.chatStates?.[curChatId]?.playerCharacter) {
                     const pc = settings.chatStates[curChatId].playerCharacter;
-                    if (!content.includes("[PLAYER_CHARACTER]")) {
-                        injections += `[PLAYER_CHARACTER]\nName: ${pc.name}\n${pc.bio}\n[/PLAYER_CHARACTER]\n\n`;
-                        if (settings.debugMode) console.log("Player Character injected.");
-                    }
+                    injections += `[PLAYER_CHARACTER]\nName: ${pc.name}\n${pc.bio}\n[/PLAYER_CHARACTER]\n\n`;
+                    if (settings.debugMode) console.log("Player Character injected.");
                 }
 
-                // [NPC_RELATIONS] — injected first, before RNG queue, same mechanism as RNG.
+                // [NPC_RELATIONS] — before pacing/CYOA/RNG.
                 const relBlock = await buildNpcRelationsBlock(settings);
                 if (relBlock) injections += relBlock;
             }
 
-            // CYOA sits just above the RNG queue (near the bottom of the core block).
-            // Periodic: every CYOA_INJECT_EVERY_N generations (incl. first turn at count 0).
-            if (cyoaActive && shouldInjectCyoaThisTurn(chat) && !content.includes('<CYOA_mode>')) {
-                injections += `${buildCyoaModeBlock(settings.cyoaConfig || {})}\n\n`;
+            // Every-turn bundle just above RNG: narrative length/pacing → CYOA → (RNG below).
+            const bundleParts = [];
+            const modeTags = buildNarrativeModeTags(settings.narrativePacing);
+            if (modeTags) bundleParts.push(modeTags);
+            if (cyoaActive) bundleParts.push(buildCyoaModeBlock(settings.cyoaConfig || {}));
+            if (bundleParts.length) {
+                injections += `${bundleParts.join('\n\n')}\n\n`;
                 if (settings.debugMode) {
-                    console.log(`[RPG Tracker] CYOA injected above RNG (assistantCount=${countStoryAssistantMessages(chat)}, every ${CYOA_INJECT_EVERY_N}).`);
+                    console.log('[RPG Tracker] CYOA/pacing bundle injected above RNG (every turn).');
                 }
-            } else if (settings.debugMode && cyoaActive) {
-                console.log(`[RPG Tracker] CYOA skipped this turn (assistantCount=${countStoryAssistantMessages(chat)}, every ${CYOA_INJECT_EVERY_N}).`);
             }
 
             if (settings.enabled) {
@@ -1052,19 +1075,19 @@ export function installInterceptor() {
                 const injectRngQueue = settings.rngEnabled
                     && (!settings.diceFunctionTool || isCombatActive(settings.currentMemo));
                 if (injectRngQueue) {
-                    if (settings.rngQueueD20 && !content.includes(RNG_QUEUE_TAG_D20)) {
+                    if (settings.rngQueueD20) {
                         const queue = makeRngQueue(RNG_QUEUE_LEN, false);
                         injections += buildRngBlock(queue, false);
                         if (settings.debugMode) console.log("RNG Queue (d20) generated for injection.");
                     }
-                    if (settings.rngQueueD100 && !content.includes(RNG_QUEUE_TAG_D100)) {
+                    if (settings.rngQueueD100) {
                         const queue = makeRngQueue(30, true);
                         injections += buildRngBlock(queue, true);
                         if (settings.debugMode) console.log("RNG Queue (d100) generated for injection.");
                     }
                 }
 
-                if (settings.currentMemo && !content.includes("### STATE MEMO (DO NOT REPEAT)")) {
+                if (settings.currentMemo) {
                     const memoText = stripMemoHtml(memoForGmContext(settings.currentMemo)).trim();
                     injections += `### STATE MEMO (DO NOT REPEAT)\n${memoText}\n\n`;
                 }

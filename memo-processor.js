@@ -1496,8 +1496,58 @@ export function cleanMessageContent(msg) {
 // ── User action extraction ────────────────────────────────────────────────────
 
 /**
+ * Strip Multihog core prompt injections from a user-message string.
+ * @param {string} text
+ * @param {{ keepRng?: boolean, keepMemo?: boolean }} [opts]
+ * @returns {string}
+ */
+export function stripPromptInjectionsFromUserText(text, opts = {}) {
+    let raw = String(text || '');
+    if (!raw) return '';
+
+    // Prefer the payload after the last CURRENT USER INPUT marker (fresh typed text).
+    const inputParts = raw.split(/###\s*CURRENT USER INPUT\s*\n/i);
+    if (inputParts.length > 1) {
+        raw = inputParts[inputParts.length - 1];
+    }
+
+    if (!opts.keepMemo) {
+        raw = raw.replace(/###\s*STATE MEMO[^]*?(?=\n\[RNG_QUEUE|\n###|\n\[(?!RNG_QUEUE)[A-Z]|<CYOA_mode>|<high_agency_mode_on>|<output_length>|<slice_of_life_mode_on>|$)/i, '');
+    }
+    if (!opts.keepRng) {
+        raw = raw.replace(/\[RNG_QUEUE(?:_d100)?\s[^\]]*\][\s\S]*?\[\/RNG_QUEUE(?:_d100)?\][ \t]*\n?/gi, '');
+    }
+    raw = raw.replace(/<CYOA_mode>[\s\S]*?<\/CYOA_mode>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<high_agency_mode_on>[\s\S]*?<\/high_agency_mode_on>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<output_length>[\s\S]*?<\/output_length>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<slice_of_life_mode_on>[\s\S]*?<\/slice_of_life_mode_on>[ \t]*\n?/gi, '');
+    raw = raw.replace(/\[PLAYER_CHARACTER\][\s\S]*?\[\/PLAYER_CHARACTER\][ \t]*\n?/gi, '');
+    raw = raw.replace(/\[NPC_RELATIONS\][\s\S]*?\[\/NPC_RELATIONS\][ \t]*\n?/gi, '');
+    raw = raw.replace(/\[[A-Z_]+\][\s\S]*?\[\/[A-Z_]+\]/g, '');
+    raw = raw.replace(/###\s*CURRENT USER INPUT[^\n]*\n?/gi, '');
+    raw = raw.replace(/\[Continue the narrative\]/gi, '');
+
+    return raw.trim();
+}
+
+/**
+ * Strip only CYOA + pacing tags (leave RNG/memo intact on older turns).
+ * @param {string} text
+ * @returns {string}
+ */
+export function stripCyoaAndPacingInjections(text) {
+    let raw = String(text || '');
+    if (!raw) return '';
+    raw = raw.replace(/<CYOA_mode>[\s\S]*?<\/CYOA_mode>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<high_agency_mode_on>[\s\S]*?<\/high_agency_mode_on>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<output_length>[\s\S]*?<\/output_length>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<slice_of_life_mode_on>[\s\S]*?<\/slice_of_life_mode_on>[ \t]*\n?/gi, '');
+    return raw.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
  * Extracts the last user message from the chat, stripping injected blocks
- * (STATE MEMO, RNG_QUEUE) so only the player's actual typed input remains.
+ * (STATE MEMO, RNG_QUEUE, CYOA, pacing) so only the player's actual typed input remains.
  */
 export function getLastUserAction() {
     const { chat } = SillyTavern.getContext();
@@ -1519,14 +1569,7 @@ export function getLastUserAction() {
         raw = String(raw);
     }
 
-    raw = raw.replace(/###\s*STATE MEMO[^]*?(?=\n\[RNG_QUEUE|\n###|\n\[(?!RNG_QUEUE)[A-Z]|$)/i, '');
-    raw = raw.replace(/\[RNG_QUEUE(?:_d100)?\s[^\]]*\][\s\S]*?\[\/RNG_QUEUE(?:_d100)?\][ \t]*\n?/gi, '');
-    raw = raw.replace(/<CYOA_mode>[\s\S]*?<\/CYOA_mode>[ \t]*\n?/gi, '');
-    raw = raw.replace(/\[[A-Z_]+\][\s\S]*?\[\/[A-Z_]+\]/g, '');
-    raw = raw.replace(/###\s*CURRENT USER INPUT[^\n]*\n?/gi, '');
-    raw = raw.replace(/\[Continue the narrative\]/gi, '');
-
-    return raw.trim();
+    return stripPromptInjectionsFromUserText(raw);
 }
 
 // ── Lorebook context builder ──────────────────────────────────────────────────
