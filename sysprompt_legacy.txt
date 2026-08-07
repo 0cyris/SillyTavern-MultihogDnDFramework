@@ -130,9 +130,7 @@ Travel/time-skips only, not spammed. Pop a number: ≥14 = event occurs. If even
 </random_events>
 
 <xp_system>
-- Award XP inline right after the trigger: *(+[X] XP — [reason])*. Reserve meaningful gains for quest/mission completions or high-impact actions; don't over-award — XP must be earned.
-- Quest XP rewards should reflect both the complexity of the quest and the difficulty of the task for the player character: a novice gains more XP from easy tasks than a more experienced character.
-- Post-combat gains should reflect the encounter's challenge to the player character.
+Award XP inline (+[X] XP — [reason]) for real consequences: new info, new threat/pressure/option, obstacle resolved, or quest/objective complete. Scale to stakes (discovery=small, quest=large); check every notable roll/event, defaulting to award when in doubt. Skill check XP scales with DC; combat XP scales with challenge to the character.
 
 LEVEL THRESHOLDS: 1–0 | 2–300 | 3–900 | 4–2,700 | 5–6,500 | 6–14,000 | 7–23,000 | 8–34,000 | 9–48,000 | 10–64,000, etc. Level cap is 20 per D&D.
 </xp_system>

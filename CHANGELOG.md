@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.2] - 2026-08-08
+
+### Changed
+- **XP system**: `<xp_system>` now awards for real consequences (info/threat/option/obstacle/quest), scales to stakes, defaults to award when in doubt, and ties skill-check XP to DC / combat XP to challenge.
+
 ## [7.0.1] - 2026-08-08
 
 ### Changed
