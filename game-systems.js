@@ -17,7 +17,7 @@ import { sendStateRequest, restoreUserMacro } from './llm-client.js';
 import { escapeHtml, memoForGmContext } from './memo-processor.js';
 import { renderMemoAsCards } from './renderer.js';
 import { refreshOrderList } from './ui-editors.js';
-import { QUESTS_NARRATOR, DEFAULT_STOCK_PROMPTS, resolveTimePromptKey, buildCyoaPrompt } from './constants.js';
+import { QUESTS_NARRATOR, DEFAULT_STOCK_PROMPTS, resolveTimePromptKey } from './constants.js';
 import { getSortableDelay } from '../../../utils.js';
 import { POPUP_RESULT } from '../../../popup.js';
 import { openManageGameCartridges } from './game-cartridges.js';
@@ -423,13 +423,8 @@ export function transformBaseSectionContent(tag, innerContent, settings) {
     }
 
     if (tag === 'CYOA_mode') {
-        const cfg = settings.cyoaConfig || {};
-        // Builder is source of truth unless the user explicitly opted into a custom CYOA prompt.
-        // (Older builds always wrote customPromptText on save, which blocked shipped CYOA refreshes.)
-        const promptText = (cfg.useCustomPrompt && cfg.customPromptText?.trim())
-            ? cfg.customPromptText.trim()
-            : buildCyoaPrompt(cfg);
-        return `<CYOA_mode>\n${promptText}\n</CYOA_mode>`;
+        // CYOA is injected by rpgTrackerInterceptor above the RNG queue (not Main).
+        return '';
     }
     if (tag === 'random_events' && !(settings.rngEnabled && settings.diceFunctionTool)) {
         innerContent = innerContent.replace(/\s*Batch both RollTheDice calls together;[^.]*\./g, '');

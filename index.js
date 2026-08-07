@@ -4415,6 +4415,8 @@ export function buildSysprompt(rawText) {
     const pieces = order.map(key => {
         const row = getSectionRowDescriptor(key, s, baseSectionMap);
         if (!row || !row.enabled) return '';
+        // CYOA is injected above the RNG queue by the generate interceptor — never into Main.
+        if (row.tag === 'CYOA_mode') return '';
         if (row.kind === 'base') {
             return transformBaseSectionContent(row.tag, row.content, s);
         }
@@ -5408,9 +5410,8 @@ function organizeConnectionSettingsUI() {
                                         const narratorConfigBlock = document.getElementById('rpg_narrator_config_block');
                                         if (narratorConfigBlock) narratorConfigBlock.style.display = '';
                                     }
-                                    // CYOA_mode is injected from cyoaConfig at apply-time; refresh shipped
-                                    // slots + clear sticky customPromptText so Main System Prompt updates
-                                    // actually replace the CYOA section.
+                                    // CYOA lives in cyoaConfig and is user-msg injected (not Main);
+                                    // refresh shipped slots + clear sticky customPromptText on sysprompt reset.
                                     if (!fresh.cyoaConfig) fresh.cyoaConfig = {};
                                     refreshCyoaConfigToShipped(fresh.cyoaConfig, { resetSlots: true });
                                     await autoApplySysprompt(true);

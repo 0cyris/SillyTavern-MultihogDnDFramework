@@ -20,7 +20,33 @@ import { logTransaction } from './debug-viewer.js';
 import { recordSchedulerEvent } from './swipe-scheduler-debug.js';
 import { saveSettings } from './src/app/runtime-bridge.js';
 import { isPercentFormula, resolveDiceCompare } from './src/state/dice-compare.js';
+import { buildCyoaModeBlock, CYOA_INJECT_EVERY_N } from './constants.js';
+import { isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 export { isPercentFormula, resolveDiceCompare };
+
+/**
+ * Count story assistant messages (exclude user + interceptor narrator splices).
+ * @param {object[]} chat
+ * @returns {number}
+ */
+function countStoryAssistantMessages(chat) {
+    if (!Array.isArray(chat)) return 0;
+    let n = 0;
+    for (const m of chat) {
+        if (!m || m.is_user) continue;
+        if (m.extra?.rpg_cyoa_inject) continue;
+        if (m.extra?.type === 'narrator') continue;
+        const role = String(m.role || '').toLowerCase();
+        if (role === 'user' || role === 'system' || role === 'human' || role === 'player') continue;
+        n++;
+    }
+    return n;
+}
+
+/** @param {object[]} chat */
+function shouldInjectCyoaThisTurn(chat) {
+    return countStoryAssistantMessages(chat) % CYOA_INJECT_EVERY_N === 0;
+}
 
 /** Resolve ST macros (e.g. {{user}}) in lore text at injection time — storage keeps macros verbatim. */
 function substituteLoreMacros(content) {
@@ -907,7 +933,8 @@ export function installInterceptor() {
         }
 
         const routerActive = !!settings.routerEnabled;
-        if (!settings.enabled && !routerActive) {
+        const cyoaActive = isEffectiveSectionEnabled('CYOA_mode', settings);
+        if (!settings.enabled && !routerActive && !cyoaActive) {
             if (settings.debugMode) console.groupEnd();
             return;
         }
@@ -988,74 +1015,88 @@ export function installInterceptor() {
             if (skipInjection) console.log("[RPG Tracker] Path 1 active: skipping user-message injection; keyword scan will still run.");
         }
 
-        // RNG, State Memo, and Quests are only injected into the user message in Path 2.
-        // In Path 1 (addPromptManagerInterceptor), these are built and injected by that interceptor
-        // into a dedicated system message at the configured depth, protecting the prefix cache.
-        if (!skipInjection && settings.enabled) {
-            // [PLAYER_CHARACTER] — always injected at the top of the core block
-            const curChatId = SillyTavern.getContext().chatId || globalThis._rpgCurrentChatId?.();
-            if (curChatId && settings.chatStates?.[curChatId]?.playerCharacter) {
-                const pc = settings.chatStates[curChatId].playerCharacter;
-                if (!content.includes("[PLAYER_CHARACTER]")) {
-                    injections += `[PLAYER_CHARACTER]\nName: ${pc.name}\n${pc.bio}\n[/PLAYER_CHARACTER]\n\n`;
-                    if (settings.debugMode) console.log("Player Character injected.");
+        // Core user-message injection: PC / relations / CYOA / RNG / memo / quests.
+        // CYOA can inject even when the State Tracker master toggle is off.
+        if (!skipInjection && (settings.enabled || cyoaActive)) {
+            if (settings.enabled) {
+                // [PLAYER_CHARACTER] — always injected at the top of the core block
+                const curChatId = SillyTavern.getContext().chatId || globalThis._rpgCurrentChatId?.();
+                if (curChatId && settings.chatStates?.[curChatId]?.playerCharacter) {
+                    const pc = settings.chatStates[curChatId].playerCharacter;
+                    if (!content.includes("[PLAYER_CHARACTER]")) {
+                        injections += `[PLAYER_CHARACTER]\nName: ${pc.name}\n${pc.bio}\n[/PLAYER_CHARACTER]\n\n`;
+                        if (settings.debugMode) console.log("Player Character injected.");
+                    }
                 }
+
+                // [NPC_RELATIONS] — injected first, before RNG queue, same mechanism as RNG.
+                const relBlock = await buildNpcRelationsBlock(settings);
+                if (relBlock) injections += relBlock;
             }
 
-        // [NPC_RELATIONS] — injected first, before RNG queue, same mechanism as RNG.
-            const relBlock = await buildNpcRelationsBlock(settings);
-            if (relBlock) injections += relBlock;
-
-            // Hybrid mode uses live tool calls outside combat and the queue only
-            // while [COMBAT] is active. Queue-only mode continues to inject it for
-            // every response, preserving its existing behavior.
-            const injectRngQueue = settings.rngEnabled
-                && (!settings.diceFunctionTool || isCombatActive(settings.currentMemo));
-            if (injectRngQueue) {
-                if (settings.rngQueueD20 && !content.includes(RNG_QUEUE_TAG_D20)) {
-                    const queue = makeRngQueue(RNG_QUEUE_LEN, false);
-                    injections += buildRngBlock(queue, false);
-                    if (settings.debugMode) console.log("RNG Queue (d20) generated for injection.");
+            // CYOA sits just above the RNG queue (near the bottom of the core block).
+            // Periodic: every CYOA_INJECT_EVERY_N generations (incl. first turn at count 0).
+            if (cyoaActive && shouldInjectCyoaThisTurn(chat) && !content.includes('<CYOA_mode>')) {
+                injections += `${buildCyoaModeBlock(settings.cyoaConfig || {})}\n\n`;
+                if (settings.debugMode) {
+                    console.log(`[RPG Tracker] CYOA injected above RNG (assistantCount=${countStoryAssistantMessages(chat)}, every ${CYOA_INJECT_EVERY_N}).`);
                 }
-                if (settings.rngQueueD100 && !content.includes(RNG_QUEUE_TAG_D100)) {
-                    const queue = makeRngQueue(30, true);
-                    injections += buildRngBlock(queue, true);
-                    if (settings.debugMode) console.log("RNG Queue (d100) generated for injection.");
-                }
+            } else if (settings.debugMode && cyoaActive) {
+                console.log(`[RPG Tracker] CYOA skipped this turn (assistantCount=${countStoryAssistantMessages(chat)}, every ${CYOA_INJECT_EVERY_N}).`);
             }
 
-            if (settings.currentMemo && !content.includes("### STATE MEMO (DO NOT REPEAT)")) {
-                const memoText = stripMemoHtml(memoForGmContext(settings.currentMemo)).trim();
-                injections += `### STATE MEMO (DO NOT REPEAT)\n${memoText}\n\n`;
-            }
-
-            // Quest deadline check — fires before state model pass, deterministically
-            if (settings.syspromptModules?.quests !== false) {
-                const memoQuests = parseQuestsFromMemo(settings.currentMemo);
-                if (memoQuests.length) {
-                    const { checkQuestDeadlines, renderQuestsAsPlainText } = await import('./quests.js');
-                    checkQuestDeadlines();
-
-                    // Inject active quests as plain text into narrative context
-                    const timeMatch = (settings.currentMemo || '').match(/\[TIME\]([\s\S]*?)\[\/TIME\]/i);
-                    const currentTime = timeMatch ? extractCurrentTimeStr(timeMatch[1]) : '';
-                    // Re-parse after checkQuestDeadlines may have mutated the memo
-                    const freshQuests = parseQuestsFromMemo(settings.currentMemo);
-                    const questText = renderQuestsAsPlainText(freshQuests, currentTime);
-                    if (questText) injections += questText;
+            if (settings.enabled) {
+                // Hybrid mode uses live tool calls outside combat and the queue only
+                // while [COMBAT] is active. Queue-only mode continues to inject it for
+                // every response, preserving its existing behavior.
+                const injectRngQueue = settings.rngEnabled
+                    && (!settings.diceFunctionTool || isCombatActive(settings.currentMemo));
+                if (injectRngQueue) {
+                    if (settings.rngQueueD20 && !content.includes(RNG_QUEUE_TAG_D20)) {
+                        const queue = makeRngQueue(RNG_QUEUE_LEN, false);
+                        injections += buildRngBlock(queue, false);
+                        if (settings.debugMode) console.log("RNG Queue (d20) generated for injection.");
+                    }
+                    if (settings.rngQueueD100 && !content.includes(RNG_QUEUE_TAG_D100)) {
+                        const queue = makeRngQueue(30, true);
+                        injections += buildRngBlock(queue, true);
+                        if (settings.debugMode) console.log("RNG Queue (d100) generated for injection.");
+                    }
                 }
-            }
 
-            // Once per chat: reinforce the status footer on the first user turn only
-            // (near the bottom of early context — system prompt alone is often ignored).
-            // Honors Control Room: disabled <end_of_output_footer> → no reminder.
-            if (shouldInjectEndOfOutputFooterReminder(chat, content)) {
-                const footerReminder = buildEndOfOutputFooterReminder(settings);
-                if (footerReminder) {
-                    injections += footerReminder;
-                    if (settings.debugMode) console.log('[RPG Tracker] End-of-output footer reminder injected (first user turn).');
-                } else if (settings.debugMode) {
-                    console.log('[RPG Tracker] End-of-output footer reminder skipped (disabled or empty format).');
+                if (settings.currentMemo && !content.includes("### STATE MEMO (DO NOT REPEAT)")) {
+                    const memoText = stripMemoHtml(memoForGmContext(settings.currentMemo)).trim();
+                    injections += `### STATE MEMO (DO NOT REPEAT)\n${memoText}\n\n`;
+                }
+
+                // Quest deadline check — fires before state model pass, deterministically
+                if (settings.syspromptModules?.quests !== false) {
+                    const memoQuests = parseQuestsFromMemo(settings.currentMemo);
+                    if (memoQuests.length) {
+                        const { checkQuestDeadlines, renderQuestsAsPlainText } = await import('./quests.js');
+                        checkQuestDeadlines();
+
+                        // Inject active quests as plain text into narrative context
+                        const timeMatch = (settings.currentMemo || '').match(/\[TIME\]([\s\S]*?)\[\/TIME\]/i);
+                        const currentTime = timeMatch ? extractCurrentTimeStr(timeMatch[1]) : '';
+                        // Re-parse after checkQuestDeadlines may have mutated the memo
+                        const freshQuests = parseQuestsFromMemo(settings.currentMemo);
+                        const questText = renderQuestsAsPlainText(freshQuests, currentTime);
+                        if (questText) injections += questText;
+                    }
+                }
+
+                // Once per chat: reinforce the status footer on the first user turn only
+                // (near the bottom of early context — system prompt alone is often ignored).
+                // Honors Control Room: disabled <end_of_output_footer> → no reminder.
+                if (shouldInjectEndOfOutputFooterReminder(chat, content)) {
+                    const footerReminder = buildEndOfOutputFooterReminder(settings);
+                    if (footerReminder) {
+                        injections += footerReminder;
+                        if (settings.debugMode) console.log('[RPG Tracker] End-of-output footer reminder injected (first user turn).');
+                    } else if (settings.debugMode) {
+                        console.log('[RPG Tracker] End-of-output footer reminder skipped (disabled or empty format).');
+                    }
                 }
             }
         }

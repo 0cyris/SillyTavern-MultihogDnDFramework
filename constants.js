@@ -952,6 +952,9 @@ If the player is clearly abusing the rules to get something like infinite XP or 
 
 // ── CYOA prompt builder ──────────────────────────────────────────────────────
 
+/** Inject CYOA instructions into the user-message core block every N generations. */
+export const CYOA_INJECT_EVERY_N = 3;
+
 export const DEFAULT_CYOA_SLOTS = [
     { type: 'narrative' },
     { type: 'narrative' },
@@ -959,6 +962,18 @@ export const DEFAULT_CYOA_SLOTS = [
     { type: 'narrative' },
     { type: 'narrative' },
 ];
+
+/**
+ * Full `<CYOA_mode>` block for user-message injection (custom text or live builder).
+ * @param {object} [config] settings.cyoaConfig
+ * @returns {string}
+ */
+export function buildCyoaModeBlock(config = {}) {
+    const promptText = (config.useCustomPrompt && config.customPromptText?.trim())
+        ? config.customPromptText.trim()
+        : buildCyoaPrompt(config);
+    return `<CYOA_mode>\n${promptText}\n</CYOA_mode>`;
+}
 
 /**
  * Builds the CYOA_mode inner prompt text from a cyoaConfig object.
