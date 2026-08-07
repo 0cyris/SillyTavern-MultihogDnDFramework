@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.32] - 2026-08-07
+
+### Changed
+- **CHARACTER module toggle**: `[CHARACTER]` can now be turned off in Modules & Order like other stock modules (UI checkbox, State Tracker schema injection, and character-creation active blocks all respect `modules.character`). Default remains on.
+
 ## [6.9.31] - 2026-08-07
 
 ### Changed

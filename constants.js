@@ -1164,10 +1164,6 @@ export function buildOnboardingActiveBlocks(settings) {
 
     for (const tag of BLOCK_ORDER) {
         if (tag === 'PARTY' || tag === 'QUESTS' || tag === 'COMBAT') continue;
-        if (tag === 'CHARACTER') {
-            blocks.push('CHARACTER');
-            continue;
-        }
         const key = tag.toLowerCase();
         if (mods[key]) blocks.push(tag);
     }

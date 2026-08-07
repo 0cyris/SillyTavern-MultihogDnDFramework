@@ -1615,14 +1615,7 @@ export function buildModulesInstructionText(settings) {
         if (key === 'time_24h' || key === 'time_ddmmyy' || key === 'time_ddmmyy_24h') continue;
 
         if (key === 'quests' && settings.syspromptModules?.quests === false) continue;
-        // [CHARACTER] is the one module the rest of the framework treats as
-        // structurally mandatory regardless of its toggle state (see
-        // buildOnboardingActiveBlocks, which always forces it into the active
-        // block list, and the HP-bar/card rendering, which always expects it).
-        // Never let its schema silently vanish from the system prompt — that
-        // leaves the model with zero format to derive [CHARACTER] from, causing
-        // it to free-form an inconsistent structure every single generation.
-        if (key === 'character' || settings.modules[key]) {
+        if (settings.modules[key]) {
             let p = prompt;
 
             // ── Dynamic prompt customization for Quests ──────────────────────

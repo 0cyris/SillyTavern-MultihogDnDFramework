@@ -66,7 +66,7 @@ describe('module instruction builders', () => {
         expect(buildLocInstruction()).toContain('Do NOT use NPC field headers');
     });
 
-    it('always emits the CHARACTER schema in the system prompt, even with every module disabled', async () => {
+    it('omits the CHARACTER schema when the CHARACTER module is disabled', async () => {
         const { buildModulesInstructionText } = await import('../memo-processor.js');
         const settings = {
             modules: {},
@@ -75,11 +75,22 @@ describe('module instruction builders', () => {
 
         const text = buildModulesInstructionText(settings);
 
-        expect(text).toContain('- [CHARACTER]:');
-        // Nothing else should sneak in when every other module is off.
+        expect(text).not.toContain('- [CHARACTER]:');
         expect(text).not.toContain('- [ABILITIES]:');
         expect(text).not.toContain('- [INVENTORY]:');
         expect(text).not.toContain('- [SPELLS]:');
+    });
+
+    it('emits the CHARACTER schema when the CHARACTER module is enabled', async () => {
+        const { buildModulesInstructionText } = await import('../memo-processor.js');
+        const settings = {
+            modules: { character: true },
+            stockPrompts: { ...DEFAULT_STOCK_PROMPTS },
+        };
+
+        const text = buildModulesInstructionText(settings);
+
+        expect(text).toContain('- [CHARACTER]:');
     });
 });
 

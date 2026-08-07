@@ -37,6 +37,12 @@ describe('Character Creator custom tracker modules', () => {
         })).not.toContain('COMBAT');
     });
 
+    it('includes CHARACTER only when the CHARACTER module is enabled', () => {
+        expect(buildOnboardingActiveBlocks({ modules: { character: true } })).toContain('CHARACTER');
+        expect(buildOnboardingActiveBlocks({ modules: {} })).not.toContain('CHARACTER');
+        expect(buildOnboardingActiveBlocks({ modules: { character: false, inventory: true } })).toEqual(['INVENTORY']);
+    });
+
     it('injects enabled custom module prompts and templates', () => {
         const text = buildOnboardingCustomModuleInstructions(settings);
 
