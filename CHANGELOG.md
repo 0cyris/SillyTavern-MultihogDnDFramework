@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.41] - 2026-08-07
+
+### Fixed
+- **Lookback Update**: explicit Last N messages (panel / `/statetracker lookback=N`) no longer ignored when “Since last user message” is enabled — that mode still applies to regular auto/manual updates only.
+
 ## [6.9.40] - 2026-08-07
 
 ### Fixed

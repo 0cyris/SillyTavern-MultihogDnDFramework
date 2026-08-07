@@ -2120,9 +2120,17 @@ async function runStateModelPass(narrativeOutput, isFullContext = false, overrid
                 chunks.push(currentChunk);
             }
         } else {
-            const sinceLastUser = settings.lookbackSinceLastUser !== false; // default true
+            // Explicit Lookback Update / slash lookback=N must win over the default
+            // "since last user message" mode (same priority pattern as Lorebook Agent).
+            const useFixedLookback = overrideLookback !== null
+                || settings.lookbackSinceLastUser === false;
             let startIdx;
-            if (sinceLastUser) {
+            if (useFixedLookback) {
+                const N = overrideLookback !== null
+                    ? overrideLookback
+                    : (settings.lookbackMessages !== undefined ? settings.lookbackMessages : 2);
+                startIdx = Math.max(0, chat.length - N);
+            } else {
                 // Walk backward to find the most recent user message, then include it
                 // and everything after it — this captures full turns even when tool calls
                 // produce multiple intermediate messages between user and final response.
@@ -2134,9 +2142,6 @@ async function runStateModelPass(narrativeOutput, isFullContext = false, overrid
                 if (startIdx === 0 && !chat[0]?.is_user) {
                     startIdx = Math.max(0, chat.length - 2);
                 }
-            } else {
-                const N = overrideLookback !== null ? overrideLookback : (settings.lookbackMessages !== undefined ? settings.lookbackMessages : 2);
-                startIdx = Math.max(0, chat.length - N);
             }
             const recentChat = chat.slice(startIdx);
             const chatLogLines = recentChat.map(m => {
