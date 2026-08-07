@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.34] - 2026-08-07
+
+### Fixed
+- **Location Scene Prompt**: Portrait Prompt Library save/load now includes the Location Scene Prompt (and the present-NPC toggle). Previously only NPC/PC and Character/Party/Combat prompts were persisted, so loading a saved setup left Location Scene unchanged/stale.
+- **Location Scene Prompt reset**: enabling Real-Time Visualization or toggling "Include Present NPCs" no longer force-overwrites a custom Location Scene Prompt — factory swap only happens when the current text is still a shipped default.
+
 ## [6.9.33] - 2026-08-07
 
 ### Changed

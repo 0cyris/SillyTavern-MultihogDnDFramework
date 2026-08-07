@@ -696,7 +696,8 @@ function applyLocationImageAutoMode(settings, { realTimeMode, lorebookLocations 
     if (realTimeMode !== undefined) {
         if (realTimeMode) {
             applyRealTimeModeBundle(settings);
-            syncPortraitLocationPromptForNpcToggle(settings, true, { force: true });
+            // Only auto-swap when still on a shipped default; keep custom Location Scene Prompts.
+            syncPortraitLocationPromptForNpcToggle(settings, true);
         } else {
             settings.portraitAutoGenerateSceneView = false;
             settings.portraitRegenerateVisitedLocations = false;
@@ -834,9 +835,10 @@ function setPortraitLocationPromptTextarea(text) {
 /**
  * When the present-NPC toggle changes, swap Location Scene Prompt to the matching factory default
  * if settings or the open textarea still match a shipped/legacy default.
+ * Custom Location Scene Prompts are never overwritten unless opts.force is set.
  * @param {object} settings
  * @param {boolean} includePresentNpcs
- * @param {{ force?: boolean }} [opts] force=true always overwrites (used by the toggle itself).
+ * @param {{ force?: boolean }} [opts] force=true always overwrites (avoid for normal UI toggles).
  */
 function syncPortraitLocationPromptForNpcToggle(settings, includePresentNpcs, opts = {}) {
     const fromSettings = settings.portraitLocationSystemPrompt || '';
@@ -3025,6 +3027,12 @@ function refreshPortraitPromptPresetsList() {
         nameSpan.addEventListener('click', () => {
             settings.portraitNpcSystemPrompt = preset.npcSystemPrompt || '';
             settings.portraitCharacterSystemPrompt = preset.characterSystemPrompt || '';
+            if (preset.locationSystemPrompt !== undefined) {
+                settings.portraitLocationSystemPrompt = preset.locationSystemPrompt || '';
+            }
+            if (preset.includePresentNpcs !== undefined) {
+                settings.portraitLocationIncludePresentNpcs = !!preset.includePresentNpcs;
+            }
             if (preset.wordTarget !== undefined) {
                 settings.portraitPromptWordTarget = preset.wordTarget;
             }
@@ -3032,9 +3040,16 @@ function refreshPortraitPromptPresetsList() {
 
             $('#rpg_portrait_npc_system_prompt').val(settings.portraitNpcSystemPrompt);
             $('#rpg_portrait_character_system_prompt').val(settings.portraitCharacterSystemPrompt);
+            if (preset.locationSystemPrompt !== undefined) {
+                setPortraitLocationPromptTextarea(settings.portraitLocationSystemPrompt);
+            }
+            if (preset.includePresentNpcs !== undefined) {
+                $('#rpg_portrait_location_include_present_npcs').prop('checked', !!settings.portraitLocationIncludePresentNpcs);
+            }
             if (preset.wordTarget !== undefined) {
                 $('#rpg_portrait_prompt_word_target').val(settings.portraitPromptWordTarget);
             }
+            syncLocationImageDependentUi(settings);
 
             toastr['success'](`Loaded portrait prompt setup: ${name}`, 'Portrait Prompt Library');
         });
@@ -6566,9 +6581,9 @@ function organizeConnectionSettingsUI() {
             }
             const enabled = !!$(this).prop('checked');
             s.portraitLocationIncludePresentNpcs = enabled;
-            // Always swap the Location Scene Prompt with the matching factory default —
-            // this toggle exists to change character-inclusion wording in that prompt.
-            syncPortraitLocationPromptForNpcToggle(s, enabled, { force: true });
+            // Swap only when the current text is still a shipped factory default —
+            // never overwrite a custom Location Scene Prompt.
+            syncPortraitLocationPromptForNpcToggle(s, enabled);
             saveSettings(true);
         });
         // Align any leftover legacy factory prompt with the current toggle on load.
@@ -6636,6 +6651,8 @@ function organizeConnectionSettingsUI() {
             settings.savedPortraitPromptPresets[trimmedName] = {
                 npcSystemPrompt: settings.portraitNpcSystemPrompt,
                 characterSystemPrompt: settings.portraitCharacterSystemPrompt,
+                locationSystemPrompt: settings.portraitLocationSystemPrompt,
+                includePresentNpcs: !!settings.portraitLocationIncludePresentNpcs,
                 wordTarget: settings.portraitPromptWordTarget,
             };
             saveSettings();
