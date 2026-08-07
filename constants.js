@@ -333,7 +333,8 @@ export function getResolvedTimePrompt(settings) {
 
 export const QUESTS_NARRATOR = `On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward.
 
-- Narrate objective completion; narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
+- Narrate objective completion (unless already marked OBJ_COMPLETED), i.e. *(Objective Completed/Failed: Rendezvous with Richard)*
+- Narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
 - Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene.
 - Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
@@ -431,7 +432,8 @@ Footer shows ONLY {{user}}'s HP/XP/level/location — never party/NPC status or 
 <quests>
 On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward.
 
-- Narrate objective completion; narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
+- Narrate objective completion (unless already marked OBJ_COMPLETED), i.e. *(Objective Completed/Failed: Rendezvous with Richard)*
+- Narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
 - Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene.
 - Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
@@ -731,7 +733,8 @@ Footer shows ONLY {{user}}'s HP/XP/level/location — never party/NPC status or 
 <quests>
 On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward.
 
-- Narrate objective completion; narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
+- Narrate objective completion (unless already marked OBJ_COMPLETED), i.e. *(Objective Completed/Failed: Rendezvous with Richard)*
+- Narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
 - Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene.
 - Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
