@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.3] - 2026-08-08
+
+### Changed
+- **RNG explanation**: rewritten RollTheDice vs RNG Queue flow (pros/cons), plus how CYOA/combat close queue foresight — in the Narrator Configuration help popup and `docs/multihogDnDdoc.md`.
+
 ## [7.0.2] - 2026-08-08
 
 ### Changed

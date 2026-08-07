@@ -218,26 +218,22 @@ The prompt is modular XML-style sections, including among others:
 
 ## Hybrid RNG
 
-Combines two types of RNG, automatically switched based on context. If [COMBAT] is present in the State Tracker, the system automatically switches to RNG Queue in both the system prompt and context injection. The RollTheDice tool is only registered outside of combat, and the RNG Queue is only injected in combat.
+Combines two types of RNG, automatically switched based on context. If `[COMBAT]` is present in the State Tracker, the system switches to the RNG Queue in both the system prompt and context injection. `RollTheDice` is only registered outside combat; the RNG Queue is only injected in combat.
 
-Hybrid RNG is ideal outside of CYOA mode because without CYOA mode, the GM can see the numbers in the RNG queue beforehand, giving it the ability, in theory, to fit the DC to a roll it sees coming. The tool call closes the door to this because it requires a pre-commit.
+### RollTheDice
 
-### Modes (Narrator Configuration → RNG)
+`RollTheDice` is called on-demand. It can inject into the context in the middle of an output. Well, not really — LLMs can't receive inputs mid-output. What happens is this:
 
-| Mode | Behavior |
-|------|----------|
-| **Pre-Seeded + Tool Calls** (Hybrid) | Out of combat: `RollTheDice` / `RollTheDiceD100` tools only. **In combat:** RNG Queue only; dice tools are unregistered for that context. |
-| **Pre-Seeded Only** | Queue injected every eligible turn; no dice tools. Default in code settings. Recommended with **CYOA**. |
-| **No RNG** | Neither queue nor tools. |
+1. The LLM starts outputting its normal narrative message.
+2. It realizes it needs a roll.
+3. It calls the tool and **stops** outputting.
+4. `RollTheDice` runs its code and produces a result, nudging the LLM to retry if it messed up the tool-call JSON.
+5. The LLM reads the result from the `RollTheDice` tool, sees a number and success or failure.
+6. The LLM continues narrating now with the roll result in its context.
 
-### RNG Queue
+**Pros:** The LLM can't know the numbers beforehand. Completely sycophancy-proof in every circumstance.
 
-- Built with cryptographically random values.
-- Typical d20 queue: multiple pre-rolled lines for common dice.
-- Optional d100 queue (percentage mode).
-- Injected into the user message when Pre-Seeded RNG applies (always in Pre-Seeded Only; in Hybrid, ONLY when combat is active).
-
-### Tool-call dice (commitment logic)
+**Cons:** Breaks the output into chunks; costs more because every interrupt re-sends the whole context/story (input tokens); can cause latency.
 
 Non-legacy tool schema requires the narrator to declare **who**, **formula**, and **dc** *before* seeing the result:
 
@@ -245,7 +241,39 @@ Non-legacy tool schema requires the narrator to declare **who**, **formula**, an
 - **Percentage odds:** `formula: "1d100"`, `compare: "lte"` (auto-inferred for pure d100 formulas) — hit if `total <= dc` (dc is a percentage).
 - **Global d100 Mode** still registers `RollTheDiceD100` as a dedicated roll-under tool for percentage-based rulesets.
 
-Legacy dice logic omits DC (vanilla-style SillyTavern tool provided by the devs). The narrator model must support **tool calling** for Hybrid / tool modes, and function calling must be enabled in the Chat Completion preset. Legacy dice are NOT recommended but can provide some utility in edge-cases.
+Legacy dice logic omits DC (vanilla-style SillyTavern tool). The narrator model must support **tool calling** for Hybrid / tool modes, and function calling must be enabled in the Chat Completion preset. Legacy dice are not recommended but can help in edge cases.
+
+### RNG Queue
+
+1. Numbers are pre-rolled with JavaScript. The LLM always sees numbers in context, prepended to the last user input.
+2. The LLM only has to pick numbers from the queue in order and “slot them in.”
+
+**Pros:** Any number of rolls within a single output; no breaks in output necessary; costs less.
+
+**Cons:** The LLM can **see** what number is coming up, potentially lowballing a skill-check DC so that you can pass — though this is in theory; it might not actually do that. It's just possible.
+
+Queue details:
+
+- Built with cryptographically random values.
+- Typical d20 queue: multiple pre-rolled lines for common dice.
+- Optional d100 queue (percentage mode).
+- Injected into the user message when Pre-Seeded RNG applies (always in Pre-Seeded Only; in Hybrid, **only** when combat is active).
+
+### CYOA Mode and combat close the foresight door
+
+**CYOA Mode** fixes the queue's foresight problem. It forces the LLM to commit to the numbers at the end of the **previous** output, in the choice — e.g. `Lockpicking DC 18`. That DC is locked in. When it sees the roll on the next turn, the DC is already decided.
+
+Same goes for **combat**, which works on a deterministic initiative/turn grid. That also prevents sycophancy.
+
+**RNG Queue only fails** in freeform/narrative situations **without** CYOA Mode — which is why it isn't recommended for that specifically. Hybrid RNG (tool calls out of combat, queue in combat) is the right pairing without CYOA.
+
+### Modes (Narrator Configuration → RNG)
+
+| Mode | Behavior |
+|------|----------|
+| **Pre-Seeded + Tool Calls** (Hybrid) | Out of combat: `RollTheDice` / `RollTheDiceD100` tools only. **In combat:** RNG Queue only; dice tools are unregistered for that context. Recommended **without** CYOA. |
+| **Pre-Seeded Only** | Queue injected every eligible turn; no dice tools. Default in code settings. Recommended **with CYOA**. |
+| **No RNG** | Neither queue nor tools. |
 
 ### Combat detection
 
