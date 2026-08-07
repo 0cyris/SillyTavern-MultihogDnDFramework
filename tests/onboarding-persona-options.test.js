@@ -56,6 +56,8 @@ describe('onboarding Player Card and ST persona options', () => {
         expect(html).toContain('Or head to the Discord, under the Extensions subforum:');
         expect(html).toContain('href="https://discord.gg/sillytavern"');
         expect(html).toContain('Hell, head there anyway!');
+        expect(html).toContain('Here\'s a video on how to get started for good measure:');
+        expect(html).toContain('href="https://www.youtube.com/watch?v=dKKFQqrH7qQ"');
     });
 
     it('places the Main prompt restoration note directly under How It Works', () => {
