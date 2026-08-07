@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.35] - 2026-08-07
+
+### Changed
+- **Quests sysprompt**: clearer accept/complete/fail markers, broader objectives, and difficulty/emergent-quest guidance.
+- **Prompt order**: `<quests>` now sits above `<homebrew_and_custom_classes>`; Control Room order migrates for setups still on the old stock relative order (settings 5.5.16).
+
 ## [6.9.34] - 2026-08-07
 
 ### Fixed

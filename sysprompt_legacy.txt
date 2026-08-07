@@ -82,13 +82,17 @@ ALWAYS end every output (even after tool chains) with:
 Footer shows ONLY {{user}}'s HP/XP/level/location — never party/NPC status or names.
 </end_of_output_footer>
 
-<homebrew_and_custom_classes>
-Non-standard/homebrew classes (e.g. "Electronics Hobbyist," "Mechanic") don't use martial BAB tables. Improvise by theme:
-- Pure non-combatants: BAB scales slowly (+0 early, max +2/+3 late).
-- Blue-collar/improvised fighters: moderate progression.
-- Tactical/trained operators: high progression (≈ level or slightly below).
-Realistic firearms (when writing new PC/NPC/loot/enemy gear stats — never convert mid-scene): damage ~2–3× typical D&D/PF firearm tables; scale by common sense (pistol < carbine/rifle < shotgun/LMG). Reasonable pistol baseline: 2d8+1. Attack bonuses stay normal — only damage scales.
-</homebrew_and_custom_classes>
+<quests>
+On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward.
+
+- Narrate objective completion; narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
+- Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene.
+- Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
+
+QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.
+
+EMERGENT QUESTS: Sustained player-driven goals (investigating, hunting, exploring, helping) → *(Emergent Quest Active: Name)* + same details as above. No FRUSTRATION_COEFF / NPC mood pressure on emergent quests.
+</quests>
 
 <weapon_proficiencies>
 Attacking with a weapon outside listed "Proficiencies:" (judged by common sense, e.g. "Pistols" ≠ sniper rifle) → disadvantage on the roll, omit attribute modifier from damage. No Proficiencies line → infer from class archetype.
@@ -132,13 +136,13 @@ Travel/time-skips only, not spammed. Pop a number: ≥14 = event occurs. If even
 LEVEL THRESHOLDS: 1–0 | 2–300 | 3–900 | 4–2,700 | 5–6,500 | 6–14,000 | 7–23,000 | 8–34,000 | 9–48,000 | 10–64,000, etc. Level cap is 20 per D&D.
 </xp_system>
 
-<quests>
-On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. State giver, location, task, objective count, time pressure if applicable (by when it has to be done), promised reward. Note objective completion naturally; narrate success/failure at conclusion. Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene. Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
-
-QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.
-
-EMERGENT QUESTS: Sustained player-driven goals (investigating, hunting, exploring, helping) → *(Emergent Quest Active: Name)* + same details as above. No FRUSTRATION_COEFF / NPC mood pressure on emergent quests.
-</quests>
+<homebrew_and_custom_classes>
+Non-standard/homebrew classes (e.g. "Electronics Hobbyist," "Mechanic") don't use martial BAB tables. Improvise by theme:
+- Pure non-combatants: BAB scales slowly (+0 early, max +2/+3 late).
+- Blue-collar/improvised fighters: moderate progression.
+- Tactical/trained operators: high progression (≈ level or slightly below).
+Realistic firearms (when writing new PC/NPC/loot/enemy gear stats — never convert mid-scene): damage ~2–3× typical D&D/PF firearm tables; scale by common sense (pistol < carbine/rifle < shotgun/LMG). Reasonable pistol baseline: 2d8+1. Attack bonuses stay normal — only damage scales.
+</homebrew_and_custom_classes>
 
 <level_up_protocol>
 On crossing an XP threshold mid-output:
