@@ -13,6 +13,7 @@ export function tokenizeLocationText(raw) {
     text = text
         .replace(/\s*::\s*/g, ' ')
         .replace(/[,/]/g, ' ')
+        .replace(/\s*[—–]\s*/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 

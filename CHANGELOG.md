@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [6.9.40] - 2026-08-07
+
+### Fixed
+- **Visualization Mode location resolve**: footer location text using em/en dashes (e.g. `Elderbough — Orra Venn's Workshop`) now tokenizes like `::` / commas, so hierarchical lore paths match instead of showing a duplicated unresolved label.
+
 ## [6.9.35] - 2026-08-07
 
 ### Changed
