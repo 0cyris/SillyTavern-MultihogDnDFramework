@@ -281,7 +281,8 @@ QUEST: The Missing Sheep
 - For emergent/self-imposed quests: set TYPE: emergent and use GIVER: Self @ —.
 - Omit FRUSTRATION_COEFF for emergent/self-imposed quests (no NPC expects completion).
 - Do not output the MOOD field — the engine calculates and injects it automatically.
-- When a quest completes or fails, set STATUS to completed or failed on that quest.`,
+- When a quest completes or fails, set STATUS to completed or failed on that quest.
+- When the player clearly completes an objective, mark it as OBJ_COMPLETED.`,
   time_24h: `Current time and day grabbed from the status footer. Also track time of the last rest (only on Long Rest, e.g. 'Last Rest: 22:00, Day 0'). Use this to track out-of-combat buff durations by comparing to the PRIOR MEMO's time.
 
 Format (24-hour clock, NO AM/PM):
