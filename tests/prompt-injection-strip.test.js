@@ -15,7 +15,11 @@ choices here
 1. d20=1
 [/RNG_QUEUE]
 
-### STATE MEMO (DO NOT REPEAT)
+<state_memo>
+TRACKER STATE 0 below is the authoritative, read-only resource state for this turn.
+</state_memo>
+
+## TRACKER STATE 0 (Current)
 HP: 10
 
 ### CURRENT USER INPUT

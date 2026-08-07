@@ -118,12 +118,13 @@ export function buildBundledPromptsSnapshot() {
             // interceptor-injected, so builder edits must be fingerprinted here.
             cyoaModeBlock: buildCyoaModeBlock({}),
             periodicContextInject: [
-                'revision: 2026-08-08-every-turn-strip-refresh',
+                'revision: 2026-08-08-state-memo-inject-preamble',
                 'everyTurn: true',
-                'order: narrative pacing tags → <CYOA_mode> → RNG queue',
-                'placement: user-message core (strip previous CYOA/pacing from older user turns; refresh current turn)',
-                'includes: <CYOA_mode> when CYOA enabled; active narrative pacing tags (high_agency_mode_on / output_length / slice_of_life_mode_on)',
+                'order: narrative pacing tags → <CYOA_mode> → RNG queue → <state_memo> preamble → ## TRACKER STATE 0 (Current)',
+                'placement: user-message core (strip previous CYOA/pacing/state_memo from older user turns; refresh current turn)',
+                'includes: <CYOA_mode> when CYOA enabled; active narrative pacing tags (high_agency_mode_on / output_length / slice_of_life_mode_on); STATE_MEMO_INJECT_PREAMBLE + TRACKER STATE 0 body',
                 'CYOA_mode is omitted from Quick Prompt Main (interceptor-only).',
+                'Main <state_memo> keeps original mechanical-law wording; inject preamble is separate.',
             ].join('\n'),
         },
         tracker: {

@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.1] - 2026-08-08
+
+### Changed
+- **State memo inject**: every-turn TRACKER STATE 0 injection now uses a short `<state_memo>` preamble (resource availability / spend guidance) plus `## TRACKER STATE 0 (Current)`, instead of `### STATE MEMO (DO NOT REPEAT)`. Main system prompt `<state_memo>` wording is unchanged.
+
 ## [7.0.0] - 2026-08-08
 
 ### Changed

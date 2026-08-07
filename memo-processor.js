@@ -1512,7 +1512,9 @@ export function stripPromptInjectionsFromUserText(text, opts = {}) {
     }
 
     if (!opts.keepMemo) {
+        raw = raw.replace(/<state_memo>[\s\S]*?<\/state_memo>[ \t]*\n?/gi, '');
         raw = raw.replace(/###\s*STATE MEMO[^]*?(?=\n\[RNG_QUEUE|\n###|\n\[(?!RNG_QUEUE)[A-Z]|<CYOA_mode>|<high_agency_mode_on>|<output_length>|<slice_of_life_mode_on>|$)/i, '');
+        raw = raw.replace(/##\s*TRACKER STATE 0[^\n]*\n?/gi, '');
     }
     if (!opts.keepRng) {
         raw = raw.replace(/\[RNG_QUEUE(?:_d100)?\s[^\]]*\][\s\S]*?\[\/RNG_QUEUE(?:_d100)?\][ \t]*\n?/gi, '');

@@ -959,6 +959,11 @@ If the player is clearly abusing the rules to get something like infinite XP or 
  */
 export const CONTEXT_INJECT_EVERY_TURN = true;
 
+/** Preamble injected immediately above TRACKER STATE 0 in the user-message core. */
+export const STATE_MEMO_INJECT_PREAMBLE = `<state_memo>
+TRACKER STATE 0 below is the authoritative, read-only resource state for this turn — covering the player, party, NPCs, and enemies alike. Check current slots/uses/charges here before narrating any expenditure; anyone can only act on what shows as available. Resources exist to be used when they matter — don't have casters/abilities sit unused defensively without narrative reason.
+</state_memo>`;
+
 export const DEFAULT_CYOA_SLOTS = [
     { type: 'narrative' },
     { type: 'narrative' },

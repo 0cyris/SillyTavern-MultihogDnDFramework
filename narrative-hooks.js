@@ -20,7 +20,7 @@ import { logTransaction } from './debug-viewer.js';
 import { recordSchedulerEvent } from './swipe-scheduler-debug.js';
 import { saveSettings } from './src/app/runtime-bridge.js';
 import { isPercentFormula, resolveDiceCompare } from './src/state/dice-compare.js';
-import { buildCyoaModeBlock } from './constants.js';
+import { buildCyoaModeBlock, STATE_MEMO_INJECT_PREAMBLE } from './constants.js';
 import { isEffectiveSectionEnabled } from './src/state/section-enabled.js';
 import { buildNarrativeModeTags, hasInjectableNarrativePacing } from './src/state/narrative-pacing.js';
 export { isPercentFormula, resolveDiceCompare };
@@ -1089,7 +1089,7 @@ export function installInterceptor() {
 
                 if (settings.currentMemo) {
                     const memoText = stripMemoHtml(memoForGmContext(settings.currentMemo)).trim();
-                    injections += `### STATE MEMO (DO NOT REPEAT)\n${memoText}\n\n`;
+                    injections += `${STATE_MEMO_INJECT_PREAMBLE}\n\n## TRACKER STATE 0 (Current)\n${memoText}\n\n`;
                 }
 
                 // Quest deadline check — fires before state model pass, deterministically
