@@ -677,13 +677,92 @@ function getSettingsInternal(extensionSettings) {
 
     enforceRealtimeVisualizationDisabled(s);
 
-    // Ensure new lorebook agent prompt templates are initialized for existing users.
-    // getSettings() already merges defaults, but explicit writes ensure the values
-    // are persisted in storage so they show up in the UI textareas immediately.
-    if (!s.routerBasicSystemPromptTemplate) {
+    // ── MIGRATION: Auto-expand and upgrade all macro tokens in prompt templates ──────
+    const fullExampleText = `Example:
+Thought: I see a new NPC named Barnaby in Khelt's Rust-Lantern District. I will record him and the tavern.
+[[NPC: Barnaby | [CORE]
+Species: Human.
+Body: A burly man with a scar on his cheek.
+Equipment: Leather apron, heavy gloves, a hammer at his belt.
+Personality: Gruff but reliable.
+Brief Background: Retired from the militia to open his own forge.
+Habits/Behaviors: Wipes his brow with a greasy rag.
+Strengths: Skilled blacksmithing.
+Flaws: Can be overly suspicious.
+[/CORE] | Barnaby, blacksmith, ally]]
+[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]
+A squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.
+[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]
+[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]
+
+(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`;
+
+    const formatLines = `- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC
+- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path
+- [[FAC: Name | Status | Description | keywords]] — Faction or organization
+- [[EVENT: Name | Content | keywords]] — Significant event or plot beat
+- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept
+- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget
+- [[ACTIVATE: Name]] — Bring archived entity into active memory
+- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field
+- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance
+- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment`;
+
+    const sections = `Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws`;
+    const pcGuidance = `- You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
+- You may update the Player Character's own Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new equipment text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
+- Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
+- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.`;
+    const existingNpc = `\n- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
+    const fieldInst = `- NPC: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws
+- LOC: Hierarchical Path, Description
+- FAC: Name, Status, Description
+- EVENT: Name, Content
+- CONCEPT: Name, Content`;
+
+    const expandTemplateMacros = (tmpl) => {
+        if (!tmpl || typeof tmpl !== 'string') return tmpl;
+        let res = tmpl
+            .replace(/\{\{formatLines\}\}/g, formatLines)
+            .replace(/\{\{example\}\}/g, fullExampleText)
+            .replace(/\{\{maxActivations\}\}/g, String(s.routerMaxActivations || 15))
+            .replace(/\{\{sectionNames\}\}/g, sections)
+            .replace(/\{\{eligibleCoreFields\}\}/g, sections)
+            .replace(/\{\{autoPassRestriction\}\}/g, '')
+            .replace(/\{\{existingNpcNudge\}\}/g, existingNpc)
+            .replace(/\{\{pcAppearanceGuidance\}\}/g, pcGuidance)
+            .replace(/\{\{combatProfileGuidance\}\}/g, '')
+            .replace(/\{\{fieldInstructions\}\}/g, fieldInst)
+            .replace(/\{\{campaignRoot\}\}/g, 'World Archive')
+            .replace(/\{\{campaignNpcBook\}\}/g, 'NPCs')
+            .replace(/\{\{campaignLocBook\}\}/g, 'Locations')
+            .replace(/\{\{relSection\}\}/g, '')
+            .replace(/\{\{modularPrompt\}\}/g, '');
+
+        if (res.includes('Example:\nThought: I see a new NPC named Barnaby') && !res.includes('Barnaby\'s Forge')) {
+            res = res.replace(/Example:\s*Thought: I see a new NPC named Barnaby[\s\S]*?\[\/CORE\]\s*\|\s*Barnaby,\s*blacksmith,\s*ally\]\]/i, fullExampleText);
+        }
+
+        return res;
+    };
+
+    if (s.routerBasicSystemPromptTemplate) {
+        s.routerBasicSystemPromptTemplate = expandTemplateMacros(s.routerBasicSystemPromptTemplate);
+    } else {
         s.routerBasicSystemPromptTemplate = defaults.routerBasicSystemPromptTemplate;
     }
-    if (!s.routerAgentSharedContextTemplate) {
+
+    if (s.routerSystemPromptTemplate) {
+        s.routerSystemPromptTemplate = expandTemplateMacros(s.routerSystemPromptTemplate);
+    }
+
+    if (s.routerModularPromptTemplate) {
+        s.routerModularPromptTemplate = expandTemplateMacros(s.routerModularPromptTemplate);
+    }
+
+    if (s.routerAgentSharedContextTemplate) {
+        s.routerAgentSharedContextTemplate = expandTemplateMacros(s.routerAgentSharedContextTemplate);
+    } else {
         s.routerAgentSharedContextTemplate = defaults.routerAgentSharedContextTemplate;
     }
 

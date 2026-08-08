@@ -1167,7 +1167,13 @@ Brief Background: Retired from the militia to open his own forge.
 Habits/Behaviors: Wipes his brow with a greasy rag.
 Strengths: Skilled blacksmithing.
 Flaws: Can be overly suspicious.
-[/CORE] | Barnaby, blacksmith, ally]]`,
+[/CORE] | Barnaby, blacksmith, ally]]
+[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]
+A squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.
+[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]
+[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]
+
+(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`,
 
         // ── Agent Mode shared context template ────────────────────────────────
         // The complete context appended to the agent instructions in Agent Mode.
