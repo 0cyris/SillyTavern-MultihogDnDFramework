@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { buildDefaultSettings, FACTORY_SETTINGS_VERSION } from '../src/state/defaults.js';
+import {
+    buildDefaultSettings,
+    compactLorebookPromptTemplate,
+    FACTORY_SETTINGS_VERSION,
+} from '../src/state/defaults.js';
 import {
     expandLorebookPromptTemplate,
     resetLorebookPromptTemplates,
@@ -12,6 +16,21 @@ describe('Lorebook prompt templates', () => {
     beforeEach(() => {
         for (const key of Object.keys(testExtensionSettings)) {
             delete testExtensionSettings[key];
+        }
+    });
+
+    it('removes empty spacer lines from every shipped Lorebook prompt', () => {
+        const defaults = buildDefaultSettings();
+        const prompts = [
+            defaults.routerBasicSystemPromptTemplate,
+            defaults.routerSystemPromptTemplate,
+            defaults.routerModularPromptTemplate,
+            defaults.routerAgentSharedContextTemplate,
+        ];
+
+        for (const prompt of prompts) {
+            expect(prompt).not.toMatch(/\n[ \t]*\n/);
+            expect(prompt).toBe(compactLorebookPromptTemplate(prompt));
         }
     });
 
@@ -144,6 +163,7 @@ describe('Lorebook prompt templates', () => {
         expect(agent).toContain('Campaign Root: "Shadowfell"');
         expect(agent).toContain('- CLUE: custom instruction');
         for (const prompt of [basic, agent]) {
+            expect(prompt).not.toMatch(/\n[ \t]*\n/);
             expect(prompt.match(/\{\{(?!user\b|char\b)[a-zA-Z0-9_]+\}\}/g)).toBeNull();
         }
     });

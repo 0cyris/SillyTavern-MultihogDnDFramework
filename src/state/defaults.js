@@ -8,6 +8,23 @@ import { DEFAULT_MODULES } from './default-modules.js';
 import { getDefaultPortraitLocationSystemPrompt } from './portrait-prompts.js';
 
 /**
+ * Keep shipped Lorebook prompts compact. Empty spacer lines add no meaning,
+ * waste editor space/tokens, and made the exposed prompt fields difficult to scan.
+ * User-owned prompt text is never passed through this helper.
+ * @param {string} template
+ * @returns {string}
+ */
+export function compactLorebookPromptTemplate(template) {
+    return String(template || '')
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(line => line.trimEnd())
+        .filter(line => line.trim().length > 0)
+        .join('\n')
+        .trim();
+}
+
+/**
 
  * Builds a fresh copy of every settings default. Extracted from getSettings()
 
@@ -826,7 +843,7 @@ Generate exactly {factionCount} factions, {locationCount} locations, {npcCount} 
 - Maximum two sentences per entity. Output only the structured content.`,
 
 
-        routerSystemPromptTemplate: `<basic_instructions>
+        routerSystemPromptTemplate: compactLorebookPromptTemplate(`<basic_instructions>
 
 You are the Researcher Agent, a specialized Dungeon Master's Assistant. Your role is to architect the AI Narrator's memory — keeping the Active Context saturated with the most relevant lore at all times.
 
@@ -1002,9 +1019,9 @@ Example: "[Day 1, 11:52] Character signed the contract with Brodrik."
 
 Don't be afraid to hit the budget exactly. It's better to lean towards activating too much than too little.
 
-</bravery>`,
+</bravery>`),
 
-        routerModularPromptTemplate: `## FORMAT
+        routerModularPromptTemplate: compactLorebookPromptTemplate(`## FORMAT
 
 Use these tags in your response:
 
@@ -1046,12 +1063,12 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 
 **FAC [CORE]:** Wrap history, ideology, schemes, and members inside a plain \`[CORE] … [/CORE]\` block in the **Description** field.
 
-**FAC** uses four fields: \`Name | Status | Description | Keywords\`. Put a concise current-state line in **Status** (standing, conflicts, recent changes); put history, ideology, schemes, and members in **Description** (wrapped in \`[CORE] ... [/CORE]\`).`,
+**FAC** uses four fields: \`Name | Status | Description | Keywords\`. Put a concise current-state line in **Status** (standing, conflicts, recent changes); put history, ideology, schemes, and members in **Description** (wrapped in \`[CORE] ... [/CORE]\`).`),
 
         // ── Basic Mode system prompt template ─────────────────────────────────
         // Editable Basic Mode base template. {{modularPrompt}} is expanded from
         // routerModularPromptTemplate for each request without mutating either source.
-        routerBasicSystemPromptTemplate: `You are the Research Assistant. Your task is to identify and record important narrative entities and events.
+        routerBasicSystemPromptTemplate: compactLorebookPromptTemplate(`You are the Research Assistant. Your task is to identify and record important narrative entities and events.
 
 {{modularPrompt}}
 
@@ -1109,11 +1126,11 @@ Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anyt
 6. CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below ({{sectionNames}}) for NPCs and ignore any other sections.
 7. Output your thoughts first, then the tags.
 
-{{example}}`,
+{{example}}`),
 
         // ── Agent Mode shared context template ────────────────────────────────
         // The complete context appended to the agent instructions in Agent Mode.
-        routerAgentSharedContextTemplate: `
+        routerAgentSharedContextTemplate: compactLorebookPromptTemplate(`
 ## MEMORY LIMIT
 Maximum Active Entities: **{{maxActivations}}**.
 - Entries you record are ACTIVATED AUTOMATICALLY. Do NOT also include them in activate.
@@ -1167,7 +1184,7 @@ Include the entity name/title itself (without timestamps like "[Day 1]") as a ke
 - CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below for NPCs and ignore any other sections.
 
 ## FIELD INSTRUCTIONS
-{{fieldInstructions}}`,
+{{fieldInstructions}}`),
 
         categoryRenderOptions: {},
 

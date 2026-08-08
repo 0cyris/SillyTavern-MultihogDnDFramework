@@ -1049,9 +1049,9 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
             modularPrompt = modularPrompt.replace(/\{\{#if_world\}\}[\s\S]*?\{\{\/if_world\}\}/g, '');
             modularPrompt = modularPrompt.replace(/\{\{#if_world\}\}|\{\{\/if_world\}\}|\{\{dayStr\}\}|\{\{prevDay\}\}/g, '');
 
-            const relSection = settings.npcRelationshipBars ? `
-${buildRouterRelationshipInstruction(getNpcRelationshipMax(settings))}
-` : '';
+            const relSection = settings.npcRelationshipBars
+                ? buildRouterRelationshipInstruction(getNpcRelationshipMax(settings)).trim()
+                : '';
 
             // coreSections and sectionNamesList are defined above
             // Build the example [CORE] lines dynamically from configured sections
@@ -1103,7 +1103,7 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
                         eligibleCoreFields: eligibleCoreFieldsList,
                         autoPassRestriction: autoPassCoreRestriction,
                         existingNpcNudge: existingNpcChronicleNudge,
-                        combatProfileGuidance: combatProfileGuidanceBasic,
+                        combatProfileGuidance: combatProfileGuidanceBasic.trim(),
                         example: exampleBlock,
                     },
                 ),
@@ -1349,7 +1349,7 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             // routerAgentSharedContextTemplate (see defaults.js).
             const agentRawTemplate = settings.routerAgentSharedContextTemplate || '';
             const agentRelSection = settings.npcRelationshipBars
-                ? `\n${buildNpcRelationshipInstruction(getNpcRelationshipMax(settings))}\n`
+                ? buildNpcRelationshipInstruction(getNpcRelationshipMax(settings)).trim()
                 : '';
             const maxActNumAgent = settings.routerMaxActivations || 8;
             const sharedContext = adjustPromptTimestamps(
@@ -1367,7 +1367,7 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
                         campaignNpcBook: prefix ? `${prefix}_NPCs` : 'NPCs',
                         campaignLocBook: prefix ? `${prefix}_Locations` : 'Locations',
                         fieldInstructions: fieldInstructionLines,
-                        combatProfileGuidance: combatProfileGuidanceAgent,
+                        combatProfileGuidance: combatProfileGuidanceAgent.trim(),
                         relSection: agentRelSection,
                     },
                 ),
