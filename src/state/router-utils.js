@@ -307,10 +307,10 @@ export function adjustPromptTimestamps(prompt, settings) {
                 .replace(/Day N/g, 'DD/MM/YYYY')
                 .replace(/Day X/g, 'DD/MM/YYYY')
                 .replace(/Day 0/g, '31/12/2025')
-                .replace(/14:00/g, '02:00 PM')
-                .replace(/22:00/g, '10:00 PM')
-                .replace(/10:42/g, '10:42 AM')
-                .replace(/10:44/g, '10:44 AM')
+                .replace(/14:00(?!\s*(?:AM|PM)\b)/g, '02:00 PM')
+                .replace(/22:00(?!\s*(?:AM|PM)\b)/g, '10:00 PM')
+                .replace(/10:42(?!\s*(?:AM|PM)\b)/g, '10:42 AM')
+                .replace(/10:44(?!\s*(?:AM|PM)\b)/g, '10:44 AM')
                 .replace(/HH:MM/g, 'HH:MM AM/PM')
                 .replace(/HH:MM AM\/PM/g, 'HH:MM AM/PM');
         }
@@ -337,10 +337,10 @@ export function adjustPromptTimestamps(prompt, settings) {
                 .replace(/0([1-9])\/01\/2026/g, 'Day $1')
                 .replace(/DD\/MM\/YYYY/g, 'Day N')
                 .replace(/31\/12\/2025/g, 'Day 0')
-                .replace(/14:00/g, '02:00 PM')
-                .replace(/22:00/g, '10:00 PM')
-                .replace(/10:42/g, '10:42 AM')
-                .replace(/10:44/g, '10:44 AM')
+                .replace(/14:00(?!\s*(?:AM|PM)\b)/g, '02:00 PM')
+                .replace(/22:00(?!\s*(?:AM|PM)\b)/g, '10:00 PM')
+                .replace(/10:42(?!\s*(?:AM|PM)\b)/g, '10:42 AM')
+                .replace(/10:44(?!\s*(?:AM|PM)\b)/g, '10:44 AM')
                 .replace(/HH:MM/g, 'HH:MM AM/PM')
                 .replace(/HH:MM AM\/PM/g, 'HH:MM AM/PM');
         }

@@ -6,6 +6,7 @@ import { DEFAULT_STOCK_PROMPTS } from '../../constants.js';
 import { MODULE_NAME } from './schema-sections.js';
 import { DEFAULT_MODULES } from './default-modules.js';
 import { getDefaultPortraitLocationSystemPrompt } from './portrait-prompts.js';
+import { adjustPromptTimestamps } from './router-utils.js';
 
 /**
  * Keep shipped Lorebook prompts compact. Empty spacer lines add no meaning,
@@ -22,6 +23,20 @@ export function compactLorebookPromptTemplate(template) {
         .filter(line => line.trim().length > 0)
         .join('\n')
         .trim();
+}
+
+/**
+ * Build the exact canonical form presented by the prompt-upgrade dialog.
+ * Resets must copy this same representation or accepting an update can leave
+ * the stored prompt different from the acknowledged bundled snapshot.
+ * @param {string} template
+ * @returns {string}
+ */
+export function prepareShippedLorebookPromptTemplate(template) {
+    return adjustPromptTimestamps(compactLorebookPromptTemplate(template), {
+        useDdMmYyFormat: false,
+        use24hTime: false,
+    }).replace(/Day X/g, 'Day N');
 }
 
 /**
@@ -843,13 +858,13 @@ Generate exactly {factionCount} factions, {locationCount} locations, {npcCount} 
 - Maximum two sentences per entity. Output only the structured content.`,
 
 
-        routerSystemPromptTemplate: compactLorebookPromptTemplate(`<basic_instructions>
+        routerSystemPromptTemplate: prepareShippedLorebookPromptTemplate(`<basic_instructions>
 
 You are the Researcher Agent, a specialized Dungeon Master's Assistant. Your role is to architect the AI Narrator's memory — keeping the Active Context saturated with the most relevant lore at all times.
 
 
 
-You have the authority to browse the campaign's archive, search for relevant history, and update {{campaignRoot}} to reflect new developments.
+You have the authority to browse the campaign archive, search for relevant history, and update {{campaignRoot}} to reflect new developments.
 
 
 
@@ -1021,7 +1036,7 @@ Don't be afraid to hit the budget exactly. It's better to lean towards activatin
 
 </bravery>`),
 
-        routerModularPromptTemplate: compactLorebookPromptTemplate(`## FORMAT
+        routerModularPromptTemplate: prepareShippedLorebookPromptTemplate(`## FORMAT
 
 Use these tags in your response:
 
@@ -1068,7 +1083,7 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
         // ── Basic Mode system prompt template ─────────────────────────────────
         // Editable Basic Mode base template. {{modularPrompt}} is expanded from
         // routerModularPromptTemplate for each request without mutating either source.
-        routerBasicSystemPromptTemplate: compactLorebookPromptTemplate(`You are the Research Assistant. Your task is to identify and record important narrative entities and events.
+        routerBasicSystemPromptTemplate: prepareShippedLorebookPromptTemplate(`You are the Research Assistant. Your task is to identify and record important narrative entities and events.
 
 {{modularPrompt}}
 
@@ -1130,12 +1145,12 @@ Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anyt
 
         // ── Agent Mode shared context template ────────────────────────────────
         // The complete context appended to the agent instructions in Agent Mode.
-        routerAgentSharedContextTemplate: compactLorebookPromptTemplate(`
+        routerAgentSharedContextTemplate: prepareShippedLorebookPromptTemplate(`
 ## MEMORY LIMIT
 Maximum Active Entities: **{{maxActivations}}**.
 - Entries you record are ACTIVATED AUTOMATICALLY. Do NOT also include them in activate.
 - Nothing is archived automatically. If you exceed the limit you will receive a **BUDGET VIOLATION** in the context and you MUST deactivate enough entries in that same commit call to return within budget. Choose the narratively least relevant entries.
-- Entries whose keywords appeared in the latest narrator output may already appear under **NEWLY ACTIVATED THIS TURN** with full content — you do not need to activate those again.
+- Entries whose keywords appeared in the latest Narrator output may already appear under **NEWLY ACTIVATED THIS TURN** with full content — you do not need to activate those again.
 - Always use exact Book::UID format (e.g. "Eldoria_NPCs::0") for activate/update/deactivate/delete_ids.
 
 {{relSection}}

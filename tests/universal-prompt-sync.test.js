@@ -3,7 +3,9 @@ import {
     buildDefaultSettings,
     compactLorebookPromptTemplate,
     FACTORY_SETTINGS_VERSION,
+    prepareShippedLorebookPromptTemplate,
 } from '../src/state/defaults.js';
+import { buildBundledPromptsSnapshot } from '../src/state/factory-and-diff.js';
 import {
     expandLorebookPromptTemplate,
     resetLorebookPromptTemplates,
@@ -31,7 +33,9 @@ describe('Lorebook prompt templates', () => {
         for (const prompt of prompts) {
             expect(prompt).not.toMatch(/\n[ \t]*\n/);
             expect(prompt).toBe(compactLorebookPromptTemplate(prompt));
+            expect(prompt).toBe(prepareShippedLorebookPromptTemplate(prompt));
         }
+        expect(defaults.routerSystemPromptTemplate).toContain('[Day N, HH:MM AM/PM]');
     });
 
     it('keeps user prompt and module edits intact during normal settings reads', () => {
@@ -108,6 +112,23 @@ describe('Lorebook prompt templates', () => {
         expect(settings.routerModularPromptTemplate).toBe(defaults.routerModularPromptTemplate);
         expect(settings.routerAgentSharedContextTemplate).toBe(defaults.routerAgentSharedContextTemplate);
         expect(settings.unrelatedSetting).toBe('keep me');
+    });
+
+    it('applies the exact Lorebook defaults acknowledged by the update dialog', () => {
+        const settings = {
+            routerBasicSystemPromptTemplate: 'old basic',
+            routerSystemPromptTemplate: 'old agent base',
+            routerModularPromptTemplate: 'old modular',
+            routerAgentSharedContextTemplate: 'old shared context',
+        };
+
+        resetLorebookPromptTemplates(settings, 'all');
+        const acknowledged = buildBundledPromptsSnapshot().lorebook;
+
+        expect(settings.routerBasicSystemPromptTemplate).toBe(acknowledged.routerBasicSystemPromptTemplate);
+        expect(settings.routerSystemPromptTemplate).toBe(acknowledged.routerSystemPromptTemplate);
+        expect(settings.routerModularPromptTemplate).toBe(acknowledged.routerModularPromptTemplate);
+        expect(settings.routerAgentSharedContextTemplate).toBe(acknowledged.routerAgentSharedContextTemplate);
     });
 
     it('expands request-time values without mutating stored text or consuming ST macros', () => {

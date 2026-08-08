@@ -173,4 +173,12 @@ describe('shipped prompt fingerprint', () => {
         expect(adjustPromptTimestamps(legacy, { useDdMmYyFormat: false, use24hTime: true }))
             .toBe('Current Time: HH:MM, Day N');
     });
+
+    it('does not append a second meridiem when normalizing concrete example times', () => {
+        const canonical = 'Examples: 10:42 AM, 10:44 AM, and HH:MM AM/PM.';
+        const format = { useDdMmYyFormat: false, use24hTime: false };
+
+        expect(adjustPromptTimestamps(adjustPromptTimestamps(canonical, format), format))
+            .toBe(canonical);
+    });
 });

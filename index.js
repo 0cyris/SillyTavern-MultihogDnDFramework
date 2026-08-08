@@ -5113,27 +5113,28 @@ function organizeConnectionSettingsUI() {
                 target.lastSeenPromptDefaultsSnapshot = currentSnapshot;
             };
 
+            const acknowledgePromptDefaults = async (target) => {
+                persistPromptDefaultsAck(target);
+                // This acknowledgement controls whether the dialog reappears on
+                // the next load, so persist it immediately instead of relying on
+                // the host's debounced settings save.
+                await saveSettings(true);
+            };
+
             if (!settings.lastResetVersion) {
                 // Fresh install — record version and defaults fingerprint silently.
-                persistPromptDefaultsAck(settings);
-                saveSettings();
+                void acknowledgePromptDefaults(settings);
             } else if (!storedFingerprint) {
                 // Existing install before fingerprint tracking — adopt current defaults without prompting.
-                persistPromptDefaultsAck(settings);
-                saveSettings();
+                void acknowledgePromptDefaults(settings);
             } else if (storedFingerprint === currentFingerprint
                 && settings.lastSeenPromptDefaultsFingerprint !== currentFingerprint) {
                 // Pre-format-neutral snapshots can contain user-selected calendar/clock
                 // examples. They represent the same shipped defaults, so upgrade the
                 // acknowledgement silently instead of showing a false update prompt.
-                persistPromptDefaultsAck(settings);
-                saveSettings();
+                void acknowledgePromptDefaults(settings);
             } else if (storedFingerprint !== currentFingerprint) {
                 syncPromptDefaultsUpgradeButton();
-                const acknowledgePromptDefaults = (fresh) => {
-                    persistPromptDefaultsAck(fresh);
-                    saveSettings();
-                };
 
                 if (settings.autoResetPromptsOnUpdate) {
                     // Silently reset everything automatically
@@ -5218,7 +5219,7 @@ function organizeConnectionSettingsUI() {
                             $wpSkelPromptEl.val(sTemp.worldProgressionSkeletonSystemPrompt).trigger('input');
                         }
 
-                        acknowledgePromptDefaults(fresh);
+                        await acknowledgePromptDefaults(fresh);
                         toastr['info'](`Prompts auto-updated to latest defaults (v${currentVersion}).`, 'RPG Tracker');
                         console.log(`[RPG Tracker] Automatically reset all prompts/sections to defaults for version ${currentVersion}.`);
                     })();
@@ -5506,7 +5507,7 @@ function organizeConnectionSettingsUI() {
                                     console.log('[RPG Tracker] World progression prompts reset to defaults.');
                                 }
 
-                                acknowledgePromptDefaults(fresh);
+                                await acknowledgePromptDefaults(fresh);
                                 syncPromptDefaultsUpgradeButton();
 
                                 if (resetCount > 0) {
@@ -5515,7 +5516,7 @@ function organizeConnectionSettingsUI() {
                                     toastr['info']('No prompts were selected for reset.', 'RPG Tracker');
                                 }
                             } else {
-                                acknowledgePromptDefaults(fresh);
+                                await acknowledgePromptDefaults(fresh);
                                 syncPromptDefaultsUpgradeButton();
                                 toastr['info']('Kept custom — no prompts were changed.', 'RPG Tracker');
                             }
@@ -5523,13 +5524,13 @@ function organizeConnectionSettingsUI() {
                         };
                         void _runPromptDefaultsDialog();
                     } else {
-                        acknowledgePromptDefaults(getSettings());
+                        void acknowledgePromptDefaults(getSettings());
                     }
                 }
             } else if (settings.lastResetVersion !== currentVersion) {
                 // Version-only bump — bundled defaults unchanged, no prompt dialog.
                 settings.lastResetVersion = currentVersion;
-                saveSettings();
+                void saveSettings(true);
             }
         }
 
