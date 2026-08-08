@@ -336,7 +336,7 @@ export const QUESTS_NARRATOR = `On unambiguous acceptance: narrate clearly, end 
 
 - Narrate objective completion (unless already marked OBJ_COMPLETED), i.e. *(Objective Completed/Failed: Rendezvous with Richard)*
 - Narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
-- Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene.
+- Objectives (there should always be multiple) should be obtainable, clear immediate objectives whose completion can be clearly determined — not long term vague goals.
 - Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
 QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.
@@ -435,7 +435,7 @@ On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. S
 
 - Narrate objective completion (unless already marked OBJ_COMPLETED), i.e. *(Objective Completed/Failed: Rendezvous with Richard)*
 - Narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
-- Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene.
+- Objectives (there should always be multiple) should be obtainable, clear immediate objectives whose completion can be clearly determined — not long term vague goals.
 - Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
 QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.
@@ -734,7 +734,7 @@ On unambiguous acceptance: narrate clearly, end with *(Quest Accepted: Name)*. S
 
 - Narrate objective completion (unless already marked OBJ_COMPLETED), i.e. *(Objective Completed/Failed: Rendezvous with Richard)*
 - Narrate success/failure at conclusion, i.e. *(Quest Completed/Failed: The Beneath and the Fading Roots)*
-- Keep objectives few and broad enough to allow room for player agency and creativity (clear, completable outcomes — not step-by-step routes); do not keep adding micro-objectives mid-scene.
+- Objectives (there should always be multiple) should be obtainable, clear immediate objectives whose completion can be clearly determined — not long term vague goals.
 - Quest MOOD (in STATE MEMO, from time pressure + FRUSTRATION_COEFF) should guide questgiver tone for NPC-given quests only.
 
 QUEST DIFFICULTY: difficulty follows internal narrative/world consistency and logic; the player is not accommodated if they take a task beyond them. Likewise, don't make quests more difficult than they should reasonably be per the narrative/context.

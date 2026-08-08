@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.10] - 2026-08-08
+
+### Changed
+- **Quests sysprompt**: objectives must be multiple, obtainable, clear immediate goals whose completion can be determined — not long-term vague goals.
+
 ## [7.0.3] - 2026-08-08
 
 ### Changed
