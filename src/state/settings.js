@@ -832,6 +832,7 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             .replace(/Campaign Root:\s*"[^"]*"/i, `Campaign Root: "${campaignRoot}"`)
             .replace(/NPCs\s*->\s*"[^"]*"/i, `NPCs -> "${campaignNpcBook}"`)
             .replace(/Locations\s*->\s*"[^"]*"/i, `Locations -> "${campaignLocBook}"`)
+            .replace(/update (.*?) to reflect new developments/gi, `update ${campaignRoot} to reflect new developments`)
             .replace(/\{\{campaignRoot\}\}/g, campaignRoot)
             .replace(/\{\{campaignNpcBook\}\}/g, campaignNpcBook)
             .replace(/\{\{campaignLocBook\}\}/g, campaignLocBook);
