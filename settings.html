@@ -1249,6 +1249,34 @@
                             </div>
                         </div>
 
+                        <div class="inline-drawer" style="margin-top: 6px;">
+                            <div class="inline-drawer-toggle inline-drawer-header">
+                                <b>Basic Mode — Core Rules Prompt</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">The <strong>complete</strong> system prompt sent in Basic Mode. Previously hardcoded — now fully editable. Delete <code>{{example}}</code> to remove the Barnaby/Iron Syndicate example. Available tokens: <span style="font-family: monospace;">{{modularPrompt}} {{maxActivations}} {{sectionNames}} {{relSection}} {{pcAppearanceGuidance}} {{eligibleCoreFields}} {{autoPassRestriction}} {{existingNpcNudge}} {{combatProfileGuidance}} {{example}}</span></div>
+                                    <textarea id="rpg_tracker_router_basic_prompt" class="text_pole autoSetHeight" rows="8"></textarea>
+                                    <button id="rpg_tracker_router_btn_reset_basic_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompt</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="inline-drawer" style="margin-top: 6px;">
+                            <div class="inline-drawer-toggle inline-drawer-header">
+                                <b>Agent Mode — Shared Context Prompt</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">All rules appended after the Agent Prompt in Agent Mode. Previously hardcoded — now fully editable. Available tokens: <span style="font-family: monospace;">{{maxActivations}} {{pcAppearanceGuidance}} {{eligibleCoreFields}} {{autoPassRestriction}} {{existingNpcNudge}} {{campaignRoot}} {{campaignNpcBook}} {{campaignLocBook}} {{fieldInstructions}} {{combatProfileGuidance}} {{relSection}}</span></div>
+                                    <textarea id="rpg_tracker_router_agent_shared_prompt" class="text_pole autoSetHeight" rows="8"></textarea>
+                                    <button id="rpg_tracker_router_btn_reset_agent_shared_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Mode Shared Context</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <details id="rpg_tracker_lore_activation_debug_wrap" style="margin-top: 12px; opacity: 0.55;">
                             <summary style="cursor: pointer; user-select: none; font-size: 10px; color: inherit; list-style: none;" title="Prefix matching, ST APIs, and /world slash diagnostics">Lore activation debug</summary>
                             <div style="margin-top: 8px; font-size: 10px; line-height: 1.35;">

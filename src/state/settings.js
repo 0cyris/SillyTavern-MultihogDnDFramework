@@ -677,6 +677,16 @@ function getSettingsInternal(extensionSettings) {
 
     enforceRealtimeVisualizationDisabled(s);
 
+    // Ensure new lorebook agent prompt templates are initialized for existing users.
+    // getSettings() already merges defaults, but explicit writes ensure the values
+    // are persisted in storage so they show up in the UI textareas immediately.
+    if (!s.routerBasicSystemPromptTemplate) {
+        s.routerBasicSystemPromptTemplate = defaults.routerBasicSystemPromptTemplate;
+    }
+    if (!s.routerAgentSharedContextTemplate) {
+        s.routerAgentSharedContextTemplate = defaults.routerAgentSharedContextTemplate;
+    }
+
     return extensionSettings[MODULE_NAME];
 }
 

@@ -491,7 +491,7 @@ export const CARTRIDGE_PAYLOAD_GROUPS = [
         id: 'lorebookAgent',
         label: 'Lorebook Agent',
         description: 'Researcher agent system prompt, modular format prompt, module definitions, custom tags',
-        keys: ['routerSystemPromptTemplate', 'routerModularPromptTemplate', 'routerModules', 'routerCustomTags'],
+        keys: ['routerSystemPromptTemplate', 'routerModularPromptTemplate', 'routerBasicSystemPromptTemplate', 'routerAgentSharedContextTemplate', 'routerModules', 'routerCustomTags'],
     },
     {
         id: 'worldProgression',

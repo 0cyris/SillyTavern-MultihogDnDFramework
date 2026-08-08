@@ -9784,6 +9784,58 @@ RULES:
             toastr['success']('Modular instructions reset to default.', 'RPG Tracker');
         });
 
+        $('#rpg_tracker_router_basic_prompt').val(settings.routerBasicSystemPromptTemplate).on('input', function () {
+            settings.routerBasicSystemPromptTemplate = String($(this).val() || '');
+            saveSettings();
+        });
+
+        $('#rpg_tracker_router_btn_reset_basic_prompt').on('click', function () {
+            if (!confirm('Reset Basic Mode Core Rules Prompt to default?')) return;
+
+            const { extensionSettings } = SillyTavern.getContext();
+            if (extensionSettings[MODULE_NAME]) {
+                delete extensionSettings[MODULE_NAME].routerBasicSystemPromptTemplate;
+            }
+            const freshDefault = getSettings().routerBasicSystemPromptTemplate;
+            const s = getSettings();
+            s.routerBasicSystemPromptTemplate = freshDefault;
+
+            const $el = $('#rpg_tracker_router_basic_prompt');
+            $el.val(freshDefault);
+            $el.trigger('input');
+            if (typeof (/** @type {any} */ ($el)).trigger === 'function') {
+                (/** @type {any} */ ($el)).trigger('autosize.resize');
+            }
+            saveSettings();
+            toastr['success']('Basic Mode prompt reset to default.', 'RPG Tracker');
+        });
+
+        $('#rpg_tracker_router_agent_shared_prompt').val(settings.routerAgentSharedContextTemplate).on('input', function () {
+            settings.routerAgentSharedContextTemplate = String($(this).val() || '');
+            saveSettings();
+        });
+
+        $('#rpg_tracker_router_btn_reset_agent_shared_prompt').on('click', function () {
+            if (!confirm('Reset Agent Mode Shared Context Prompt to default?')) return;
+
+            const { extensionSettings } = SillyTavern.getContext();
+            if (extensionSettings[MODULE_NAME]) {
+                delete extensionSettings[MODULE_NAME].routerAgentSharedContextTemplate;
+            }
+            const freshDefault = getSettings().routerAgentSharedContextTemplate;
+            const s = getSettings();
+            s.routerAgentSharedContextTemplate = freshDefault;
+
+            const $el = $('#rpg_tracker_router_agent_shared_prompt');
+            $el.val(freshDefault);
+            $el.trigger('input');
+            if (typeof (/** @type {any} */ ($el)).trigger === 'function') {
+                (/** @type {any} */ ($el)).trigger('autosize.resize');
+            }
+            saveSettings();
+            toastr['success']('Agent Mode shared context reset to default.', 'RPG Tracker');
+        });
+
         // ── World Progression settings ─────────────────────────────────────────
         const $wpEnabled = $('#rpg_world_progression_enabled');
         const $wpInterval = $('#rpg_world_progression_interval');

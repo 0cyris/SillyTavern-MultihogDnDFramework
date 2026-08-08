@@ -2,6 +2,14 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.13] - 2026-08-08
+
+### Added
+- **Lorebook Agent System Prompts**: Exposed complete, editable system prompt templates in settings for both Basic Mode (`routerBasicSystemPromptTemplate`) and Agent Mode (`routerAgentSharedContextTemplate`). Full transparency with runtime token placeholders (`{{example}}`, `{{maxActivations}}`, `{{modularPrompt}}`, etc.) and dedicated reset buttons.
+
+### Changed
+- **Game System Wizard UI Live Preview**: Made the Live UI Preview container directly editable (`contenteditable`), allowing direct clicking, editing, and adjustment of the rendered card preview.
+
 ## [7.0.12] - 2026-08-08
 
 ### Changed

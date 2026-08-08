@@ -1618,7 +1618,7 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
                 <textarea id="rt-gs-trkcontent" class="text_pole" rows="18" style="${GS_TEXTAREA_TALL_STYLE}">${escapeHtml(state.trackerContent)}</textarea>
                 <div style="margin-top:10px; font-size:11px; font-weight:bold;">UI Live Preview</div>
                 <div style="font-size:10px; opacity:0.58; line-height:1.35; margin:3px 0 6px;">Automatically renders the last complete [${escapeHtml(state.trackerTag)}] sample block found above. Edit that block to update this preview.</div>
-                <div id="rt-gs-ui-live-preview" class="rpg-tracker-render-view" style="min-height:58px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:rgba(0,0,0,0.2); padding:4px; overflow:hidden;"></div>
+                <div id="rt-gs-ui-live-preview" class="rpg-tracker-render-view" contenteditable="true" style="min-height:58px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:rgba(0,0,0,0.2); padding:4px; overflow:hidden;"></div>
             </div>
 
             <div style="padding:10px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:rgba(0,0,0,0.2);">
@@ -1670,9 +1670,10 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
         const previewSectionPages = {};
         let previewFullView = false;
         let previousPreviewTag = '';
-        const renderUiLivePreview = () => {
+        const renderUiLivePreview = (force = false) => {
             const preview = $id('rt-gs-ui-live-preview');
             if (!preview) return;
+            if (!force && (preview === document.activeElement || preview.contains(document.activeElement))) return;
             const trackerTag = sanitizeUpperTag($id('rt-gs-trktag')?.value || state.trackerTag);
             if (trackerTag !== previousPreviewTag) {
                 previewFullView = false;
@@ -1708,12 +1709,16 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
                 settings.customFields = savedCustomFields;
             }
 
+            preview.querySelectorAll('button, .rt-fullview-btn, .rt-page-btn').forEach(el => {
+                el.setAttribute('contenteditable', 'false');
+            });
+
             preview.querySelector('.rt-fullview-btn')?.addEventListener('click', event => {
                 event.preventDefault();
                 event.stopPropagation();
                 previewFullView = !previewFullView;
                 previewSectionPages[trackerTag] = 0;
-                renderUiLivePreview();
+                renderUiLivePreview(true);
             });
             preview.querySelectorAll('.rt-page-btn').forEach(button => {
                 button.addEventListener('click', event => {
@@ -1721,7 +1726,7 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
                     event.stopPropagation();
                     const direction = Number(button.dataset.dir) || 0;
                     previewSectionPages[trackerTag] = Math.max(0, (previewSectionPages[trackerTag] || 0) + direction);
-                    renderUiLivePreview();
+                    renderUiLivePreview(true);
                 });
             });
         };
