@@ -855,7 +855,13 @@ Generate exactly {factionCount} factions, {locationCount} locations, {npcCount} 
 - Put all descriptive text on the following line(s). In conflicts, state the parties naturally in the prose; never use a \`Parties involved:\` subheading.
 - Do not use bold text, bullet lists, tables, JSON, or any headings other than the required \`##\` sections and \`###\` titles.
 - Keep every entity consistent with the provided source material. No player-character references or placeholder names.
-- Maximum two sentences per entity. Output only the structured content.`,
+- Maximum two sentences per entity. Output only the structured content.
+
+[New NPC Naming Rule: When introducing a new, unestablished character, silently create their name using these dynamic constraints:
+Style & Culture: Analyze the current scene, local region, and surrounding characters. Match the linguistic flavor, tone, and naming conventions natively found in the immediate environment.
+Mandatory Starting Sounds: First Name Root: '{{random:a,e,i,o,u,ba,be,bi,bo,bu,ca,ce,ci,co,cu,da,de,di,do,du,fa,fe,fi,fo,fu,ga,ge,gi,go,gu,ha,he,hi,ho,hu,ja,je,ji,jo,ju,ka,ke,ki,ko,ku,la,le,li,lo,lu,ma,me,mi,mo,mu,na,ne,ni,no,nu,pa,pe,pi,po,pu,qua,que,qui,quo,ra,re,ri,ro,ru,sa,se,si,so,su,ta,te,ti,to,tu,va,ve,vi,vo,vu,wa,we,wi,wo,wu,ya,ye,yi,yo,yu,za,ze,zi,zo,zu}}{{random:l,n,r,s,t,v,m,d}}' | Last Name Root: '{{random:a,e,i,o,u,ba,be,bi,bo,bu,ca,ce,ci,co,cu,da,de,di,do,du,fa,fe,fi,fo,fu,ga,ge,gi,go,gu,ha,he,hi,ho,hu,ja,je,ji,jo,ju,ka,ke,ki,ko,ku,la,le,li,lo,lu,ma,me,mi,mo,mu,na,ne,ni,no,nu,pa,pe,pi,po,pu,qua,que,qui,quo,ra,re,ri,ro,ru,sa,se,si,so,su,ta,te,ti,to,tu,va,ve,vi,vo,vu,wa,we,wi,wo,wu,ya,ye,yi,yo,yu,za,ze,zi,zo,zu}}{{random:l,n,r,s,t,v,m,d}}'.
+Procedure: Treat the roots as the starting sound or prefix. Append natural syllables or traditional suffixes that fit the local culture and genre setting you identified. Ensure the final result is pronounceable and sounds like an authentic, ordinary name for this specific region. 
+Anti-Echo Diversity: Do not rely on default high-frequency placeholder names. The first and last names must not rhyme or share similar suffixes. Output the final name naturally in the narrative without revealing the roots, style prompts, or generation process. Do not rename existing characters.]`,
 
 
         routerSystemPromptTemplate: prepareShippedLorebookPromptTemplate(`<basic_instructions>

@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.1.2] - 2026-08-08
+
+### Changed
+- **World Skeleton prompt**: Adds a procedural NPC naming rule with culture-matched construction and randomized first/last-name root macros so new skeleton NPCs avoid high-frequency placeholder names.
+
 ## [7.1.0] - 2026-08-08
 
 ### Added
