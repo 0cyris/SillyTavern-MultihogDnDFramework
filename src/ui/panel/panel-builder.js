@@ -490,6 +490,7 @@ export function createPanel(dependencies) {
                 s.routerBasicMode = (/** @type {HTMLInputElement} */ (e.target)).checked;
                 $('#rpg_tracker_router_basic_mode').prop('checked', s.routerBasicMode);
                 saveSettings();
+                if (typeof globalThis._rpgSyncSettingsUi === 'function') globalThis._rpgSyncSettingsUi();
             });
         }
 

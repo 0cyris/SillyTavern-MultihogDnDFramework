@@ -1687,7 +1687,8 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
                 return;
             }
 
-            const savedCustomFields = settings.customFields || [];
+            const appSettings = getSettings();
+            const savedCustomFields = appSettings.customFields || [];
             const ghostField = {
                 tag: trackerTag,
                 label: $id('rt-gs-trklabel')?.value || state.trackerLabel || trackerTag,
@@ -1696,16 +1697,18 @@ async function showGameSystemPreview(parsed, { description = '', isEdit = false,
                 template: extractGameSystemWizardTemplate(trackerContent, trackerTag),
                 enabled: true,
             };
-            settings.customFields = [
+            appSettings.customFields = [
                 ...savedCustomFields.filter(field => String(field?.tag || '').toUpperCase() !== trackerTag),
                 ghostField,
             ];
+            settings.customFields = appSettings.customFields;
             try {
                 preview.innerHTML = renderMemoAsCards(previewMemo, trackerTag, previewSectionPages, {
                     fullViewSections: previewFullView ? [trackerTag] : [],
                     showCategorySettings: false,
                 });
             } finally {
+                appSettings.customFields = savedCustomFields;
                 settings.customFields = savedCustomFields;
             }
 

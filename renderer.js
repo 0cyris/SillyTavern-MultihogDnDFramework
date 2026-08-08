@@ -712,7 +712,8 @@ export function renderDayNightBadge(str) {
             const m = MARKER_TOKEN_RE.exec(remaining);
             if (!m) break;
 
-            const preText = remaining.slice(0, m.index).trim();
+            let preText = remaining.slice(0, m.index).trim();
+            preText = preText.replace(/^[-*+•–—]\s*/, '').trim();
             const markerType = m[1].toUpperCase();
             const colorSuffix = m[2] || null;
             const colorArg1 = m[3] || null;
@@ -811,35 +812,39 @@ export function renderDayNightBadge(str) {
         //   Marker-in-middle: [Epic] Sword - ((GAUGE)) 75/100 → preText="[Epic] Sword -", content="75/100"
         //   Marker-at-end:    [Epic] Sword - Durability 75/100 ((GAUGE)) → preText="[Epic] Sword - Durability 75/100", content=""
         //   With colon:       Durability: ((GAUGE)) 75/100   → preText="Durability:", content="75/100"
+        const cleanPre = (preText || '').replace(/^[-*+•–—]\s*/, '').trim();
         let reconstructedContent;
-        if (!preText) {
+        if (!cleanPre) {
             // ── Marker at start of line — content is everything ──
             reconstructedContent = content.trim();
         } else if (content.trim()) {
             // ── Marker in middle — text on both sides ──
-            if (preText.includes(':')) {
-                // preText already has colon structure (e.g. "Durability: ((GAUGE)) 75/100")
-                reconstructedContent = `${preText} ${content}`.trim();
+            if (cleanPre.includes(':')) {
+                // cleanPre already has colon structure (e.g. "Durability: ((GAUGE)) 75/100")
+                reconstructedContent = `${cleanPre} ${content}`.trim();
+            } else if (content.includes(':')) {
+                // content already has colon structure (e.g. "((BAR)) Health: 50/100")
+                reconstructedContent = `${cleanPre} ${content}`.trim();
             } else {
-                // No colon — synthesize one so preText becomes the label
-                reconstructedContent = `${preText}: ${content}`.trim();
+                // No colon — synthesize one so cleanPre becomes the label
+                reconstructedContent = `${cleanPre}: ${content}`.trim();
             }
         } else {
-            // ── Marker at end of line — content is empty, everything is in preText ──
-            if (preText.includes(':')) {
+            // ── Marker at end of line — content is empty, everything is in cleanPre ──
+            if (cleanPre.includes(':')) {
                 // Already has colon structure (e.g. "Durability: 75/100 ((GAUGE))")
-                reconstructedContent = preText.trim();
+                reconstructedContent = cleanPre.trim();
             } else {
                 // No colon. For progression types, try to split "Label X/Y" into "Label: X/Y"
                 // by finding the X/Y numeric pattern.
                 const PROGRESSION = new Set(['barrel', 'hp_bar', 'xp_bar', 'progress', 'clock', 'stars', 'weight', 'orbs', 'slots', 'phase', 'gauge', 'charge']);
                 const numMatch = PROGRESSION.has(rule.renderType)
-                    ? preText.match(/^(.*?)\s+(\d[\d,]*\s*\/\s*\d[\d,]*.*)$/)
+                    ? cleanPre.match(/^(.*?)\s+(\d[\d,]*\s*\/\s*\d[\d,]*.*)$/)
                     : null;
                 if (numMatch && numMatch[1].trim()) {
                     reconstructedContent = `${numMatch[1].trim()}: ${numMatch[2].trim()}`;
                 } else {
-                    reconstructedContent = preText.trim();
+                    reconstructedContent = cleanPre.trim();
                 }
             }
         }

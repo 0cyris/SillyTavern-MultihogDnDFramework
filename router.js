@@ -1090,6 +1090,7 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             const basicSystemPrompt = adjustPromptTimestamps(
                 basicRawTemplate
                     .replace(/\{\{modularPrompt\}\}/g, modularPrompt)
+                    .replace(/\{\{formatLines\}\}/g, formatLinesStr)
                     .replace(/\{\{maxActivations\}\}/g, String(settings.routerMaxActivations || 8))
                     .replace(/\{\{sectionNames\}\}/g, sectionNamesList)
                     .replace(/\{\{relSection\}\}/g, relSection)

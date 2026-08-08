@@ -9468,6 +9468,7 @@ RULES:
             settings.routerBasicMode = $(this).prop('checked');
             $('#rt-agent-router-basic').prop('checked', settings.routerBasicMode);
             saveSettings();
+            if (typeof syncRouterPromptUi === 'function') syncRouterPromptUi();
         });
         $('#rpg_tracker_router_native_keyword_activation').prop('checked', settings.routerNativeKeywordActivation).on('change', function () {
             settings.routerNativeKeywordActivation = $(this).prop('checked');
@@ -9726,115 +9727,67 @@ RULES:
             saveSettings();
         });
 
-        $('#rpg_tracker_router_prompt').val(settings.routerSystemPromptTemplate).on('input', function () {
-            settings.routerSystemPromptTemplate = String($(this).val() || '');
+        let isSyncingRouterPrompt = false;
+        function syncRouterPromptUi() {
+            const isBasic = !!settings.routerBasicMode;
+            const $prompt = $('#rpg_tracker_router_prompt');
+            const $desc = $('#rpg_tracker_router_prompt_desc');
+            const $btn = $('#rpg_tracker_router_btn_reset_prompt');
+
+            isSyncingRouterPrompt = true;
+            if (isBasic) {
+                $desc.html('The <strong>complete</strong> system prompt sent in <strong>Basic Mode</strong>. Full plain text — all rules, sections, and the Barnaby example are directly editable.');
+                $prompt.val(settings.routerBasicSystemPromptTemplate || '');
+                $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompt');
+            } else {
+                $desc.html('The <strong>complete</strong> system prompt sent in <strong>Agent Mode</strong>. Full plain text — all rules, tool schemas, and instructions are directly editable.');
+                $prompt.val(settings.routerSystemPromptTemplate || '');
+                $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Mode Prompt');
+            }
+            isSyncingRouterPrompt = false;
+
+            if (typeof (/** @type {any} */ ($prompt)).trigger === 'function') {
+                (/** @type {any} */ ($prompt)).trigger('autosize.resize');
+            }
+        }
+
+        $('#rpg_tracker_router_prompt').on('input', function () {
+            if (isSyncingRouterPrompt) return;
+            const val = String($(this).val() || '');
+            if (settings.routerBasicMode) {
+                settings.routerBasicSystemPromptTemplate = val;
+            } else {
+                settings.routerSystemPromptTemplate = val;
+            }
             saveSettings();
         });
 
-        $('#rpg_tracker_router_modular_prompt').val(settings.routerModularPromptTemplate).on('input', function () {
-            settings.routerModularPromptTemplate = String($(this).val() || '');
-            saveSettings();
-        });
         $('#rpg_tracker_router_btn_reset_prompt').on('click', function () {
-            if (!confirm('Reset Router Agent prompt to default?')) return;
-
-            // Delete the stored key so getSettings() falls back to the canonical default in state-manager.js
-            const { extensionSettings } = SillyTavern.getContext();
-            if (extensionSettings[MODULE_NAME]) {
-                delete extensionSettings[MODULE_NAME].routerSystemPromptTemplate;
-            }
-            const freshDefault = getSettings().routerSystemPromptTemplate;
-
-            const s = getSettings();
-            s.routerSystemPromptTemplate = freshDefault;
-
-            const $el = $('#rpg_tracker_router_prompt');
-            $el.val(freshDefault);
-            $el.trigger('input');
-
-            if (typeof (/** @type {any} */ ($el)).trigger === 'function') {
-                (/** @type {any} */ ($el)).trigger('autosize.resize');
-            }
-
-            saveSettings();
-            toastr['success']('Router prompt reset to default.', 'RPG Tracker');
-        });
-
-        $('#rpg_tracker_router_btn_reset_modular_prompt').on('click', function () {
-            if (!confirm('Reset Modular Agent instruction to default?')) return;
+            const isBasic = !!settings.routerBasicMode;
+            const modeName = isBasic ? 'Basic Mode' : 'Agent Mode';
+            if (!confirm(`Reset ${modeName} system prompt to default?`)) return;
 
             const { extensionSettings } = SillyTavern.getContext();
-            if (extensionSettings[MODULE_NAME]) {
-                delete extensionSettings[MODULE_NAME].routerModularPromptTemplate;
-            }
-            const freshDefault = getSettings().routerModularPromptTemplate;
-
-            const s = getSettings();
-            s.routerModularPromptTemplate = freshDefault;
-
-            const $el = $('#rpg_tracker_router_modular_prompt');
-            $el.val(freshDefault);
-            $el.trigger('input');
-
-            if (typeof (/** @type {any} */ ($el)).trigger === 'function') {
-                (/** @type {any} */ ($el)).trigger('autosize.resize');
+            if (isBasic) {
+                if (extensionSettings[MODULE_NAME]) {
+                    delete extensionSettings[MODULE_NAME].routerBasicSystemPromptTemplate;
+                }
+                const fresh = getSettings().routerBasicSystemPromptTemplate;
+                settings.routerBasicSystemPromptTemplate = fresh;
+            } else {
+                if (extensionSettings[MODULE_NAME]) {
+                    delete extensionSettings[MODULE_NAME].routerSystemPromptTemplate;
+                }
+                const fresh = getSettings().routerSystemPromptTemplate;
+                settings.routerSystemPromptTemplate = fresh;
             }
 
+            syncRouterPromptUi();
             saveSettings();
-            toastr['success']('Modular instructions reset to default.', 'RPG Tracker');
+            toastr['success'](`${modeName} system prompt reset to default.`, 'RPG Tracker');
         });
 
-        $('#rpg_tracker_router_basic_prompt').val(settings.routerBasicSystemPromptTemplate).on('input', function () {
-            settings.routerBasicSystemPromptTemplate = String($(this).val() || '');
-            saveSettings();
-        });
-
-        $('#rpg_tracker_router_btn_reset_basic_prompt').on('click', function () {
-            if (!confirm('Reset Basic Mode Core Rules Prompt to default?')) return;
-
-            const { extensionSettings } = SillyTavern.getContext();
-            if (extensionSettings[MODULE_NAME]) {
-                delete extensionSettings[MODULE_NAME].routerBasicSystemPromptTemplate;
-            }
-            const freshDefault = getSettings().routerBasicSystemPromptTemplate;
-            const s = getSettings();
-            s.routerBasicSystemPromptTemplate = freshDefault;
-
-            const $el = $('#rpg_tracker_router_basic_prompt');
-            $el.val(freshDefault);
-            $el.trigger('input');
-            if (typeof (/** @type {any} */ ($el)).trigger === 'function') {
-                (/** @type {any} */ ($el)).trigger('autosize.resize');
-            }
-            saveSettings();
-            toastr['success']('Basic Mode prompt reset to default.', 'RPG Tracker');
-        });
-
-        $('#rpg_tracker_router_agent_shared_prompt').val(settings.routerAgentSharedContextTemplate).on('input', function () {
-            settings.routerAgentSharedContextTemplate = String($(this).val() || '');
-            saveSettings();
-        });
-
-        $('#rpg_tracker_router_btn_reset_agent_shared_prompt').on('click', function () {
-            if (!confirm('Reset Agent Mode Shared Context Prompt to default?')) return;
-
-            const { extensionSettings } = SillyTavern.getContext();
-            if (extensionSettings[MODULE_NAME]) {
-                delete extensionSettings[MODULE_NAME].routerAgentSharedContextTemplate;
-            }
-            const freshDefault = getSettings().routerAgentSharedContextTemplate;
-            const s = getSettings();
-            s.routerAgentSharedContextTemplate = freshDefault;
-
-            const $el = $('#rpg_tracker_router_agent_shared_prompt');
-            $el.val(freshDefault);
-            $el.trigger('input');
-            if (typeof (/** @type {any} */ ($el)).trigger === 'function') {
-                (/** @type {any} */ ($el)).trigger('autosize.resize');
-            }
-            saveSettings();
-            toastr['success']('Agent Mode shared context reset to default.', 'RPG Tracker');
-        });
+        syncRouterPromptUi();
 
         // ── World Progression settings ─────────────────────────────────────────
         const $wpEnabled = $('#rpg_world_progression_enabled');
@@ -10830,8 +10783,7 @@ RULES:
             $('#rpg_world_progression_consolidate_enabled').prop('checked', !!s.worldProgressionConsolidateEnabled);
 
             // Textareas (Agent prompt templates)
-            $('#rpg_tracker_router_prompt').val(s.routerSystemPromptTemplate || '');
-            $('#rpg_tracker_router_modular_prompt').val(s.routerModularPromptTemplate || '');
+            if (typeof syncRouterPromptUi === 'function') syncRouterPromptUi();
             $('#rpg_world_progression_system_prompt').val(s.worldProgressionSystemPrompt || '');
             $('#rpg_world_progression_skeleton_system_prompt').val(s.worldProgressionSkeletonSystemPrompt || '');
 

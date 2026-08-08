@@ -1224,55 +1224,16 @@
                         <hr>
                         <div class="inline-drawer">
                             <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Agent Prompt</b>
+                                <b>System Prompt</b>
                                 <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
                             </div>
                             <div class="inline-drawer-content">
                                 <div class="flex-container flexFlowColumn gap-1">
-                                    <textarea id="rpg_tracker_router_prompt" class="text_pole autoSetHeight" rows="5"></textarea>
-                                    <button id="rpg_tracker_router_btn_reset_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Prompt</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="inline-drawer" style="margin-top: 6px;">
-                            <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Modular Agent Prompt</b>
-                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
-                            </div>
-                            <div class="inline-drawer-content">
-                                <div class="flex-container flexFlowColumn gap-1">
-                                    <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">Controls formatting and module-specific rules (LOC, FAC, WORLD, etc). Use <span style="font-family: monospace;">{{formatLines}}</span> to inject the dynamically enabled modules.</div>
-                                    <textarea id="rpg_tracker_router_modular_prompt" class="text_pole autoSetHeight" rows="5"></textarea>
-                                    <button id="rpg_tracker_router_btn_reset_modular_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Modular Prompt</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="inline-drawer" style="margin-top: 6px;">
-                            <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Basic Mode — Core Rules Prompt</b>
-                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
-                            </div>
-                            <div class="inline-drawer-content">
-                                <div class="flex-container flexFlowColumn gap-1">
-                                    <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">The <strong>complete</strong> system prompt sent in Basic Mode. Previously hardcoded — now fully editable. Delete <code>{{example}}</code> to remove the Barnaby/Iron Syndicate example. Available tokens: <span style="font-family: monospace;">{{modularPrompt}} {{maxActivations}} {{sectionNames}} {{relSection}} {{pcAppearanceGuidance}} {{eligibleCoreFields}} {{autoPassRestriction}} {{existingNpcNudge}} {{combatProfileGuidance}} {{example}}</span></div>
-                                    <textarea id="rpg_tracker_router_basic_prompt" class="text_pole autoSetHeight" rows="8"></textarea>
-                                    <button id="rpg_tracker_router_btn_reset_basic_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompt</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="inline-drawer" style="margin-top: 6px;">
-                            <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Agent Mode — Shared Context Prompt</b>
-                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
-                            </div>
-                            <div class="inline-drawer-content">
-                                <div class="flex-container flexFlowColumn gap-1">
-                                    <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">All rules appended after the Agent Prompt in Agent Mode. Previously hardcoded — now fully editable. Available tokens: <span style="font-family: monospace;">{{maxActivations}} {{pcAppearanceGuidance}} {{eligibleCoreFields}} {{autoPassRestriction}} {{existingNpcNudge}} {{campaignRoot}} {{campaignNpcBook}} {{campaignLocBook}} {{fieldInstructions}} {{combatProfileGuidance}} {{relSection}}</span></div>
-                                    <textarea id="rpg_tracker_router_agent_shared_prompt" class="text_pole autoSetHeight" rows="8"></textarea>
-                                    <button id="rpg_tracker_router_btn_reset_agent_shared_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Mode Shared Context</button>
+                                    <div id="rpg_tracker_router_prompt_desc" style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">
+                                        System prompt sent to the Lorebook Agent. Shows the prompt for the currently active mode (Basic Mode or Agent Mode) as full, raw, editable text.
+                                    </div>
+                                    <textarea id="rpg_tracker_router_prompt" class="text_pole autoSetHeight" rows="12"></textarea>
+                                    <button id="rpg_tracker_router_btn_reset_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset System Prompt</button>
                                 </div>
                             </div>
                         </div>
