@@ -2,6 +2,20 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.1.35] - 2026-08-08
+
+### Added
+- **Settings overlay**: Extensions drawer keeps a light Multihog stub with **Open Settings**; full settings open in a floating external window with a left tab rail (General, Connections, Game Systems, State Tracker, Lorebook Agent, World Progression, Adventure Companion). Not a fullscreen takeover — centered/draggable panel with mobile safe-area sizing.
+- **Settings window Dark / Light lock**: Appearance toggle at the top of General forces readable locked chrome so ST/tracker themes cannot wash out the settings menu. Defaults to Light.
+- **State Tracker settings shortcut**: Wrench button in the tracker header (left of CHAT) opens the settings overlay.
+- **Critical settings WAL**: Browser-local backup for Display Groups and prompt-defaults acknowledgement so cancelled settings saves during reload are less likely to resurrect deleted groups or the upgrade dialog.
+
+### Fixed
+- **Prompt defaults fingerprint**: Shipped-default fingerprint no longer reads live user settings (e.g. relationship max / CORE sections) via module getters, which could false-trigger Prompt Defaults Updated.
+- **Settings overlay mobile layout**: Panel no longer spawns clipped above the viewport or collapses to a header-only strip.
+- **Settings overlay readability**: Strengthened muted/inline-opacity description text in locked Dark/Light chrome.
+- **Settings overlay background**: Removed probe for missing `assets/settings-bg.png` (kept SVG gradient only).
+
 ## [7.1.2] - 2026-08-08
 
 ### Changed

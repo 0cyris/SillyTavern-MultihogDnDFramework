@@ -1,5 +1,5 @@
 import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped, formatTimeOfDay } from './constants.js';
-import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, FULL_REVIEW_STATE_SYSTEM_PROMPT, FULL_REVIEW_USER_PROMPT_SUFFIX, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, resetLorebookPromptTemplates } from './state-manager.js';
+import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, FULL_REVIEW_STATE_SYSTEM_PROMPT, FULL_REVIEW_USER_PROMPT_SUFFIX, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, resetLorebookPromptTemplates, writeCriticalSettingsBackup, stampCriticalSettingsSynced, applyCriticalSettingsBackup } from './state-manager.js';
 import { snapshotChatSetup, chatSetupsMatch, syncChatSetupCatalogs, removeChatSetupCatalogEntries } from './src/state/chat-setup.js';
 import { buildDirectPromptSystemPrompt, DIRECT_PROMPT_SYSTEM_MODES } from './src/state/direct-prompt-system.js';
 import { diffTextLines, diffHasChanges } from './prompt-diff.js';
@@ -36,6 +36,12 @@ import { createChatStateLoader } from './src/features/chat/chat-state-loader.js'
 import { cloneCampaignStackToPrefix } from './src/features/chat/clone-campaign-stack.js';
 import { branchCampaignChat, isBranchSeedInProgress } from './src/features/chat/branch-campaign.js';
 import { onChatRenamedMigrate } from './src/features/chat/chat-rename-migrate.js';
+import {
+    initSettingsOverlay,
+    openSettingsOverlay,
+    closeSettingsOverlay,
+    getSettingsOverlayRoot,
+} from './src/ui/settings-overlay.js';
 import { restoreEscapedCyoaChoiceMarkup } from './src/ui/panel/cyoa-markup.js';
 import { captureXpGainAnimationState, playXpGainAnimation } from './src/ui/panel/xp-gain-animation.js';
 import { captureBarChangeAnimationState, playBarChangeAnimations } from './src/ui/panel/bar-change-animation.js';
@@ -632,6 +638,8 @@ export function saveSettings(force = false, delay = 0) {
                 // Stamp before the write so a successful disk save carries its own time;
                 // if the write races/aborts, boot still sees the older stamp from disk.
                 s.memoPersistedAt = Date.now();
+                // Sync WAL for displayGroups / prompt-ack — survives cancelled saves on code-edit reload.
+                stampCriticalSettingsSynced(s, writeCriticalSettingsBackup(s));
                 if (useForce) {
                     const saveFn = await resolveCoreSaveSettings();
                     if (saveFn) await saveFn();
@@ -4687,26 +4695,20 @@ function setSettingsDrawerOpen(drawer) {
 }
 
 function openConnectionsModelsSettings(targetKey = '') {
-    const extensionsContent = document.getElementById('rm_extensions_block');
-    if (extensionsContent?.classList.contains('closedDrawer')) {
-        document.querySelector('#extensions-settings-button > .drawer-toggle')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    }
+    openSettingsOverlay('connections');
 
-    const settingsRoot = document.querySelector('.rpg-tracker-settings');
-    const frameworkDrawer = settingsRoot?.querySelector(':scope > .inline-drawer');
     const connectionsDrawer = document.getElementById('rpg_connections_models_drawer');
-    setSettingsDrawerOpen(frameworkDrawer);
     setSettingsDrawerOpen(connectionsDrawer);
 
     const targetDrawer = targetKey === 'character_creation'
         ? document.getElementById('rpg_character_creation_connection_drawer')
-        : document.querySelector(`.rt-central-connection-drawer[data-connection-key="${targetKey}"]`);
+        : document.querySelector(`#rt-settings-overlay .rt-central-connection-drawer[data-connection-key="${targetKey}"]`);
     setSettingsDrawerOpen(targetDrawer);
     setTimeout(() => (targetDrawer || connectionsDrawer)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }), 80);
 }
 
 function organizeConnectionSettingsUI() {
-    const settingsRoot = document.querySelector('.rpg-tracker-settings');
+    const settingsRoot = getSettingsOverlayRoot() || document.querySelector('.rpg-tracker-settings');
     if (!settingsRoot) return;
 
     for (const definition of CONNECTION_SETTINGS_UI) {
@@ -4743,6 +4745,9 @@ function organizeConnectionSettingsUI() {
     // while the fresh copy also loads). Remove any stale panel/settings first.
     document.getElementById('rpg-tracker-panel')?.remove();
     document.querySelectorAll('.rpg-tracker-settings').forEach(el => el.remove());
+    document.querySelectorAll('.rpg-tracker-settings-stub').forEach(el => el.remove());
+    document.getElementById('rt-settings-overlay')?.remove();
+    closeSettingsOverlay();
 
     const ctx = SillyTavern.getContext();
     const { eventSource, event_types, renderExtensionTemplateAsync } = ctx;
@@ -4825,7 +4830,15 @@ function organizeConnectionSettingsUI() {
         setPillDeselectHandler: (handler) => { _pillDeselectHandler = handler; },
     });
 
-    getSettings();
+    {
+        const earlySettings = getSettings();
+        // Heal displayGroups / prompt-ack before the Prompt Defaults dialog or UI bind.
+        // Disk settings.json saves (~12MB) are often cancelled when reloading after code edits;
+        // this sync localStorage WAL restores the last intentional change.
+        if (applyCriticalSettingsBackup(earlySettings)) {
+            void saveSettings(true);
+        }
+    }
     // Recover BEFORE any init saveSettings can clobber the localStorage backup.
     {
         const earlyChatId = ctx.chatId || ctx.getCurrentChatId?.() || null;
@@ -4837,34 +4850,58 @@ function organizeConnectionSettingsUI() {
     try {
         // Load Settings UI using the dynamic folder name
         // Use a cache-busting parameter to ensure we get the fresh file from the server
-        const html = await renderExtensionTemplateAsync(`third-party/${FOLDER_NAME}`, 'settings', { v: Date.now() });
-        // Third-party plugins should go to extensions_settings2 (right column) if available
+        const cacheBust = { v: Date.now() };
+        const settingsHtml = await renderExtensionTemplateAsync(`third-party/${FOLDER_NAME}`, 'settings', cacheBust);
+        const stubHtml = await renderExtensionTemplateAsync(`third-party/${FOLDER_NAME}`, 'settings-stub', cacheBust);
+
+        // Lightweight stub stays in the extensions drawer; full settings go into the floating window.
         if ($('#extensions_settings2').length) {
-            $('#extensions_settings2').append(html);
+            $('#extensions_settings2').append(stubHtml);
         } else {
-            $('#extensions_settings').append(html);
+            $('#extensions_settings').append(stubHtml);
         }
+
+        // Inject settings into the overlay BEFORE ID-based jQuery bindings below.
+        initSettingsOverlay(settingsHtml, { folderName: FOLDER_NAME });
 
         organizeConnectionSettingsUI();
 
-        // Bind drawer toggles ONLY for our own content to avoid global conflicts
-        $('.rpg-tracker-settings').on('click', '.inline-drawer-toggle', function (e) {
+        // Bind drawer toggles ONLY for our own content to avoid global conflicts.
+        // IMPORTANT: expand each comma-root before appending `.inline-drawer-toggle`.
+        // `#a, #b .toggle` would make EVERY click inside `#a` match and preventDefault
+        // checkboxes while flipping every chevron under the settings root.
+        const settingsDrawerToggleSelector = [
+            '#rt-settings-overlay .rpg-tracker-settings .inline-drawer-toggle',
+            '.rpg-tracker-settings-stub .inline-drawer-toggle',
+        ].join(', ');
+        $(document).off('click.rpgTrackerSettingsDrawers');
+        $(document).on('click.rpgTrackerSettingsDrawers', settingsDrawerToggleSelector, function (e) {
+            // Never steal clicks from controls that live in a header row.
+            if ($(e.target).closest('input, select, textarea, button, a, label.checkbox_label').length) {
+                return;
+            }
             e.preventDefault();
             e.stopPropagation();
             const drawer = $(this).closest('.inline-drawer');
+            if (!drawer.length) return;
             const content = drawer.find('> .inline-drawer-content');
             drawer.toggleClass('open');
             jqueryToggleSlide(content, drawer.hasClass('open'));
             $(this).find('.inline-drawer-icon').toggleClass('down');
         });
-        $('.rpg-tracker-settings').on('click', '.rt-connection-shortcut-button', function (e) {
+        $(document).on('click.rpgTrackerSettingsDrawers', '#rt-settings-overlay .rt-connection-shortcut-button', function (e) {
             e.preventDefault();
             e.stopPropagation();
             openConnectionsModelsSettings(String($(this).data('connectionTarget') || ''));
         });
+        $('#rpg_tracker_open_settings').off('click').on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openSettingsOverlay();
+        });
 
         const settings = getSettings();
-        bindCharacterCreationConnectionSettings(document.querySelector('.rpg-tracker-settings'));
+        bindCharacterCreationConnectionSettings(getSettingsOverlayRoot() || document.querySelector('.rpg-tracker-settings'));
         bindAdventureCompanionSettingsDrawer();
         await bindFeatureConnectionSettings({
             uiPrefix: 'rpg_adventure_companion',
@@ -5056,6 +5093,8 @@ function organizeConnectionSettingsUI() {
                 target.lastResetVersion = currentVersion;
                 target.lastSeenPromptDefaultsFingerprint = currentFingerprint;
                 target.lastSeenPromptDefaultsSnapshot = currentSnapshot;
+                // Sync first — reload during the 12MB disk write must not resurrect the dialog.
+                stampCriticalSettingsSynced(target, writeCriticalSettingsBackup(target));
             };
 
             const acknowledgePromptDefaults = async (target) => {
@@ -6157,6 +6196,7 @@ function organizeConnectionSettingsUI() {
                 // and cannot be cancelled by the unload that's about to happen, unlike the
                 // disk write below. This is the actual safety net; everything after is best-effort.
                 snapshotMemoToLocalStorage(runtimeState.currentChatId);
+                stampCriticalSettingsSynced(s, writeCriticalSettingsBackup(s));
                 // Snapshot chat-linked fields first so loadChatState() on next boot
                 // cannot overwrite live settings with a stale per-chat copy.
                 if (s.chatLinkEnabled && runtimeState.currentChatId) {

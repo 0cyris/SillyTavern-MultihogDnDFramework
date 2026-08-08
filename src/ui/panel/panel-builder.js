@@ -7,6 +7,7 @@ import { createSceneViewController } from './panel-scene-view.js';
 import { getCardAppearanceSynopsis as buildCardAppearanceSynopsis } from './card-synopsis.js';
 import { bindAdventureCompanion, closeAdventureCompanion, refreshAdventureCompanionLayout } from '../../../adventure-companion.js';
 import { NEW_NPC_NAMING_RULE } from '../../state/defaults.js';
+import { openSettingsOverlay } from '../settings-overlay.js';
 
 /**
  * Resolve ST macros (e.g. {{user}}, {{char}}) for READ-ONLY display of Lorebook Agent
@@ -224,6 +225,15 @@ export function createPanel(dependencies) {
             // 2. Stop SillyTavern generation (kills internal ST requests)
             const { stopGeneration } = SillyTavern.getContext();
             if (stopGeneration) stopGeneration();
+        });
+    }
+
+    const settingsBtn = panel.querySelector('#rpg-tracker-settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openSettingsOverlay();
         });
     }
 

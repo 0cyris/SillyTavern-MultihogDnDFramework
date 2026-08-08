@@ -327,6 +327,9 @@ export function buildDefaultSettings() {
 
         savedThemes: {},
 
+        /** Locked chrome for the floating settings window: 'dark' | 'light'. Independent of tracker/ST theme. */
+        settingsOverlayAppearance: 'light',
+
         systemPromptTemplate:
 
             `You are the State Extractor Model. Your task is to maintain a structured State Memo based on the roleplay narrative.
@@ -1347,6 +1350,13 @@ Rules:
         /** @type {ReturnType<typeof buildBundledPromptsSnapshot>|null} Last-acked shipped defaults (for upgrade diffs). */
 
         lastSeenPromptDefaultsSnapshot: null,
+
+        /**
+         * Timestamp of the last critical-settings localStorage backup that is known
+         * to be present on disk. Used to heal displayGroups / prompt-ack after a
+         * reload cancels ST's async settings save.
+         */
+        criticalSettingsSyncedTs: 0,
 
         autoResetPromptsOnUpdate: false,
 

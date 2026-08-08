@@ -14,6 +14,7 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
                 </div>
                 <div class="rpg-tracker-header-center" id="rpg-tracker-pause-banner"></div>
                 <div class="rpg-tracker-header-right">
+                    <button type="button" class="rpg-tracker-icon-btn" id="rpg-tracker-settings-btn" title="Open Settings"><i class="fa-solid fa-wrench" aria-hidden="true"></i></button>
                     <button class="rpg-tracker-icon-btn rt-tutorial-help-btn" id="rpg-tracker-help-btn" title="CHAT">CHAT</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-view-btn" title="Toggle rendered view">⊞</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-enable-btn" title="${settings.enabled ? 'Disable State Tracker' : 'Enable State Tracker'}" style="${settings.enabled ? '' : 'opacity:0.4;'}" >⏻</button>

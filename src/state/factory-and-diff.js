@@ -5,9 +5,58 @@
 import { buildCyoaModeBlock, DEFAULT_STOCK_PROMPTS, RT_PROMPTS } from '../../constants.js';
 import { DEFAULT_MODULES } from './default-modules.js';
 import { buildDefaultSettings } from './defaults.js';
+import { buildFacInstruction, buildLocInstruction, buildNpcInstruction } from './module-instructions.js';
 import { DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS } from './schema-sections.js';
 import { adjustPromptTimestamps } from './router-utils.js';
 import { buildNarrativePacingSection } from './narrative-pacing.js';
+
+/**
+ * Factory-only settings bag for shipped module-instruction snapshots.
+ * Must NOT read live getSettings() — DEFAULT_MODULES getters do, and that made the
+ * Prompt Defaults Updated fingerprint flip when user toggles (e.g. relationship bars)
+ * or when getSettings was not bound yet during init.
+ * @param {ReturnType<typeof buildDefaultSettings>} defaults
+ */
+function factoryInstructionSettings(defaults) {
+    return {
+        useDdMmYyFormat: false,
+        use24hTime: false,
+        npcRelationshipBars: !!defaults.npcRelationshipBars,
+        npcCoreSections: DEFAULT_NPC_SECTIONS,
+        npcMajorWords: defaults.npcMajorWords ?? 25,
+        npcMinorWords: defaults.npcMinorWords ?? 15,
+    };
+}
+
+/**
+ * Stock module instruction/format as shipped (independent of the user's live settings).
+ * @param {string} id
+ * @param {{ enabled?: boolean, tag?: string, format?: string, instruction?: string }} def
+ * @param {ReturnType<typeof buildDefaultSettings>} defaults
+ * @returns {{ instruction: string, format: string }}
+ */
+function factoryModuleSnapshot(id, def, defaults) {
+    const format = def.format || '';
+    const factory = factoryInstructionSettings(defaults);
+    if (id === 'npc') {
+        return {
+            instruction: buildNpcInstruction(
+                factory.npcMajorWords,
+                factory.npcMinorWords,
+                false,
+                factory,
+            ),
+            format,
+        };
+    }
+    if (id === 'loc') {
+        return { instruction: buildLocInstruction(factory), format };
+    }
+    if (id === 'fac') {
+        return { instruction: buildFacInstruction(factory), format };
+    }
+    return { instruction: def.instruction || '', format };
+}
 
 /**
  * Stable text form of NPC/PC CORE section schemas for fingerprint + upgrade diffs.
@@ -96,10 +145,7 @@ export function buildBundledPromptsSnapshot() {
     /** @type {Record<string, { instruction: string, format: string }>} */
     const modules = {};
     for (const [id, def] of Object.entries(DEFAULT_MODULES)) {
-        modules[id] = {
-            instruction: def.instruction || '',
-            format: def.format || '',
-        };
+        modules[id] = factoryModuleSnapshot(id, def, defaults);
     }
     return normalizeBundledPromptsSnapshot({
         sysprompt: {
