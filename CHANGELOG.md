@@ -2,13 +2,21 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
-## [7.0.13] - 2026-08-08
+## [7.0.14] - 2026-08-08
 
 ### Added
 - **Lorebook Agent System Prompt Editor**: Exposed the stored Basic Mode prompt template and the Agent Mode base/shared-context templates in settings, with mode-aware reset controls. Dynamic request context and tool schemas remain generated at runtime.
 
 ### Changed
 - **Game System Wizard UI Live Preview**: Added a read-only live rendering of the matching tracker sample block, including progress bars, custom markers, badges, and preview pagination controls. Edit the source block above it to update both the preview and saved template.
+
+### Fixed
+- **Lorebook Agent Prompt Updates**: Routed all four Lorebook templates through the normal prompt-fingerprint/update dialog, preserving custom prompts and cartridge backups until the user explicitly applies the update.
+- **Lorebook Agent Prompt Runtime**: Dynamic module, relationship, campaign, activation-limit, and combat guidance now expands per request without rewriting stored templates or crossing Basic/Agent editor fields.
+- **Lorebook Agent Prompt Whitespace**: Removed empty spacer lines from shipped templates and dynamic insertions.
+- **Game System Wizard Preview**: Preview extraction now matches exactly what saving retains instead of rendering unrelated fallback blocks.
+
+## [7.0.13] - 2026-08-08
 
 ### Fixed
 - **Custom Module Editor**: Save/Delete after alt-tab (or any `saveSettings` → catalog sync) no longer targets an orphaned field object. Renaming a module ID could previously remove the live entry entirely; edits could silently fail to persist.
