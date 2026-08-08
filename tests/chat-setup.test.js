@@ -311,4 +311,54 @@ describe('per-chat Control Room and tracker setup', () => {
         expect(settings.trackerModuleDatabase[0].scope).toBe('global');
         expect(settings.trackerModuleDatabase[0].globalEnabled).toBe(true);
     });
+
+    it('rename after catalog sync must mutate the live field — orphan+remove deletes the module', () => {
+        // Reproduces Custom Module Editor + alt-tab: syncChatSetupCatalogs reclones
+        // customFields, so a closed-over editor reference becomes an orphan. Mutating
+        // the orphan then removeChatSetupCatalogEntries(oldTag) strips the live entry.
+        const settings = buildDefaultSettings();
+        migrateChatSetupCatalogs(settings);
+        settings.customFields = [{
+            tag: 'FOO',
+            label: 'Foo',
+            prompt: 'track foo',
+            template: 'Foo: 1',
+            enabled: true,
+        }];
+        settings.blockOrder = ['CHARACTER', 'FOO'];
+        syncChatSetupCatalogs(settings);
+
+        const orphan = settings.customFields[0];
+        syncChatSetupCatalogs(settings); // alt-tab / saveSettings flush
+        expect(settings.customFields[0]).not.toBe(orphan);
+
+        // Broken path (pre-fix): mutate orphan, then prune FOO from live catalogs.
+        orphan.tag = 'BAR';
+        orphan.prompt = 'revised';
+        removeChatSetupCatalogEntries(settings, { customFieldTags: ['FOO'] });
+        expect(settings.customFields.map(f => f.tag)).toEqual([]);
+
+        // Correct path: re-resolve by opened tag, rename live object, then prune.
+        settings.customFields = [{
+            tag: 'FOO',
+            label: 'Foo',
+            prompt: 'track foo',
+            template: 'Foo: 1',
+            enabled: true,
+        }];
+        settings.blockOrder = ['CHARACTER', 'FOO'];
+        syncChatSetupCatalogs(settings);
+        const openedTag = 'FOO';
+        syncChatSetupCatalogs(settings);
+        const liveIndex = settings.customFields.findIndex(f => f.tag === openedTag);
+        const liveField = settings.customFields[liveIndex];
+        liveField.tag = 'BAR';
+        liveField.prompt = 'revised';
+        removeChatSetupCatalogEntries(settings, { customFieldTags: ['FOO'] });
+        expect(settings.customFields.map(f => f.tag)).toEqual(['BAR']);
+        expect(settings.customFields[0].prompt).toBe('revised');
+        syncChatSetupCatalogs(settings);
+        expect(settings.trackerModuleDatabase.map(f => f.tag)).toEqual(['BAR']);
+        expect(settings.trackerModuleDatabase[0].prompt).toBe('revised');
+    });
 });

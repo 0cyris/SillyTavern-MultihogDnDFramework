@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.13] - 2026-08-08
+
+### Fixed
+- **Custom Module Editor**: Save/Delete after alt-tab (or any `saveSettings` → catalog sync) no longer targets an orphaned field object. Renaming a module ID could previously remove the live entry entirely; edits could silently fail to persist.
+
 ## [7.0.12] - 2026-08-08
 
 ### Changed
