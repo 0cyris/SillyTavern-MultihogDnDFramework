@@ -328,7 +328,7 @@ export function buildDefaultSettings() {
         savedThemes: {},
 
         /** Locked chrome for the floating settings window: 'dark' | 'light'. Independent of tracker/ST theme. */
-        settingsOverlayAppearance: 'light',
+        settingsOverlayAppearance: 'dark',
 
         systemPromptTemplate:
 

@@ -32,7 +32,7 @@ let _folderName = 'SillyTavern-MultihogDnDFramework';
  * @returns {'dark'|'light'}
  */
 export function getSettingsOverlayAppearance() {
-    const raw = String(getSettings()?.settingsOverlayAppearance || 'light').toLowerCase();
+    const raw = String(getSettings()?.settingsOverlayAppearance || 'dark').toLowerCase();
     return raw === 'dark' ? 'dark' : 'light';
 }
 

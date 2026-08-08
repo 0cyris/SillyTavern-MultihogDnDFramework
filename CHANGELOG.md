@@ -6,7 +6,7 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 
 ### Added
 - **Settings overlay**: Extensions drawer keeps a light Multihog stub with **Open Settings**; full settings open in a floating external window with a left tab rail (General, Connections, Game Systems, State Tracker, Lorebook Agent, World Progression, Adventure Companion). Not a fullscreen takeover — centered/draggable panel with mobile safe-area sizing.
-- **Settings window Dark / Light lock**: Appearance toggle at the top of General forces readable locked chrome so ST/tracker themes cannot wash out the settings menu. Defaults to Light.
+- **Settings window Dark / Light lock**: Appearance toggle at the top of General forces readable locked chrome so ST/tracker themes cannot wash out the settings menu. Defaults to Dark.
 - **State Tracker settings shortcut**: Wrench button in the tracker header (left of CHAT) opens the settings overlay.
 - **Critical settings WAL**: Browser-local backup for Display Groups and prompt-defaults acknowledgement so cancelled settings saves during reload are less likely to resurrect deleted groups or the upgrade dialog.
 
