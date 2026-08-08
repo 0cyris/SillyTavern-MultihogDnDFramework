@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.11] - 2026-08-08
+
+### Changed
+- **CYOA prompt**: choices that spend a resource are only eligible when that resource is >0 in TRACKER STATE 0 (Current).
+
 ## [7.0.10] - 2026-08-08
 
 ### Changed
