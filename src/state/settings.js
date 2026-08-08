@@ -664,6 +664,17 @@ function getSettingsInternal(extensionSettings) {
         s.settingsVersion = '5.5.16';
     }
 
+    // 5.5.17 (v7.0.13): Migrate Lorebook Agent prompts to full editable plain text.
+    // Automatically upgrades all existing users from previous versions so the new raw
+    // plain-text templates with full examples and sections are immediately active.
+    if (isOlderThan(s.settingsVersion, '5.5.17')) {
+        s.routerBasicSystemPromptTemplate = defaults.routerBasicSystemPromptTemplate;
+        s.routerSystemPromptTemplate = defaults.routerSystemPromptTemplate;
+        s.routerModularPromptTemplate = defaults.routerModularPromptTemplate;
+        s.routerAgentSharedContextTemplate = defaults.routerAgentSharedContextTemplate;
+        s.settingsVersion = '5.5.17';
+    }
+
     if (s.pcCoreSections && Array.isArray(s.pcCoreSections) && s.pcCoreSections.length === 6) {
         // We check by ID rather than name, because the legacy version might have had "Appearance" instead of "Appearance/Species"
         const idsMatch = s.pcCoreSections.every((sec, idx) => sec.id === DEFAULT_PC_SECTIONS[idx].id);
