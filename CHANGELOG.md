@@ -10,6 +10,9 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 ### Changed
 - **Game System Wizard UI Live Preview**: Added a read-only live rendering of the matching tracker sample block, including progress bars, custom markers, badges, and preview pagination controls. Edit the source block above it to update both the preview and saved template.
 
+### Fixed
+- **Custom Module Editor**: Save/Delete after alt-tab (or any `saveSettings` → catalog sync) no longer targets an orphaned field object. Renaming a module ID could previously remove the live entry entirely; edits could silently fail to persist.
+
 ## [7.0.12] - 2026-08-08
 
 ### Changed

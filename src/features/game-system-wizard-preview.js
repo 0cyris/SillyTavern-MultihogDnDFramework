@@ -43,5 +43,3 @@ export function buildGameSystemWizardPreviewMemo(trackerContent, trackerTag) {
     const template = extractGameSystemWizardTemplate(trackerContent, tag);
     return template ? `[${tag}]\n${template}\n[/${tag}]` : '';
 }
-
-

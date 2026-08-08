@@ -46,4 +46,3 @@ describe('Lorebook Agent player-character naming rules', () => {
         expect(defaults.routerBasicSystemPromptTemplate).toContain('Write `{{user}}` bare — never followed by a class, profession, title, or parenthetical');
     });
 });
-
