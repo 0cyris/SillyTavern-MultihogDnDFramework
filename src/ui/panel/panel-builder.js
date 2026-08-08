@@ -6,6 +6,7 @@ import { buildPanelMarkup } from './panel-markup.js';
 import { createSceneViewController } from './panel-scene-view.js';
 import { getCardAppearanceSynopsis as buildCardAppearanceSynopsis } from './card-synopsis.js';
 import { bindAdventureCompanion, closeAdventureCompanion, refreshAdventureCompanionLayout } from '../../../adventure-companion.js';
+import { updatePromptsForMaxActivations } from '../../state/settings.js';
 
 /**
  * Resolve ST macros (e.g. {{user}}, {{char}}) for READ-ONLY display of Lorebook Agent
@@ -4338,8 +4339,10 @@ Rules:
         if (maxAct) {
             maxAct.addEventListener('input', () => {
                 const s = getSettings();
-                s.routerMaxActivations = parseInt(maxAct.value) || 8;
+                const val = parseInt(maxAct.value) || 8;
+                s.routerMaxActivations = val;
                 $('#rpg_tracker_router_max_activations').val(s.routerMaxActivations);
+                updatePromptsForMaxActivations(s, val);
                 saveSettings();
             });
         }

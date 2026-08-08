@@ -133,8 +133,10 @@ export function buildBundledPromptsSnapshot() {
             stockPrompts: JSON.parse(JSON.stringify(DEFAULT_STOCK_PROMPTS)),
         },
         lorebook: {
+            routerBasicSystemPromptTemplate: defaults.routerBasicSystemPromptTemplate || '',
             routerSystemPromptTemplate: defaults.routerSystemPromptTemplate || '',
             routerModularPromptTemplate: defaults.routerModularPromptTemplate || '',
+            routerAgentSharedContextTemplate: defaults.routerAgentSharedContextTemplate || '',
             modules,
         },
         world: {
@@ -211,8 +213,10 @@ export function getSnapshotCategoryBlocks(snap, category) {
     }
     if (category === 'lorebook') {
         const blocks = [
-            { label: 'Router System Prompt', text: snap.lorebook?.routerSystemPromptTemplate || '' },
+            { label: 'Basic System Prompt', text: snap.lorebook?.routerBasicSystemPromptTemplate || '' },
             { label: 'Modular Prompt Template', text: snap.lorebook?.routerModularPromptTemplate || '' },
+            { label: 'Agent Shared Context Template', text: snap.lorebook?.routerAgentSharedContextTemplate || '' },
+            { label: 'Router System Prompt', text: snap.lorebook?.routerSystemPromptTemplate || '' },
         ];
         const modules = snap.lorebook?.modules || {};
         for (const id of Object.keys(modules).sort()) {
@@ -270,12 +274,20 @@ export function getLivePromptCategoryBlocks(settings, category, opts = {}) {
         const defaults = buildDefaultSettings();
         const blocks = [
             {
-                label: 'Router System Prompt',
-                text: s.routerSystemPromptTemplate ?? defaults.routerSystemPromptTemplate ?? '',
+                label: 'Basic System Prompt',
+                text: s.routerBasicSystemPromptTemplate ?? defaults.routerBasicSystemPromptTemplate ?? '',
             },
             {
                 label: 'Modular Prompt Template',
                 text: s.routerModularPromptTemplate ?? defaults.routerModularPromptTemplate ?? '',
+            },
+            {
+                label: 'Agent Shared Context Template',
+                text: s.routerAgentSharedContextTemplate ?? defaults.routerAgentSharedContextTemplate ?? '',
+            },
+            {
+                label: 'Router System Prompt',
+                text: s.routerSystemPromptTemplate ?? defaults.routerSystemPromptTemplate ?? '',
             },
         ];
         const liveMods = s.routerModules || {};
@@ -419,6 +431,8 @@ const CARTRIDGE_PAYLOAD_KEYS = [
     // ── Lorebook Agent (Researcher/Router) ────────────────────────────────
     'routerSystemPromptTemplate',
     'routerModularPromptTemplate',
+    'routerBasicSystemPromptTemplate',
+    'routerAgentSharedContextTemplate',
     'routerModules',
     'routerCustomTags',
     // ── World Progression ──────────────────────────────────────────────────────

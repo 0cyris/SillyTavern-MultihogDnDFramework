@@ -1087,11 +1087,14 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             // All previously-hardcoded sections now live in routerBasicSystemPromptTemplate
             // (see defaults.js). Users can edit/remove any section including {{example}}.
             const basicRawTemplate = settings.routerBasicSystemPromptTemplate || '';
+            const maxActNum = settings.routerMaxActivations || 8;
             const basicSystemPrompt = adjustPromptTimestamps(
                 basicRawTemplate
+                    .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNum} active entries**`)
+                    .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNum}**`)
                     .replace(/\{\{modularPrompt\}\}/g, modularPrompt)
                     .replace(/\{\{formatLines\}\}/g, formatLinesStr)
-                    .replace(/\{\{maxActivations\}\}/g, String(settings.routerMaxActivations || 8))
+                    .replace(/\{\{maxActivations\}\}/g, String(maxActNum))
                     .replace(/\{\{sectionNames\}\}/g, sectionNamesList)
                     .replace(/\{\{relSection\}\}/g, relSection)
                     .replace(/\{\{pcAppearanceGuidance\}\}/g, pcAppearanceGuidance)
@@ -1344,9 +1347,12 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             const agentRelSection = settings.npcRelationshipBars
                 ? `\n## NPC RELATIONSHIPS\n${buildNpcRelationshipInstruction(getNpcRelationshipMax(settings))}\n`
                 : '';
+            const maxActNumAgent = settings.routerMaxActivations || 8;
             const sharedContext = adjustPromptTimestamps(
                 agentRawTemplate
-                    .replace(/\{\{maxActivations\}\}/g, String(settings.routerMaxActivations || 8))
+                    .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNumAgent}**`)
+                    .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNumAgent} active entries**`)
+                    .replace(/\{\{maxActivations\}\}/g, String(maxActNumAgent))
                     .replace(/\{\{pcAppearanceGuidance\}\}/g, pcAppearanceGuidance)
                     .replace(/\{\{eligibleCoreFields\}\}/g, eligibleCoreFieldsList)
                     .replace(/\{\{autoPassRestriction\}\}/g, autoPassCoreRestriction)

@@ -7,11 +7,13 @@ import { DEFAULT_NPC_SECTIONS } from './schema-sections.js';
 import { getNpcRelationshipMax } from './relationship-math.js';
 import { buildNpcRelationshipInstruction } from './relationship-prompts.js';
 
-export function buildNpcInstruction(majorWords = 25, minorWords = 15, ignoreLimits = false) {
-    let settings = {};
-    try {
-        settings = getSettings();
-    } catch (_) {}
+export function buildNpcInstruction(majorWords = 25, minorWords = 15, ignoreLimits = false, passedSettings = null) {
+    let settings = passedSettings || {};
+    if (!passedSettings) {
+        try {
+            settings = getSettings() || {};
+        } catch (_) {}
+    }
     let useDdMmYy = !!settings.useDdMmYyFormat;
     
     let coreSections = settings.npcCoreSections;
@@ -21,7 +23,7 @@ export function buildNpcInstruction(majorWords = 25, minorWords = 15, ignoreLimi
     const sectionsList = coreSections.map(s => s.name).join(', ');
     const sectionsTemplate = coreSections.map(s => `${s.name}: ${s.description}`).join('\n');
 
-    let instruction = `Significant named characters the party interacts with (do NOT record every random enemy or nameless bartender, only characters who are somehow significant). A creature's class/tier label (e.g. "Skeleton," "Bandit," "Guard Captain") is not itself a name, and having [COMBAT] stats or being the party's current opponent is not, by itself, evidence of significance — that comes from being treated as a recurring individual with motive, backstory, or a stake the story cares about.
+    let instruction = `Significant named characters the party interacts with (do NOT record every random enemy or nameless bartender, only characters who are significant). A creature's class/tier label (e.g. "Skeleton," "Bandit," "Guard Captain") is not itself a name, and having [COMBAT] stats or being the party's current opponent is not, by itself, evidence of significance — that comes from being treated as a recurring individual with motive, backstory, or a stake the story cares about.
 Do NOT create an NPC entry for the player character (controlled by the user) under any circumstances.
 In the chat history, the player character is the speaker labeled "Player" (and prompt replacement "{{user}}"). Analyze the dialogue to identify what in-character roleplay name(s) or alias(es) other characters use when addressing or referring to the "Player" (for example, if they call the Player "Dave Davidson" or "Dave", then "Dave Davidson" is the player character).
 Under no circumstances should you create an NPC entry for the player character, regardless of whether they are referred to as "Player", "{{user}}", or by their actual in-character name/alias (like "Dave Davidson").
@@ -48,14 +50,10 @@ After the [/CORE] block, append timestamped narrative updates as usual ([${useDd
 Do NOT log core updates as normal event/update entries.
 For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
 
-    let enableRelBars = false;
-    try {
-        const settings = getSettings();
-        enableRelBars = !!settings.npcRelationshipBars;
-    } catch (_) {}
+    let enableRelBars = !!settings.npcRelationshipBars;
 
     if (enableRelBars) {
-        instruction += `\n\n${buildNpcRelationshipInstruction(getNpcRelationshipMax())}`;
+        instruction += `\n\n${buildNpcRelationshipInstruction(getNpcRelationshipMax(settings))}`;
     }
 
     instruction += `\n\nBe concise and functional — every word should serve gameplay or characterization. Avoid adjective dumps and purple prose.`;
@@ -88,18 +86,21 @@ PLACEMENT — Combat Profile is IDENTITY data, not a chronicle event. It belongs
 
 /**
  * Builds the LOC module instruction string (plain [CORE] for places — no NPC field headers).
+ * @param {object} [passedSettings]
  * @returns {string}
  */
-export function buildLocInstruction() {
-    let useDdMmYy = false;
+export function buildLocInstruction(passedSettings = null) {
+    let settings = passedSettings || {};
+    if (!passedSettings) {
+        try {
+            settings = getSettings() || {};
+        } catch (_) {}
+    }
+    let useDdMmYy = !!settings.useDdMmYyFormat;
     let coreSections = DEFAULT_NPC_SECTIONS;
-    try {
-        const s = getSettings();
-        useDdMmYy = !!s.useDdMmYyFormat;
-        if (s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0) {
-            coreSections = s.npcCoreSections;
-        }
-    } catch (_) {}
+    if (settings.npcCoreSections && Array.isArray(settings.npcCoreSections) && settings.npcCoreSections.length > 0) {
+        coreSections = settings.npcCoreSections;
+    }
     const sectionsList = coreSections.map(s => s.name).join(', ');
 
     return `Named places and sub-locations. The Name MUST be the full hierarchical path using " :: " as the separator (e.g. "Khelt :: Rust-Lantern District :: Marrow-Deep Mines Office"). Include each ancestor name as a keyword (e.g. "Khelt", "Rust-Lantern District", "mines").
@@ -125,18 +126,21 @@ After \`[/CORE]\`, append timestamped deltas when the place changes ([${useDdMmY
 
 /**
  * Builds the FAC module instruction string (plain [CORE] for factions — no NPC field headers).
+ * @param {object} [passedSettings]
  * @returns {string}
  */
-export function buildFacInstruction() {
-    let useDdMmYy = false;
+export function buildFacInstruction(passedSettings = null) {
+    let settings = passedSettings || {};
+    if (!passedSettings) {
+        try {
+            settings = getSettings() || {};
+        } catch (_) {}
+    }
+    let useDdMmYy = !!settings.useDdMmYyFormat;
     let coreSections = DEFAULT_NPC_SECTIONS;
-    try {
-        const s = getSettings();
-        useDdMmYy = !!s.useDdMmYyFormat;
-        if (s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0) {
-            coreSections = s.npcCoreSections;
-        }
-    } catch (_) {}
+    if (settings.npcCoreSections && Array.isArray(settings.npcCoreSections) && settings.npcCoreSections.length > 0) {
+        coreSections = settings.npcCoreSections;
+    }
     const sectionsList = coreSections.map(s => s.name).join(', ');
 
     return `Named factions, guilds, organisations. **Status**: short current-state line (standing with the party, active conflicts, what changed recently). **Description**: permanent history, ideology, schemes, and notable members.
@@ -147,6 +151,12 @@ When FIRST recording a faction, wrap the permanent description (history, ideolog
 Correct:
 [CORE]
 A consulting group based out of Lower Manhattan, operating professional, climate-controlled server environments and dealing with highly sensitive data.
+[/CORE]
+
+Wrong:
+[CORE]
+${coreSections[0] ? coreSections[0].name : 'Appearance'}: A consulting group...
+${coreSections[1] ? coreSections[1].name : 'Personality'}: Operating professional...
 [/CORE]
 
 The Description MUST start directly with \`[CORE]\`. Do NOT prepend timestamps before the opening tag (e.g. do NOT write "[${useDdMmYy ? '01/01/2026' : 'Day 1'}, 08:00] [CORE]").
@@ -165,13 +175,12 @@ After \`[/CORE]\`, append timestamped chronicle updates/developments ([${useDdMm
 export function rebuildAllModuleInstructions(settings) {
     if (!settings.routerModules) return;
     if (settings.routerModules.npc) {
-        settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false);
+        settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false, settings);
     }
     if (settings.routerModules.loc) {
-        settings.routerModules.loc.instruction = buildLocInstruction();
+        settings.routerModules.loc.instruction = buildLocInstruction(settings);
     }
     if (settings.routerModules.fac) {
-        settings.routerModules.fac.instruction = buildFacInstruction();
+        settings.routerModules.fac.instruction = buildFacInstruction(settings);
     }
 }
-

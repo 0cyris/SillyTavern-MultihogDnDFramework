@@ -1,5 +1,5 @@
 import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped, formatTimeOfDay } from './constants.js';
-import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, FULL_REVIEW_STATE_SYSTEM_PROMPT, FULL_REVIEW_USER_PROMPT_SUFFIX, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES } from './state-manager.js';
+import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, FULL_REVIEW_STATE_SYSTEM_PROMPT, FULL_REVIEW_USER_PROMPT_SUFFIX, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, updatePromptsForMaxActivations, synchronizeAllPromptsAndInstructions } from './state-manager.js';
 import { snapshotChatSetup, chatSetupsMatch, syncChatSetupCatalogs, removeChatSetupCatalogEntries } from './src/state/chat-setup.js';
 import { buildDirectPromptSystemPrompt, DIRECT_PROMPT_SYSTEM_MODES } from './src/state/direct-prompt-system.js';
 import { diffTextLines, diffHasChanges } from './prompt-diff.js';
@@ -896,7 +896,7 @@ function persistChatTimeFormatIfLinked() {
 
 export function rebuildNpcInstructionIfNeeded() {
     const s = getSettings();
-    rebuildAllModuleInstructions(s);
+    synchronizeAllPromptsAndInstructions(s);
 }
 
 /** Apply default or saved per-chat relationship max into live settings. */
@@ -9214,6 +9214,7 @@ RULES:
 
         $('#rpg_tracker_router_prefix_override').val(settings.routerCampaignPrefixOverride || '').on('input', function () {
             settings.routerCampaignPrefixOverride = String($(this).val() || '');
+            synchronizeAllPromptsAndInstructions(settings);
             saveSettings();
             updateSettingsLorePrefixReadout();
         });
@@ -9534,8 +9535,10 @@ RULES:
             saveSettings();
         });
         $('#rpg_tracker_router_max_activations').val(settings.routerMaxActivations).on('input', function () {
-            settings.routerMaxActivations = parseInt(String($(this).val() || '')) || 8;
+            const val = parseInt(String($(this).val() || '')) || 8;
+            settings.routerMaxActivations = val;
             $('#rt-agent-router-max-activations').val(settings.routerMaxActivations);
+            updatePromptsForMaxActivations(settings, val);
             saveSettings();
         });
         $('#rpg_tracker_router_max_keyword_overflow').val(settings.routerMaxKeywordOverflow ?? 0).on('input', function () {
@@ -9573,9 +9576,7 @@ RULES:
             const val = isNaN(raw) ? (settings.npcMajorWords ?? 25) : raw;
             settings.npcMajorWords = Math.max(1, Math.min(1000, val));
             $(this).val(settings.npcMajorWords); // update display with clamped value
-            if (settings.routerModules?.npc) {
-                settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false);
-            }
+            synchronizeAllPromptsAndInstructions(settings);
             saveSettings();
             if (typeof globalThis._rpgRenderAgentModules === 'function') {
                 globalThis._rpgRenderAgentModules();
@@ -9586,9 +9587,7 @@ RULES:
             const val = isNaN(raw) ? (settings.npcMinorWords ?? 15) : raw;
             settings.npcMinorWords = Math.max(1, Math.min(1000, val));
             $(this).val(settings.npcMinorWords); // update display with clamped value
-            if (settings.routerModules?.npc) {
-                settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false);
-            }
+            synchronizeAllPromptsAndInstructions(settings);
             saveSettings();
             if (typeof globalThis._rpgRenderAgentModules === 'function') {
                 globalThis._rpgRenderAgentModules();
@@ -9602,9 +9601,7 @@ RULES:
             const onbRel = document.getElementById('rt_onboarding_mod_npc_rel_bars');
             if (onbRel) onbRel.checked = val;
 
-            if (settings.routerModules?.npc) {
-                settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false);
-            }
+            synchronizeAllPromptsAndInstructions(settings);
             saveSettings();
             scheduleAutoApply();
             setTimeout(() => {
@@ -9633,14 +9630,13 @@ RULES:
             const raw = parseInt(String($(this).val() || ''), 10);
             const val = isNaN(raw) ? getNpcRelationshipMaxDefault(settings) : raw;
             setNpcRelationshipMaxDefault(val);
+            synchronizeAllPromptsAndInstructions(settings);
+            saveSettings();
         });
         // Note: experimentalNpcImport removed — NPC Creator button is always visible.
         $('#rpg_tracker_ignore_npc_limits').prop('checked', !!settings.ignoreNpcImportLimits).on('change', function () {
             settings.ignoreNpcImportLimits = $(this).prop('checked');
-            if (settings.routerModules?.npc) {
-                settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false);
-            }
-
+            synchronizeAllPromptsAndInstructions(settings);
             saveSettings();
             if (typeof globalThis._rpgRenderAgentModules === 'function') {
                 globalThis._rpgRenderAgentModules();
@@ -9729,33 +9725,8 @@ RULES:
 
         function expandRouterPromptMacros(text, isBasic = true) {
             if (!text || typeof text !== 'string') return text;
-            if (!text.includes('{{')) return text;
-
-            const formatLines = `- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC\n- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path\n- [[FAC: Name | Status | Description | keywords]] — Faction or organization\n- [[EVENT: Name | Content | keywords]] — Significant event or plot beat\n- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept\n- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget\n- [[ACTIVATE: Name]] — Bring archived entity into active memory\n- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field\n- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance\n- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment`;
-
-            const exampleText = `Example:\nThought: I see a new NPC named Barnaby in Khelt's Rust-Lantern District. I will record him and the tavern.\n[[NPC: Barnaby | [CORE]\nSpecies: Human.\nBody: A burly man with a scar on his cheek.\nEquipment: Leather apron, heavy gloves, a hammer at his belt.\nPersonality: Gruff but reliable.\nBrief Background: Retired from the militia to open his own forge.\nHabits/Behaviors: Wipes his brow with a greasy rag.\nStrengths: Skilled blacksmithing.\nFlaws: Can be overly suspicious.\n[/CORE] | Barnaby, blacksmith, ally]]\n[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]\nA squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.\n[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]\n[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]\n\n(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`;
-
-            const sections = `Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws`;
-            const pcGuidance = `- You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.\n- You may update the Player Character's own Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new equipment text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.\n- Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.\n- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.`;
-            const existingNpc = `\n- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
-            const fieldInst = `- NPC: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws\n- LOC: Hierarchical Path, Description\n- FAC: Name, Status, Description\n- EVENT: Name, Content\n- CONCEPT: Name, Content`;
-
-            return text
-                .replace(/\{\{formatLines\}\}/g, formatLines)
-                .replace(/\{\{example\}\}/g, exampleText)
-                .replace(/\{\{maxActivations\}\}/g, '15')
-                .replace(/\{\{sectionNames\}\}/g, sections)
-                .replace(/\{\{eligibleCoreFields\}\}/g, sections)
-                .replace(/\{\{autoPassRestriction\}\}/g, '')
-                .replace(/\{\{existingNpcNudge\}\}/g, existingNpc)
-                .replace(/\{\{pcAppearanceGuidance\}\}/g, pcGuidance)
-                .replace(/\{\{combatProfileGuidance\}\}/g, '')
-                .replace(/\{\{fieldInstructions\}\}/g, fieldInst)
-                .replace(/\{\{campaignRoot\}\}/g, 'World Archive')
-                .replace(/\{\{campaignNpcBook\}\}/g, 'NPCs')
-                .replace(/\{\{campaignLocBook\}\}/g, 'Locations')
-                .replace(/\{\{relSection\}\}/g, '')
-                .replace(/\{\{modularPrompt\}\}/g, '');
+            synchronizeAllPromptsAndInstructions(settings);
+            return isBasic ? (settings.routerBasicSystemPromptTemplate || text) : (settings.routerSystemPromptTemplate || text);
         }
 
         let isSyncingRouterPrompt = false;
@@ -9765,23 +9736,24 @@ RULES:
             const $desc = $('#rpg_tracker_router_prompt_desc');
             const $btn = $('#rpg_tracker_router_btn_reset_prompt');
 
+            // Sync all settings into prompt templates and instructions
+            synchronizeAllPromptsAndInstructions(settings);
+
             isSyncingRouterPrompt = true;
             if (isBasic) {
                 $desc.html('The <strong>complete</strong> system prompt sent in <strong>Basic Mode</strong>. Full plain text — all rules, sections, and examples are directly editable.');
-                const currentVal = settings.routerBasicSystemPromptTemplate || defaultSettings.routerBasicSystemPromptTemplate || '';
-                const expanded = expandRouterPromptMacros(currentVal, true);
-                if (expanded !== currentVal) {
-                    settings.routerBasicSystemPromptTemplate = expanded;
+                if (!settings.routerBasicSystemPromptTemplate) {
+                    settings.routerBasicSystemPromptTemplate = defaultSettings.routerBasicSystemPromptTemplate || '';
+                    synchronizeAllPromptsAndInstructions(settings);
                     saveSettings();
                 }
                 $prompt.val(settings.routerBasicSystemPromptTemplate || '');
                 $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompt');
             } else {
                 $desc.html('The <strong>complete</strong> system prompt sent in <strong>Agent Mode</strong>. Full plain text — all rules, tool schemas, and instructions are directly editable.');
-                const currentVal = settings.routerSystemPromptTemplate || defaultSettings.routerSystemPromptTemplate || '';
-                const expanded = expandRouterPromptMacros(currentVal, false);
-                if (expanded !== currentVal) {
-                    settings.routerSystemPromptTemplate = expanded;
+                if (!settings.routerSystemPromptTemplate) {
+                    settings.routerSystemPromptTemplate = defaultSettings.routerSystemPromptTemplate || '';
+                    synchronizeAllPromptsAndInstructions(settings);
                     saveSettings();
                 }
                 $prompt.val(settings.routerSystemPromptTemplate || '');
@@ -9801,6 +9773,17 @@ RULES:
                 settings.routerBasicSystemPromptTemplate = val;
             } else {
                 settings.routerSystemPromptTemplate = val;
+            }
+            // If user edited the limit in the text directly, sync back to the settings inputs!
+            const limitMatch = val.match(/You are limited to \*\*(\d+) active entries\*\*/i)
+                || val.match(/Maximum Active Entities:\s*\*\*(\d+)\*\*/i);
+            if (limitMatch && limitMatch[1]) {
+                const parsed = parseInt(limitMatch[1], 10);
+                if (parsed > 0 && parsed !== settings.routerMaxActivations) {
+                    settings.routerMaxActivations = parsed;
+                    $('#rpg_tracker_router_max_activations').val(parsed);
+                    $('#rt-agent-router-max-activations').val(parsed);
+                }
             }
             saveSettings();
         });
