@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.0.12] - 2026-08-08
+
+### Changed
+- **CYOA prompt**: clarify resource eligibility as >0 (not depleted) in TRACKER STATE 0 (Current).
+
 ## [7.0.11] - 2026-08-08
 
 ### Changed
