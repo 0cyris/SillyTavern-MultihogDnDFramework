@@ -9736,7 +9736,7 @@ RULES:
 
             isSyncingRouterPrompt = true;
             if (isBasic) {
-                $desc.html('The <strong>complete</strong> system prompt sent in <strong>Basic Mode</strong>. Full plain text — all rules, sections, and the Barnaby example are directly editable.');
+                $desc.html('The <strong>complete</strong> system prompt sent in <strong>Basic Mode</strong>. Full plain text — all rules, sections, and examples are directly editable.');
                 $prompt.val(settings.routerBasicSystemPromptTemplate || '');
                 $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompt');
             } else {

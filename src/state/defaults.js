@@ -1050,7 +1050,7 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 
         // ── Basic Mode system prompt template ─────────────────────────────────
         // The complete system prompt sent to the model in Basic Mode.
-        // Full plain text — all rules, sections, and the Barnaby example are directly editable.
+        // Full plain text — all rules, sections, and examples are directly editable.
         routerBasicSystemPromptTemplate: `You are the Research Assistant. Your task is to identify and record important narrative entities and events.
 
 ## FORMAT
