@@ -9727,6 +9727,37 @@ RULES:
             saveSettings();
         });
 
+        function expandRouterPromptMacros(text, isBasic = true) {
+            if (!text || typeof text !== 'string') return text;
+            if (!text.includes('{{')) return text;
+
+            const formatLines = `- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC\n- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path\n- [[FAC: Name | Status | Description | keywords]] — Faction or organization\n- [[EVENT: Name | Content | keywords]] — Significant event or plot beat\n- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept\n- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget\n- [[ACTIVATE: Name]] — Bring archived entity into active memory\n- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field\n- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance\n- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment`;
+
+            const exampleText = `Example:\nThought: I see a new NPC named Barnaby in Khelt's Rust-Lantern District. I will record him and the tavern.\n[[NPC: Barnaby | [CORE]\nSpecies: Human.\nBody: A burly man with a scar on his cheek.\nEquipment: Leather apron, heavy gloves, a hammer at his belt.\nPersonality: Gruff but reliable.\nBrief Background: Retired from the militia to open his own forge.\nHabits/Behaviors: Wipes his brow with a greasy rag.\nStrengths: Skilled blacksmithing.\nFlaws: Can be overly suspicious.\n[/CORE] | Barnaby, blacksmith, ally]]\n[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]\nA squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.\n[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]\n[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]\n\n(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`;
+
+            const sections = `Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws`;
+            const pcGuidance = `- You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.\n- You may update the Player Character's own Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new equipment text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.\n- Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.\n- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.`;
+            const existingNpc = `\n- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
+            const fieldInst = `- NPC: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws\n- LOC: Hierarchical Path, Description\n- FAC: Name, Status, Description\n- EVENT: Name, Content\n- CONCEPT: Name, Content`;
+
+            return text
+                .replace(/\{\{formatLines\}\}/g, formatLines)
+                .replace(/\{\{example\}\}/g, exampleText)
+                .replace(/\{\{maxActivations\}\}/g, '15')
+                .replace(/\{\{sectionNames\}\}/g, sections)
+                .replace(/\{\{eligibleCoreFields\}\}/g, sections)
+                .replace(/\{\{autoPassRestriction\}\}/g, '')
+                .replace(/\{\{existingNpcNudge\}\}/g, existingNpc)
+                .replace(/\{\{pcAppearanceGuidance\}\}/g, pcGuidance)
+                .replace(/\{\{combatProfileGuidance\}\}/g, '')
+                .replace(/\{\{fieldInstructions\}\}/g, fieldInst)
+                .replace(/\{\{campaignRoot\}\}/g, 'World Archive')
+                .replace(/\{\{campaignNpcBook\}\}/g, 'NPCs')
+                .replace(/\{\{campaignLocBook\}\}/g, 'Locations')
+                .replace(/\{\{relSection\}\}/g, '')
+                .replace(/\{\{modularPrompt\}\}/g, '');
+        }
+
         let isSyncingRouterPrompt = false;
         function syncRouterPromptUi() {
             const isBasic = !!settings.routerBasicMode;
@@ -9737,10 +9768,22 @@ RULES:
             isSyncingRouterPrompt = true;
             if (isBasic) {
                 $desc.html('The <strong>complete</strong> system prompt sent in <strong>Basic Mode</strong>. Full plain text — all rules, sections, and examples are directly editable.');
+                const currentVal = settings.routerBasicSystemPromptTemplate || defaultSettings.routerBasicSystemPromptTemplate || '';
+                const expanded = expandRouterPromptMacros(currentVal, true);
+                if (expanded !== currentVal) {
+                    settings.routerBasicSystemPromptTemplate = expanded;
+                    saveSettings();
+                }
                 $prompt.val(settings.routerBasicSystemPromptTemplate || '');
                 $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompt');
             } else {
                 $desc.html('The <strong>complete</strong> system prompt sent in <strong>Agent Mode</strong>. Full plain text — all rules, tool schemas, and instructions are directly editable.');
+                const currentVal = settings.routerSystemPromptTemplate || defaultSettings.routerSystemPromptTemplate || '';
+                const expanded = expandRouterPromptMacros(currentVal, false);
+                if (expanded !== currentVal) {
+                    settings.routerSystemPromptTemplate = expanded;
+                    saveSettings();
+                }
                 $prompt.val(settings.routerSystemPromptTemplate || '');
                 $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Mode Prompt');
             }

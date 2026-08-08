@@ -1008,7 +1008,16 @@ Don't be afraid to hit the budget exactly. It's better to lean towards activatin
 
 Use these tags in your response:
 
-{{formatLines}}
+- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC
+- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path
+- [[FAC: Name | Status | Description | keywords]] — Faction or organization
+- [[EVENT: Name | Content | keywords]] — Significant event or plot beat
+- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept
+- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget
+- [[ACTIVATE: Name]] — Bring archived entity into active memory
+- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field
+- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance
+- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment
 
 
 
@@ -1057,7 +1066,16 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 
 Use these tags in your response:
 
-{{formatLines}}
+- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC
+- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path
+- [[FAC: Name | Status | Description | keywords]] — Faction or organization
+- [[EVENT: Name | Content | keywords]] — Significant event or plot beat
+- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept
+- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget
+- [[ACTIVATE: Name]] — Bring archived entity into active memory
+- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field
+- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance
+- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment
 
 ## HIERARCHY CONVENTION (CRITICAL FOR LOCATIONS)
 
@@ -1092,10 +1110,10 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 2. **ACTIVE MEMORY**: Full details of all other currently active entities. You can update them at any time.
 3. **ARCHIVE INDEX**: Inactive entries — labels and keywords only. You CANNOT see their full biography.
 4. **RECALL**: To read or update an archive entry, use [[ACTIVATE: Name]]. Its full content becomes visible next turn.
-5. **LIMIT**: You are limited to **{{maxActivations}} active entries**. Nothing is archived automatically. If you exceed this limit you will see a **BUDGET VIOLATION** line and you MUST use [[DEACTIVATE: Name]] on the least relevant active entries to return within budget before this pass ends.
+5. **LIMIT**: You are limited to **15 active entries**. Nothing is archived automatically. If you exceed this limit you will see a **BUDGET VIOLATION** line and you MUST use [[DEACTIVATE: Name]] on the least relevant active entries to return within budget before this pass ends.
 
 ## [CORE] BY CATEGORY
-- **NPC**: structured \`[CORE]\` with {{sectionNames}} (see NPC field instructions below).
+- **NPC**: structured \`[CORE]\` with Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws (see NPC field instructions below).
 - **LOC**: plain \`[CORE]\` with 1–2 sentences describing the place. No field headers.
 - **FAC**: plain \`[CORE]\` wrapping permanent history, ideology, schemes, and members. No field headers.
 - **QUEST, EVENT**: do NOT use \`[CORE]\`. Use timestamped chronicle lines only.
@@ -1114,7 +1132,7 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 ## NPC CORE UPDATES (NPC only)
 - Body changes: output \`[[UPDATE_APPEARANCE: Book::UID or NPC Name | new body text]]\`. Body is signature/default physical look — not a transient outfit-of-the-scene.
 - Equipment changes: output \`[[UPDATE_EQUIPMENT: Book::UID or NPC Name | new equipment text]]\` whenever the narrative explicitly shows a change to what they're wearing/wielding.
-- Eligible UPDATE_CORE fields this pass: {{eligibleCoreFields}}.
+- Eligible UPDATE_CORE fields this pass: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws.
   [[UPDATE_CORE: Book::UID or NPC Name | FieldName | New field text]]
 Use the exact FieldName. Do NOT log core updates as normal event/update entries.
 - For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.
@@ -1135,7 +1153,7 @@ Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anyt
 3. Use DEACTIVATE to remove an entry that is no longer relevant to the scene.
 4. Use DELETE to permanently remove duplicate or redundant entries.
 5. Do NOT create any entry for the player character (e.g. "Player" or "Dave Davidson").
-6. CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below ({{sectionNames}}) for NPCs and ignore any other sections.
+6. CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below (Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws) for NPCs and ignore any other sections.
 7. Output your thoughts first, then the tags.
 
 Example:
@@ -1147,19 +1165,15 @@ Equipment: Leather apron, heavy gloves, a hammer at his belt.
 Personality: Gruff but reliable.
 Brief Background: Retired from the militia to open his own forge.
 Habits/Behaviors: Wipes his brow with a greasy rag.
-[/CORE] | Barnaby, blacksmith, ally]]
-[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]
-A squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.
-[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]
-[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]
-
-(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`,
+Strengths: Skilled blacksmithing.
+Flaws: Can be overly suspicious.
+[/CORE] | Barnaby, blacksmith, ally]]`,
 
         // ── Agent Mode shared context template ────────────────────────────────
         // The complete context appended to the agent instructions in Agent Mode.
         routerAgentSharedContextTemplate: `
 ## MEMORY LIMIT
-Maximum Active Entities: **{{maxActivations}}**.
+Maximum Active Entities: **15**.
 - Entries you record are ACTIVATED AUTOMATICALLY. Do NOT also include them in activate.
 - Nothing is archived automatically. If you exceed the limit you will receive a **BUDGET VIOLATION** in the context and you MUST deactivate enough entries in that same commit call to return within budget. Choose the narratively least relevant entries.
 - Entries whose keywords appeared in the latest narrator output may already appear under **NEWLY ACTIVATED THIS TURN** with full content — you do not need to activate those again.
@@ -1176,7 +1190,7 @@ Maximum Active Entities: **{{maxActivations}}**.
 ## NPC CORE UPDATES
 - Body: use \`commit.appearance\` (signature/default physical look only — not a transient outfit-of-the-scene).
 - Equipment: use \`commit.equipment\` whenever their visibly worn/carried gear changes.
-- Eligible commit.core fields this pass: {{eligibleCoreFields}}.
+- Eligible commit.core fields this pass: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws.
 - For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.
 
 ## DO NOT RE-RECORD EXISTING ENTITIES
@@ -1193,9 +1207,9 @@ Before using \`record\` for anyone or anything, check ACTIVE MEMORY, NEWLY ACTIV
 World Skeleton lorebooks (names ending in _Skeleton) are hidden seed data for World Progression only. They are NOT in your archive, tools cannot access them, and you must NEVER activate, read, update, or commit changes to Skeleton entries.
 
 ## CAMPAIGN CONTEXT
-Campaign Root: "{{campaignRoot}}"
-  NPCs -> "{{campaignNpcBook}}"
-  Locations -> "{{campaignLocBook}}" (etc.)
+Campaign Root: "World Archive"
+  NPCs -> "NPCs"
+  Locations -> "Locations" (etc.)
 Location hierarchy: use " :: " separator in labels (e.g. "Khelt :: Rust-Lantern District :: The Guilded Anvil").
 Include the entity name/title itself (without timestamps like "[Day 1]") as a keyword, plus any ancestor location names (e.g. keys: ["The Guilded Anvil", "Khelt", "Rust-Lantern District", "tavern"]).
 **Keyword cap: maximum 6 per entry.** Keep only the most essential trigger words.
@@ -1208,7 +1222,11 @@ Include the entity name/title itself (without timestamps like "[Day 1]") as a ke
 - CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below for NPCs and ignore any other sections.
 
 ## FIELD INSTRUCTIONS
-{{fieldInstructions}}`,
+- NPC: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws
+- LOC: Hierarchical Path, Description
+- FAC: Name, Status, Description
+- EVENT: Name, Content
+- CONCEPT: Name, Content`,
 
         categoryRenderOptions: {},
 
