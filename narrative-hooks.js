@@ -446,9 +446,10 @@ async function executeDiceToolAction(args, opts = {}) {
 
     const dc = Number(args?.dc) || 0;
     const compare = opts.forceLte ? 'lte' : resolveDiceCompare(args?.compare, formula);
+    const forStr = args.for ? ` (${args.for})` : ''
     let result = (args.who
-        ? `${args.who} rolls a ${formula} against DC ${dc}. The result is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`
-        : `The result of a ${formula} roll against DC ${dc} is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`) + invalidNote;
+        ? `${args.who}${forStr} rolls a ${formula} against DC ${dc}. The result is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`
+        : `The result${forStr} of a ${formula} roll against DC ${dc} is: ${total}. Individual rolls: ${roll.rolls.join(', ')}`) + invalidNote;
 
     if (dc > 0) {
         if (compare === 'lte') {
@@ -493,11 +494,12 @@ export function registerDiceFunctionTool() {
                 type: 'object',
                 properties: {
                     who: { type: 'string', description: 'The name of the persona rolling the dice' },
+                    for: { type: 'string', description: 'What is being rolled for, 1-3 words' },
                     formula: { type: 'string', description: formulaDescription },
                     dc: { type: 'number', description: 'For skill/attack checks (compare=gte): Difficulty Class — roll ≥ dc = SUCCESS. For percentage / existence checks (compare=lte or formula 1d100): the trigger % chance — roll ≤ dc = HIT. Always pass the probability directly (e.g. 35 for Dangerous-tier existence). Anchors difficulty BEFORE the roll is made.' },
                     compare: { type: 'string', description: 'Optional. "gte" (default for non-d100 formulas): roll ≥ dc = SUCCESS. "lte" (default for 1d100 / percentage formulas): roll ≤ dc% = HIT. Use lte for existence checks and other percentage odds.' },
                 },
-                required: ['who', 'formula', 'dc'],
+                required: ['who', 'for', 'formula', 'dc'],
             };
 
             registerFunctionTool({
@@ -523,10 +525,11 @@ export function registerDiceFunctionTool() {
                 type: 'object',
                 properties: {
                     who: { type: 'string', description: 'The name of the persona rolling the dice' },
+                    for: { type: 'string', description: 'What is being rolled for, 1-3 words' },
                     formula: { type: 'string', description: formulaDescription },
                     dc: { type: 'number', description: 'The success/trigger percentage chance for this roll (roll-under system). Set this to the actual % probability of success or occurrence (e.g. 83 for an 83% chance to hit/succeed, or 25 for a 25% hazard failure chance). A roll ≤ dc = HIT/SUCCESS/TRIGGER, a roll > dc = MISS/FAILURE/NO-TRIGGER. Do NOT invert the percentage — always pass the probability directly.' },
                 },
-                required: ['who', 'formula', 'dc'],
+                required: ['who', 'for', 'formula', 'dc'],
             };
 
             registerFunctionTool({
