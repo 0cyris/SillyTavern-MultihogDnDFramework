@@ -1008,16 +1008,7 @@ Don't be afraid to hit the budget exactly. It's better to lean towards activatin
 
 Use these tags in your response:
 
-- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC
-- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path
-- [[FAC: Name | Status | Description | keywords]] — Faction or organization
-- [[EVENT: Name | Content | keywords]] — Significant event or plot beat
-- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept
-- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget
-- [[ACTIVATE: Name]] — Bring archived entity into active memory
-- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field
-- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance
-- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment
+{{formatLines}}
 
 
 
@@ -1058,62 +1049,23 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 **FAC** uses four fields: \`Name | Status | Description | Keywords\`. Put a concise current-state line in **Status** (standing, conflicts, recent changes); put history, ideology, schemes, and members in **Description** (wrapped in \`[CORE] ... [/CORE]\`).`,
 
         // ── Basic Mode system prompt template ─────────────────────────────────
-        // The complete system prompt sent to the model in Basic Mode.
-        // Full plain text — all rules, sections, and examples are directly editable.
+        // Editable Basic Mode base template. {{modularPrompt}} is expanded from
+        // routerModularPromptTemplate for each request without mutating either source.
         routerBasicSystemPromptTemplate: `You are the Research Assistant. Your task is to identify and record important narrative entities and events.
 
-## FORMAT
-
-Use these tags in your response:
-
-- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC
-- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path
-- [[FAC: Name | Status | Description | keywords]] — Faction or organization
-- [[EVENT: Name | Content | keywords]] — Significant event or plot beat
-- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept
-- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget
-- [[ACTIVATE: Name]] — Bring archived entity into active memory
-- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field
-- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance
-- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment
-
-## HIERARCHY CONVENTION (CRITICAL FOR LOCATIONS)
-
-For LOC entries, the Name field MUST be the FULL hierarchical path using " :: " (space, colon, colon, space) as the separator.
-
-The current scene's location stack is shown above as "CURRENT LOCATION". Prepend it to any sub-location you record.
-
-Examples:
-
-  CURRENT LOCATION: Khelt :: Rust-Lantern District
-
-  --> [[LOC: Khelt :: Rust-Lantern District :: Marrow-Deep Mines Office | A squat iron building managing mining contracts. | Marrow-Deep Mines Office, mines, contracts, Khelt, Rust-Lantern]]
-
-  --> [[LOC: Khelt :: Rust-Lantern District :: The Guilded Anvil Tavern | A noisy tavern with a job bulletin board. | The Guilded Anvil Tavern, tavern, jobs, Khelt, Rust-Lantern]]
-
-Also include each ancestor name (Khelt, Rust-Lantern District) as a plain keyword in the Keywords field.
-
-**LOC [CORE]:** When first recording a place, wrap 1–2 permanent sentences in plain \`[CORE] … [/CORE]\`. Do NOT use NPC field headers (Appearance/Species, Personality, etc.).
-
-**IMPORTANT FOR KEYWORDS:** Always include the entry's own title/name (without any timestamps like "Day 1", "Day 2", "12:15 AM", etc.) in the keywords field. The title itself (stripped of timestamps) is the most reliable trigger, so it must be present as a keyword. For example, for a tag representing a "Defense of Ironbelly's Workshop" event, the keywords MUST contain "Defense of Ironbelly's Workshop". DO NOT INCLUDE \`{{user}}\`, \`{{char}}\`, or general player references in the keywords field — the player is present in all events and locations, so tagging them is redundant and wastes context tokens.
-
-NPC / FAC / QUEST / EVENT labels: Name only — NO " :: " hierarchy, NO tag prefix.
-
-Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ...]]  and  NOT  [[FAC: FAC: Iron Syndicate | ...]]
-
-**FAC [CORE]:** Wrap history, ideology, schemes, and members inside a plain \`[CORE] … [/CORE]\` block in the **Description** field.
-
-**FAC** uses four fields: \`Name | Status | Description | Keywords\`. Put a concise current-state line in **Status** (standing, conflicts, recent changes); put history, ideology, schemes, and members in **Description** (wrapped in \`[CORE] ... [/CORE]\`).
+{{modularPrompt}}
 
 ## ATTENTION & MEMORY
 1. **NEWLY ACTIVATED THIS TURN**: Entries whose keywords appeared in the latest narrator output are pre-loaded here with full content. You do not need to activate them again — they are already active.
 2. **ACTIVE MEMORY**: Full details of all other currently active entities. You can update them at any time.
 3. **ARCHIVE INDEX**: Inactive entries — labels and keywords only. You CANNOT see their full biography.
 4. **RECALL**: To read or update an archive entry, use [[ACTIVATE: Name]]. Its full content becomes visible next turn.
-5. **LIMIT**: You are limited to **15 active entries**. Nothing is archived automatically. If you exceed this limit you will see a **BUDGET VIOLATION** line and you MUST use [[DEACTIVATE: Name]] on the least relevant active entries to return within budget before this pass ends.
+5. **LIMIT**: You are limited to **{{maxActivations}} active entries**. Nothing is archived automatically. If you exceed this limit you will see a **BUDGET VIOLATION** line and you MUST use [[DEACTIVATE: Name]] on the least relevant active entries to return within budget before this pass ends.
+
+{{relSection}}
 
 ## [CORE] BY CATEGORY
-- **NPC**: structured \`[CORE]\` with Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws (see NPC field instructions below).
+- **NPC**: structured \`[CORE]\` with {{sectionNames}} (see NPC field instructions below).
 - **LOC**: plain \`[CORE]\` with 1–2 sentences describing the place. No field headers.
 - **FAC**: plain \`[CORE]\` wrapping permanent history, ideology, schemes, and members. No field headers.
 - **QUEST, EVENT**: do NOT use \`[CORE]\`. Use timestamped chronicle lines only.
@@ -1132,10 +1084,9 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 ## NPC CORE UPDATES (NPC only)
 - Body changes: output \`[[UPDATE_APPEARANCE: Book::UID or NPC Name | new body text]]\`. Body is signature/default physical look — not a transient outfit-of-the-scene.
 - Equipment changes: output \`[[UPDATE_EQUIPMENT: Book::UID or NPC Name | new equipment text]]\` whenever the narrative explicitly shows a change to what they're wearing/wielding.
-- Eligible UPDATE_CORE fields this pass: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws.
+- Eligible UPDATE_CORE fields this pass: {{eligibleCoreFields}}.
   [[UPDATE_CORE: Book::UID or NPC Name | FieldName | New field text]]
-Use the exact FieldName. Do NOT log core updates as normal event/update entries.
-- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.
+Use the exact FieldName. Do NOT log core updates as normal event/update entries.{{autoPassRestriction}}{{existingNpcNudge}}
 
 ## DO NOT RE-RECORD EXISTING ENTITIES
 Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anything, check ACTIVE MEMORY and ARCHIVE INDEX for a matching name (they may be listed under a different label — check keywords too).
@@ -1147,43 +1098,30 @@ Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anyt
   - To bring an archived entry into full view first: use [[ACTIVATE: Name]].
 - Only use a fresh [[NPC:...]]/[[LOC:...]]/[[FAC:...]] record for entities that are BRAND NEW and have never appeared in ACTIVE MEMORY or ARCHIVE INDEX before.
 
+{{combatProfileGuidance}}
+
 ## RULES
 1. Only record persistent or significant entities/events.
 2. Use ACTIVATE to bring an existing entry into the current scene context.
 3. Use DEACTIVATE to remove an entry that is no longer relevant to the scene.
 4. Use DELETE to permanently remove duplicate or redundant entries.
 5. Do NOT create any entry for the player character (e.g. "Player" or "Dave Davidson").
-6. CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below (Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws) for NPCs and ignore any other sections.
+6. CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below ({{sectionNames}}) for NPCs and ignore any other sections.
 7. Output your thoughts first, then the tags.
 
-Example:
-Thought: I see a new NPC named Barnaby in Khelt's Rust-Lantern District. I will record him and the tavern.
-[[NPC: Barnaby | [CORE]
-Species: Human.
-Body: A burly man with a scar on his cheek.
-Equipment: Leather apron, heavy gloves, a hammer at his belt.
-Personality: Gruff but reliable.
-Brief Background: Retired from the militia to open his own forge.
-Habits/Behaviors: Wipes his brow with a greasy rag.
-Strengths: Skilled blacksmithing.
-Flaws: Can be overly suspicious.
-[/CORE] | Barnaby, blacksmith, ally]]
-[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]
-A squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.
-[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]
-[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]
-
-(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`,
+{{example}}`,
 
         // ── Agent Mode shared context template ────────────────────────────────
         // The complete context appended to the agent instructions in Agent Mode.
         routerAgentSharedContextTemplate: `
 ## MEMORY LIMIT
-Maximum Active Entities: **15**.
+Maximum Active Entities: **{{maxActivations}}**.
 - Entries you record are ACTIVATED AUTOMATICALLY. Do NOT also include them in activate.
 - Nothing is archived automatically. If you exceed the limit you will receive a **BUDGET VIOLATION** in the context and you MUST deactivate enough entries in that same commit call to return within budget. Choose the narratively least relevant entries.
 - Entries whose keywords appeared in the latest narrator output may already appear under **NEWLY ACTIVATED THIS TURN** with full content — you do not need to activate those again.
 - Always use exact Book::UID format (e.g. "Eldoria_NPCs::0") for activate/update/deactivate/delete_ids.
+
+{{relSection}}
 
 ## PLAYER CHARACTER SAFEGUARD
 - Do NOT create a lorebook entry for the player character under any circumstances.
@@ -1196,8 +1134,7 @@ Maximum Active Entities: **15**.
 ## NPC CORE UPDATES
 - Body: use \`commit.appearance\` (signature/default physical look only — not a transient outfit-of-the-scene).
 - Equipment: use \`commit.equipment\` whenever their visibly worn/carried gear changes.
-- Eligible commit.core fields this pass: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws.
-- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.
+- Eligible commit.core fields this pass: {{eligibleCoreFields}}.{{autoPassRestriction}}{{existingNpcNudge}}
 
 ## DO NOT RE-RECORD EXISTING ENTITIES
 Before using \`record\` for anyone or anything, check ACTIVE MEMORY, NEWLY ACTIVATED THIS TURN, and the ARCHIVE INDEX for a matching name (check keywords too, they may be listed under a different label).
@@ -1209,13 +1146,15 @@ Before using \`record\` for anyone or anything, check ACTIVE MEMORY, NEWLY ACTIV
   - To see its full content first: use \`read_entry\` or \`grep_lore\`, or \`activate\` it.
 - Only use \`record\` for entities that are BRAND NEW and have never appeared in ACTIVE MEMORY, NEWLY ACTIVATED, or the ARCHIVE INDEX before.
 
+{{combatProfileGuidance}}
+
 ## WORLD SKELETON (OFF-LIMITS)
 World Skeleton lorebooks (names ending in _Skeleton) are hidden seed data for World Progression only. They are NOT in your archive, tools cannot access them, and you must NEVER activate, read, update, or commit changes to Skeleton entries.
 
 ## CAMPAIGN CONTEXT
-Campaign Root: "World Archive"
-  NPCs -> "NPCs"
-  Locations -> "Locations" (etc.)
+Campaign Root: "{{campaignRoot}}"
+  NPCs -> "{{campaignNpcBook}}"
+  Locations -> "{{campaignLocBook}}" (etc.)
 Location hierarchy: use " :: " separator in labels (e.g. "Khelt :: Rust-Lantern District :: The Guilded Anvil").
 Include the entity name/title itself (without timestamps like "[Day 1]") as a keyword, plus any ancestor location names (e.g. keys: ["The Guilded Anvil", "Khelt", "Rust-Lantern District", "tavern"]).
 **Keyword cap: maximum 6 per entry.** Keep only the most essential trigger words.
@@ -1228,11 +1167,7 @@ Include the entity name/title itself (without timestamps like "[Day 1]") as a ke
 - CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below for NPCs and ignore any other sections.
 
 ## FIELD INSTRUCTIONS
-- NPC: Species, Body, Equipment, Personality, Brief Background, Habits/Behaviors, Strengths, Flaws
-- LOC: Hierarchical Path, Description
-- FAC: Name, Status, Description
-- EVENT: Name, Content
-- CONCEPT: Name, Content`,
+{{fieldInstructions}}`,
 
         categoryRenderOptions: {},
 
@@ -1442,7 +1377,7 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
 
 /** Latest settings migration version — factory reset skips legacy upgrade paths at or below this. */
 
-export const FACTORY_SETTINGS_VERSION = '7.0.13';
+export const FACTORY_SETTINGS_VERSION = '5.5.16';
 
 
 /** Remove extension UI keys from localStorage so a factory reset does not rehydrate stale panel state. */

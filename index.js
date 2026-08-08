@@ -1,5 +1,5 @@
 import { EXAMPLES, COLOR_EXAMPLES, DEFAULT_STOCK_PROMPTS, RT_PROMPTS, BLOCK_ICONS, BLOCK_ORDER, PAGE_SIZE, NO_PAGINATE, buildOnboardingXpHint, buildOnboardingTimeHint, buildStartingGearHint, buildOnboardingActiveBlocks, buildCombatAndSkillScalingHint, resolveTimePromptKey, resolveTimePromptDisplayTag, buildCyoaPrompt, DEFAULT_CYOA_SLOTS, refreshCyoaConfigToShipped, formatTimeOfDay } from './constants.js';
-import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, FULL_REVIEW_STATE_SYSTEM_PROMPT, FULL_REVIEW_USER_PROMPT_SUFFIX, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, updatePromptsForMaxActivations, synchronizeAllPromptsAndInstructions } from './state-manager.js';
+import { MODULE_NAME, DEFAULT_MODULES, MODULE_BOOK_CATEGORY, FULL_REVIEW_STATE_SYSTEM_PROMPT, FULL_REVIEW_USER_PROMPT_SUFFIX, getSettings, getBarBackground, migrateCustomFields, saveChatState, getActiveChatId, writeModuleSchemaBackup, getPendingModuleSchemaBackup, applyModuleSchemaBackup, applyDeletedCustomTagTombstones, recordDeletedCustomTags, clearDeletedCustomTagTombstones, saveProfile, deleteProfile, getEffectiveRouterCampaignPrefix, sanitizeCampaignPrefixString, buildNpcInstruction, loadStockPromptsFromProfile, getNpcRelationshipMax, getNpcRelationshipMaxDefault, clampRelationshipValue, relationshipBarPct, getFriendshipTier, getAffectionTier, getRelTierBadgeStyle, getRelTierDetailedStyle, getRelTierDetailedLabelStyle, applyRelTierBadgeElement, sanitizeRouterState, rebuildAllModuleInstructions, adjustAllStoredTemplatesForTimeFormat, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, computeBundledPromptsFingerprint, computeBundledPromptsFingerprintForSnapshot, normalizeBundledPromptsSnapshot, buildBundledPromptsSnapshot, getSnapshotCategoryBlocks, getPromptCategoryImpactBadge, PROMPT_DEFAULTS_CATEGORIES, PROMPT_DEFAULTS_CATEGORY_LABELS, getDefaultPortraitLocationSystemPrompt, isShippedPortraitLocationSystemPrompt, applyFactoryReset, clearExtensionLocalStorageUiState, stripChatStateGlobalUiPrefs, buildStateTrackerRelationshipCommandInstruction, extractStateTrackerRelationshipCommands, getRelationshipUpdateMode, RELATIONSHIP_UPDATE_MODES, resetLorebookPromptTemplates } from './state-manager.js';
 import { snapshotChatSetup, chatSetupsMatch, syncChatSetupCatalogs, removeChatSetupCatalogEntries } from './src/state/chat-setup.js';
 import { buildDirectPromptSystemPrompt, DIRECT_PROMPT_SYSTEM_MODES } from './src/state/direct-prompt-system.js';
 import { diffTextLines, diffHasChanges } from './prompt-diff.js';
@@ -896,7 +896,7 @@ function persistChatTimeFormatIfLinked() {
 
 export function rebuildNpcInstructionIfNeeded() {
     const s = getSettings();
-    synchronizeAllPromptsAndInstructions(s);
+    rebuildAllModuleInstructions(s);
 }
 
 /** Apply default or saved per-chat relationship max into live settings. */
@@ -939,7 +939,7 @@ function applyChatTimeFormatSettings(saved) {
     s.initialDate = saved?.initialDate ?? 'Day 1';
     s.initialTime = saved?.initialTime ?? '08:00 AM';
     if (s.routerModules?.npc) {
-        s.routerModules.npc.instruction = buildNpcInstruction(s.npcMajorWords, s.npcMinorWords, false);
+        s.routerModules.npc.instruction = buildNpcInstruction(s.npcMajorWords, s.npcMinorWords, false, s);
     }
     syncTimeFormatSettingsUi(s);
 }
@@ -962,8 +962,9 @@ export function setUseDdMmYyFormat(isDate) {
     }
     rebuildAllModuleInstructions(s);
     adjustAllStoredTemplatesForTimeFormat(s);
-    $('#rpg_tracker_router_prompt').val(s.routerSystemPromptTemplate);
+    $('#rpg_tracker_router_prompt').val(s.routerBasicMode ? s.routerBasicSystemPromptTemplate : s.routerSystemPromptTemplate);
     $('#rpg_tracker_router_modular_prompt').val(s.routerModularPromptTemplate);
+    $('#rpg_tracker_router_agent_context').val(s.routerAgentSharedContextTemplate);
     refreshOrderList();
     if (typeof globalThis._rpgRenderAgentModules === 'function') {
         globalThis._rpgRenderAgentModules();
@@ -988,8 +989,9 @@ export function setUse24hTime(is24h) {
     if (parsedMins != null) s.initialTime = formatTimeOfDay(parsedMins, s.use24hTime);
     rebuildAllModuleInstructions(s);
     adjustAllStoredTemplatesForTimeFormat(s);
-    $('#rpg_tracker_router_prompt').val(s.routerSystemPromptTemplate);
+    $('#rpg_tracker_router_prompt').val(s.routerBasicMode ? s.routerBasicSystemPromptTemplate : s.routerSystemPromptTemplate);
     $('#rpg_tracker_router_modular_prompt').val(s.routerModularPromptTemplate);
+    $('#rpg_tracker_router_agent_context').val(s.routerAgentSharedContextTemplate);
     refreshOrderList();
     if (typeof globalThis._rpgRenderAgentModules === 'function') {
         globalThis._rpgRenderAgentModules();
@@ -5185,14 +5187,11 @@ function organizeConnectionSettingsUI() {
                         fresh.pcCoreSections = JSON.parse(JSON.stringify(DEFAULT_PC_SECTIONS));
 
                         // 4. Lorebook Agent
-                        if (extensionSettings[MODULE_NAME]) {
-                            delete extensionSettings[MODULE_NAME].routerSystemPromptTemplate;
-                            delete extensionSettings[MODULE_NAME].routerModularPromptTemplate;
-                        }
+                        resetLorebookPromptTemplates(fresh, 'all');
                         for (const [id, def] of Object.entries(DEFAULT_MODULES)) {
                             if (fresh.routerModules && fresh.routerModules[id]) {
                                 if (id === 'npc') {
-                                    fresh.routerModules[id].instruction = buildNpcInstruction(fresh.npcMajorWords, fresh.npcMinorWords, false);
+                                    fresh.routerModules[id].instruction = buildNpcInstruction(fresh.npcMajorWords, fresh.npcMinorWords, false, fresh);
                                 } else {
                                     fresh.routerModules[id].instruction = def.instruction;
                                 }
@@ -5203,20 +5202,7 @@ function organizeConnectionSettingsUI() {
                             globalThis._rpgRenderAgentModules();
                         }
                         const sTemp = getSettings();
-                        const $promptEl = $('#rpg_tracker_router_prompt');
-                        if ($promptEl.length) {
-                            $promptEl.val(sTemp.routerSystemPromptTemplate).trigger('input');
-                            if (typeof (/** @type {any} */ ($promptEl)).trigger === 'function') {
-                                (/** @type {any} */ ($promptEl)).trigger('autosize.resize');
-                            }
-                        }
-                        const $modularEl = $('#rpg_tracker_router_modular_prompt');
-                        if ($modularEl.length) {
-                            $modularEl.val(sTemp.routerModularPromptTemplate).trigger('input');
-                            if (typeof (/** @type {any} */ ($modularEl)).trigger === 'function') {
-                                (/** @type {any} */ ($modularEl)).trigger('autosize.resize');
-                            }
-                        }
+                        syncRouterPromptUi();
 
                         // 5. World Progression
                         if (extensionSettings[MODULE_NAME]) {
@@ -5476,21 +5462,18 @@ function organizeConnectionSettingsUI() {
                                     fresh.pcCoreSections = JSON.parse(JSON.stringify(DEFAULT_PC_SECTIONS));
                                     // Keep the live Lorebook NPC instruction in sync even if lorebook wasn't selected.
                                     if (!loreReset && fresh.routerModules?.npc) {
-                                        fresh.routerModules.npc.instruction = buildNpcInstruction(fresh.npcMajorWords, fresh.npcMinorWords, false);
+                                        fresh.routerModules.npc.instruction = buildNpcInstruction(fresh.npcMajorWords, fresh.npcMinorWords, false, fresh);
                                     }
                                     resetCount++;
                                     console.log('[RPG Tracker] NPC/PC core sections reset to defaults.');
                                 }
 
                                 if (loreReset) {
-                                    if (extensionSettings[MODULE_NAME]) {
-                                        delete extensionSettings[MODULE_NAME].routerSystemPromptTemplate;
-                                        delete extensionSettings[MODULE_NAME].routerModularPromptTemplate;
-                                    }
+                                    resetLorebookPromptTemplates(fresh, 'all');
                                     for (const [id, def] of Object.entries(DEFAULT_MODULES)) {
                                         if (fresh.routerModules && fresh.routerModules[id]) {
                                             if (id === 'npc') {
-                                                fresh.routerModules[id].instruction = buildNpcInstruction(fresh.npcMajorWords, fresh.npcMinorWords, false);
+                                                fresh.routerModules[id].instruction = buildNpcInstruction(fresh.npcMajorWords, fresh.npcMinorWords, false, fresh);
                                             } else {
                                                 fresh.routerModules[id].instruction = def.instruction;
                                             }
@@ -5500,21 +5483,7 @@ function organizeConnectionSettingsUI() {
                                     if (typeof globalThis._rpgRenderAgentModules === 'function') {
                                         globalThis._rpgRenderAgentModules();
                                     }
-                                    const sTemp = getSettings();
-                                    const $promptEl = $('#rpg_tracker_router_prompt');
-                                    if ($promptEl.length) {
-                                        $promptEl.val(sTemp.routerSystemPromptTemplate).trigger('input');
-                                        if (typeof (/** @type {any} */ ($promptEl)).trigger === 'function') {
-                                            (/** @type {any} */ ($promptEl)).trigger('autosize.resize');
-                                        }
-                                    }
-                                    const $modularEl = $('#rpg_tracker_router_modular_prompt');
-                                    if ($modularEl.length) {
-                                        $modularEl.val(sTemp.routerModularPromptTemplate).trigger('input');
-                                        if (typeof (/** @type {any} */ ($modularEl)).trigger === 'function') {
-                                            (/** @type {any} */ ($modularEl)).trigger('autosize.resize');
-                                        }
-                                    }
+                                    syncRouterPromptUi();
                                     resetCount++;
                                     console.log('[RPG Tracker] Lorebook Agent prompts reset to defaults.');
                                 }
@@ -7721,27 +7690,16 @@ RULES:
             delete extensionSettings[MODULE_NAME].blockOrder;
             delete extensionSettings[MODULE_NAME].modules;
 
-            // 3. Reset Lorebook Agent prompts and World Progression prompts
-            delete extensionSettings[MODULE_NAME].routerSystemPromptTemplate;
-            delete extensionSettings[MODULE_NAME].routerModularPromptTemplate;
+            // 3. Reset all Lorebook Agent prompts and World Progression prompts
+            resetLorebookPromptTemplates(freshSettings, 'all');
             delete extensionSettings[MODULE_NAME].worldProgressionSystemPrompt;
             delete extensionSettings[MODULE_NAME].worldProgressionSkeletonSystemPrompt;
 
             // Re-merge defaults
             const finalSettings = getSettings();
 
-            // Update UI elements for Lorebook Agent prompts
-            const $routerPrompt = $('#rpg_tracker_router_prompt');
-            $routerPrompt.val(finalSettings.routerSystemPromptTemplate);
-            if (typeof (/** @type {any} */ ($routerPrompt)).trigger === 'function') {
-                (/** @type {any} */ ($routerPrompt)).trigger('autosize.resize');
-            }
-
-            const $routerModularPrompt = $('#rpg_tracker_router_modular_prompt');
-            $routerModularPrompt.val(finalSettings.routerModularPromptTemplate);
-            if (typeof (/** @type {any} */ ($routerModularPrompt)).trigger === 'function') {
-                (/** @type {any} */ ($routerModularPrompt)).trigger('autosize.resize');
-            }
+            // Update mode-aware Lorebook Agent prompt editors without firing input handlers.
+            syncRouterPromptUi();
 
             // Update UI elements for World Progression prompts
             const $wpPrompt = $('#rpg_world_progression_system_prompt');
@@ -9214,7 +9172,6 @@ RULES:
 
         $('#rpg_tracker_router_prefix_override').val(settings.routerCampaignPrefixOverride || '').on('input', function () {
             settings.routerCampaignPrefixOverride = String($(this).val() || '');
-            synchronizeAllPromptsAndInstructions(settings);
             saveSettings();
             updateSettingsLorePrefixReadout();
         });
@@ -9538,7 +9495,6 @@ RULES:
             const val = parseInt(String($(this).val() || '')) || 8;
             settings.routerMaxActivations = val;
             $('#rt-agent-router-max-activations').val(settings.routerMaxActivations);
-            updatePromptsForMaxActivations(settings, val);
             saveSettings();
         });
         $('#rpg_tracker_router_max_keyword_overflow').val(settings.routerMaxKeywordOverflow ?? 0).on('input', function () {
@@ -9576,7 +9532,9 @@ RULES:
             const val = isNaN(raw) ? (settings.npcMajorWords ?? 25) : raw;
             settings.npcMajorWords = Math.max(1, Math.min(1000, val));
             $(this).val(settings.npcMajorWords); // update display with clamped value
-            synchronizeAllPromptsAndInstructions(settings);
+            if (settings.routerModules?.npc) {
+                settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false, settings);
+            }
             saveSettings();
             if (typeof globalThis._rpgRenderAgentModules === 'function') {
                 globalThis._rpgRenderAgentModules();
@@ -9587,7 +9545,9 @@ RULES:
             const val = isNaN(raw) ? (settings.npcMinorWords ?? 15) : raw;
             settings.npcMinorWords = Math.max(1, Math.min(1000, val));
             $(this).val(settings.npcMinorWords); // update display with clamped value
-            synchronizeAllPromptsAndInstructions(settings);
+            if (settings.routerModules?.npc) {
+                settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false, settings);
+            }
             saveSettings();
             if (typeof globalThis._rpgRenderAgentModules === 'function') {
                 globalThis._rpgRenderAgentModules();
@@ -9601,7 +9561,7 @@ RULES:
             const onbRel = document.getElementById('rt_onboarding_mod_npc_rel_bars');
             if (onbRel) onbRel.checked = val;
 
-            synchronizeAllPromptsAndInstructions(settings);
+            rebuildAllModuleInstructions(settings);
             saveSettings();
             scheduleAutoApply();
             setTimeout(() => {
@@ -9630,13 +9590,14 @@ RULES:
             const raw = parseInt(String($(this).val() || ''), 10);
             const val = isNaN(raw) ? getNpcRelationshipMaxDefault(settings) : raw;
             setNpcRelationshipMaxDefault(val);
-            synchronizeAllPromptsAndInstructions(settings);
             saveSettings();
         });
         // Note: experimentalNpcImport removed — NPC Creator button is always visible.
         $('#rpg_tracker_ignore_npc_limits').prop('checked', !!settings.ignoreNpcImportLimits).on('change', function () {
             settings.ignoreNpcImportLimits = $(this).prop('checked');
-            synchronizeAllPromptsAndInstructions(settings);
+            if (settings.routerModules?.npc) {
+                settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false, settings);
+            }
             saveSettings();
             if (typeof globalThis._rpgRenderAgentModules === 'function') {
                 globalThis._rpgRenderAgentModules();
@@ -9723,46 +9684,40 @@ RULES:
             saveSettings();
         });
 
-        function expandRouterPromptMacros(text, isBasic = true) {
-            if (!text || typeof text !== 'string') return text;
-            synchronizeAllPromptsAndInstructions(settings);
-            return isBasic ? (settings.routerBasicSystemPromptTemplate || text) : (settings.routerSystemPromptTemplate || text);
-        }
-
         let isSyncingRouterPrompt = false;
         function syncRouterPromptUi() {
             const isBasic = !!settings.routerBasicMode;
             const $prompt = $('#rpg_tracker_router_prompt');
+            const $modularWrap = $('#rpg_tracker_router_modular_prompt_wrap');
+            const $modular = $('#rpg_tracker_router_modular_prompt');
+            const $agentContextWrap = $('#rpg_tracker_router_agent_context_wrap');
+            const $agentContext = $('#rpg_tracker_router_agent_context');
             const $desc = $('#rpg_tracker_router_prompt_desc');
             const $btn = $('#rpg_tracker_router_btn_reset_prompt');
 
-            // Sync all settings into prompt templates and instructions
-            synchronizeAllPromptsAndInstructions(settings);
-
             isSyncingRouterPrompt = true;
             if (isBasic) {
-                $desc.html('The <strong>complete</strong> system prompt sent in <strong>Basic Mode</strong>. Full plain text — all rules, sections, and examples are directly editable.');
-                if (!settings.routerBasicSystemPromptTemplate) {
-                    settings.routerBasicSystemPromptTemplate = defaultSettings.routerBasicSystemPromptTemplate || '';
-                    synchronizeAllPromptsAndInstructions(settings);
-                    saveSettings();
-                }
+                $desc.html('The editable <strong>Basic Mode</strong> base prompt. Its format/module template is editable below; dynamic placeholders are expanded only for each request.');
                 $prompt.val(settings.routerBasicSystemPromptTemplate || '');
-                $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompt');
+                $modular.val(settings.routerModularPromptTemplate || '');
+                $modularWrap.show();
+                $agentContextWrap.hide();
+                $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Basic Mode Prompts');
             } else {
-                $desc.html('The <strong>complete</strong> system prompt sent in <strong>Agent Mode</strong>. Full plain text — all rules, tool schemas, and instructions are directly editable.');
-                if (!settings.routerSystemPromptTemplate) {
-                    settings.routerSystemPromptTemplate = defaultSettings.routerSystemPromptTemplate || '';
-                    synchronizeAllPromptsAndInstructions(settings);
-                    saveSettings();
-                }
+                $desc.html('The editable <strong>Agent Mode</strong> base prompt. Shared rules are editable below; action/tool schemas are generated from enabled modules at request time.');
                 $prompt.val(settings.routerSystemPromptTemplate || '');
-                $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Mode Prompt');
+                $modularWrap.hide();
+                $agentContext.val(settings.routerAgentSharedContextTemplate || '');
+                $agentContextWrap.show();
+                $btn.html('<i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Mode Prompts');
             }
             isSyncingRouterPrompt = false;
 
             if (typeof (/** @type {any} */ ($prompt)).trigger === 'function') {
                 (/** @type {any} */ ($prompt)).trigger('autosize.resize');
+            }
+            if (typeof (/** @type {any} */ (isBasic ? $modular : $agentContext)).trigger === 'function') {
+                (/** @type {any} */ (isBasic ? $modular : $agentContext)).trigger('autosize.resize');
             }
         }
 
@@ -9788,29 +9743,28 @@ RULES:
             saveSettings();
         });
 
+        $('#rpg_tracker_router_agent_context').on('input', function () {
+            if (isSyncingRouterPrompt || settings.routerBasicMode) return;
+            settings.routerAgentSharedContextTemplate = String($(this).val() || '');
+            saveSettings();
+        });
+
+        $('#rpg_tracker_router_modular_prompt').on('input', function () {
+            if (isSyncingRouterPrompt || !settings.routerBasicMode) return;
+            settings.routerModularPromptTemplate = String($(this).val() || '');
+            saveSettings();
+        });
+
         $('#rpg_tracker_router_btn_reset_prompt').on('click', function () {
             const isBasic = !!settings.routerBasicMode;
             const modeName = isBasic ? 'Basic Mode' : 'Agent Mode';
-            if (!confirm(`Reset ${modeName} system prompt to default?`)) return;
+            const promptLabel = isBasic ? 'base and format/module prompts' : 'base and shared-context prompts';
+            if (!confirm(`Reset ${modeName} ${promptLabel} to default?`)) return;
 
-            const { extensionSettings } = SillyTavern.getContext();
-            if (isBasic) {
-                if (extensionSettings[MODULE_NAME]) {
-                    delete extensionSettings[MODULE_NAME].routerBasicSystemPromptTemplate;
-                }
-                const fresh = getSettings().routerBasicSystemPromptTemplate;
-                settings.routerBasicSystemPromptTemplate = fresh;
-            } else {
-                if (extensionSettings[MODULE_NAME]) {
-                    delete extensionSettings[MODULE_NAME].routerSystemPromptTemplate;
-                }
-                const fresh = getSettings().routerSystemPromptTemplate;
-                settings.routerSystemPromptTemplate = fresh;
-            }
-
+            resetLorebookPromptTemplates(settings, isBasic ? 'basic' : 'agent');
             syncRouterPromptUi();
             saveSettings();
-            toastr['success'](`${modeName} system prompt reset to default.`, 'RPG Tracker');
+            toastr['success'](`${modeName} prompts reset to default.`, 'RPG Tracker');
         });
 
         syncRouterPromptUi();

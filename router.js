@@ -1,4 +1,4 @@
-import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState, computeUnpinnedActiveCount, extractCharacterBlock, isPcCoreTarget, isAppearanceField, isEquipmentField, isCombatProfileField, getEligibleCoreFieldNames, patchLabeledSection } from './state-manager.js';
+import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState, computeUnpinnedActiveCount, extractCharacterBlock, isPcCoreTarget, isAppearanceField, isEquipmentField, isCombatProfileField, getEligibleCoreFieldNames, patchLabeledSection, expandLorebookPromptTemplate } from './state-manager.js';
 import { sendStateRequest, sendAgentTurn } from './llm-client.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { extractCurrentTimeStr, cleanMessageContent, parseInWorldTime, formatInWorldTime, findNthUserMessageStartIdx, formatAgentChatLogFromIndex, sanitizeLorebookRecordContent } from './memo-processor.js';
@@ -1089,20 +1089,24 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             const basicRawTemplate = settings.routerBasicSystemPromptTemplate || '';
             const maxActNum = settings.routerMaxActivations || 8;
             const basicSystemPrompt = adjustPromptTimestamps(
-                basicRawTemplate
+                expandLorebookPromptTemplate(
+                    basicRawTemplate
                     .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNum} active entries**`)
-                    .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNum}**`)
-                    .replace(/\{\{modularPrompt\}\}/g, modularPrompt)
-                    .replace(/\{\{formatLines\}\}/g, formatLinesStr)
-                    .replace(/\{\{maxActivations\}\}/g, String(maxActNum))
-                    .replace(/\{\{sectionNames\}\}/g, sectionNamesList)
-                    .replace(/\{\{relSection\}\}/g, relSection)
-                    .replace(/\{\{pcAppearanceGuidance\}\}/g, pcAppearanceGuidance)
-                    .replace(/\{\{eligibleCoreFields\}\}/g, eligibleCoreFieldsList)
-                    .replace(/\{\{autoPassRestriction\}\}/g, autoPassCoreRestriction)
-                    .replace(/\{\{existingNpcNudge\}\}/g, existingNpcChronicleNudge)
-                    .replace(/\{\{combatProfileGuidance\}\}/g, combatProfileGuidanceBasic)
-                    .replace(/\{\{example\}\}/g, exampleBlock),
+                    .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNum}**`),
+                    {
+                        modularPrompt,
+                        formatLines: formatLinesStr,
+                        maxActivations: maxActNum,
+                        sectionNames: sectionNamesList,
+                        relSection,
+                        pcAppearanceGuidance,
+                        eligibleCoreFields: eligibleCoreFieldsList,
+                        autoPassRestriction: autoPassCoreRestriction,
+                        existingNpcNudge: existingNpcChronicleNudge,
+                        combatProfileGuidance: combatProfileGuidanceBasic,
+                        example: exampleBlock,
+                    },
+                ),
                 settings
             );
 
@@ -1345,24 +1349,28 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             // routerAgentSharedContextTemplate (see defaults.js).
             const agentRawTemplate = settings.routerAgentSharedContextTemplate || '';
             const agentRelSection = settings.npcRelationshipBars
-                ? `\n## NPC RELATIONSHIPS\n${buildNpcRelationshipInstruction(getNpcRelationshipMax(settings))}\n`
+                ? `\n${buildNpcRelationshipInstruction(getNpcRelationshipMax(settings))}\n`
                 : '';
             const maxActNumAgent = settings.routerMaxActivations || 8;
             const sharedContext = adjustPromptTimestamps(
-                agentRawTemplate
+                expandLorebookPromptTemplate(
+                    agentRawTemplate
                     .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNumAgent}**`)
-                    .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNumAgent} active entries**`)
-                    .replace(/\{\{maxActivations\}\}/g, String(maxActNumAgent))
-                    .replace(/\{\{pcAppearanceGuidance\}\}/g, pcAppearanceGuidance)
-                    .replace(/\{\{eligibleCoreFields\}\}/g, eligibleCoreFieldsList)
-                    .replace(/\{\{autoPassRestriction\}\}/g, autoPassCoreRestriction)
-                    .replace(/\{\{existingNpcNudge\}\}/g, existingNpcChronicleNudge)
-                    .replace(/\{\{campaignRoot\}\}/g, prefix || 'World Archive')
-                    .replace(/\{\{campaignNpcBook\}\}/g, prefix ? `${prefix}_NPCs` : 'NPCs')
-                    .replace(/\{\{campaignLocBook\}\}/g, prefix ? `${prefix}_Locations` : 'Locations')
-                    .replace(/\{\{fieldInstructions\}\}/g, fieldInstructionLines)
-                    .replace(/\{\{combatProfileGuidance\}\}/g, combatProfileGuidanceAgent)
-                    .replace(/\{\{relSection\}\}/g, agentRelSection),
+                    .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNumAgent} active entries**`),
+                    {
+                        maxActivations: maxActNumAgent,
+                        pcAppearanceGuidance,
+                        eligibleCoreFields: eligibleCoreFieldsList,
+                        autoPassRestriction: autoPassCoreRestriction,
+                        existingNpcNudge: existingNpcChronicleNudge,
+                        campaignRoot: prefix || 'World Archive',
+                        campaignNpcBook: prefix ? `${prefix}_NPCs` : 'NPCs',
+                        campaignLocBook: prefix ? `${prefix}_Locations` : 'Locations',
+                        fieldInstructions: fieldInstructionLines,
+                        combatProfileGuidance: combatProfileGuidanceAgent,
+                        relSection: agentRelSection,
+                    },
+                ),
                 settings
             );
 

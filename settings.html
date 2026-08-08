@@ -1230,9 +1230,20 @@
                             <div class="inline-drawer-content">
                                 <div class="flex-container flexFlowColumn gap-1">
                                     <div id="rpg_tracker_router_prompt_desc" style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">
-                                        System prompt sent to the Lorebook Agent. Shows the prompt for the currently active mode (Basic Mode or Agent Mode) as full, raw, editable text.
+                                        Editable prompt template for the currently active Lorebook Agent mode.
                                     </div>
+                                    <div style="font-size: 9px; opacity: 0.52; margin-bottom: 5px; line-height: 1.35;">Dynamic placeholders such as <span style="font-family:monospace">{{maxActivations}}</span>, <span style="font-family:monospace">{{formatLines}}</span>, and <span style="font-family:monospace">{{autoPassRestriction}}</span> are resolved for each request without changing this saved template.</div>
                                     <textarea id="rpg_tracker_router_prompt" class="text_pole autoSetHeight" rows="12"></textarea>
+                                    <div id="rpg_tracker_router_modular_prompt_wrap" style="display:none; margin-top:8px;">
+                                        <label style="font-size:10px; font-weight:600;">Basic Format &amp; Module Template</label>
+                                        <div style="font-size:9px; opacity:0.52; margin:3px 0 5px; line-height:1.35;">Inserted at <span style="font-family:monospace">{{modularPrompt}}</span> in the Basic base prompt. Enabled modules and custom tags expand at <span style="font-family:monospace">{{formatLines}}</span>.</div>
+                                        <textarea id="rpg_tracker_router_modular_prompt" class="text_pole autoSetHeight" rows="12"></textarea>
+                                    </div>
+                                    <div id="rpg_tracker_router_agent_context_wrap" style="display:none; margin-top:8px;">
+                                        <label style="font-size:10px; font-weight:600;">Agent Shared Context Template</label>
+                                        <div style="font-size:9px; opacity:0.52; margin:3px 0 5px; line-height:1.35;">Rules appended after the Agent base prompt. Native tool schemas and text-action contracts remain generated from the enabled modules.</div>
+                                        <textarea id="rpg_tracker_router_agent_context" class="text_pole autoSetHeight" rows="12"></textarea>
+                                    </div>
                                     <button id="rpg_tracker_router_btn_reset_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset System Prompt</button>
                                 </div>
                             </div>

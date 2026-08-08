@@ -6,7 +6,6 @@ import { buildPanelMarkup } from './panel-markup.js';
 import { createSceneViewController } from './panel-scene-view.js';
 import { getCardAppearanceSynopsis as buildCardAppearanceSynopsis } from './card-synopsis.js';
 import { bindAdventureCompanion, closeAdventureCompanion, refreshAdventureCompanionLayout } from '../../../adventure-companion.js';
-import { updatePromptsForMaxActivations } from '../../state/settings.js';
 
 /**
  * Resolve ST macros (e.g. {{user}}, {{char}}) for READ-ONLY display of Lorebook Agent
@@ -1589,7 +1588,7 @@ export function createPanel(dependencies) {
 
                                             // Rebuild the NPC instruction from settings
                                             if (updS.routerModules?.npc) {
-                                                updS.routerModules.npc.instruction = buildNpcInstruction(finalMajor, finalMinor, false); // ignoreLimits only applies at import-time, not stored globally
+                                                updS.routerModules.npc.instruction = buildNpcInstruction(finalMajor, finalMinor, false, updS); // ignoreLimits only applies at import-time, not stored globally
                                             }
 
                                             saveSettings();
@@ -3292,7 +3291,7 @@ RULES:
                 }
             } catch (_) { }
 
-            const npcInstruction = buildNpcInstruction(s.npcMajorWords || 25, s.npcMinorWords || 15, !!s.ignoreNpcImportLimits);
+            const npcInstruction = buildNpcInstruction(s.npcMajorWords || 25, s.npcMinorWords || 15, !!s.ignoreNpcImportLimits, s);
 
             const coreSections = s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0 ? s.npcCoreSections : DEFAULT_NPC_SECTIONS;
             const sectionNamesList = coreSections.map(sec => sec.name).join(', ');
@@ -4209,7 +4208,7 @@ Rules:
                         const st = getSettings();
                         if (DEFAULT_MODULES[id]) {
                             if (id === 'npc') {
-                                st.routerModules[id].instruction = buildNpcInstruction(st.npcMajorWords, st.npcMinorWords);
+                                st.routerModules[id].instruction = buildNpcInstruction(st.npcMajorWords, st.npcMinorWords, false, st);
                             } else {
                                 st.routerModules[id].instruction = DEFAULT_MODULES[id].instruction;
                             }
@@ -4342,7 +4341,6 @@ Rules:
                 const val = parseInt(maxAct.value) || 8;
                 s.routerMaxActivations = val;
                 $('#rpg_tracker_router_max_activations').val(s.routerMaxActivations);
-                updatePromptsForMaxActivations(s, val);
                 saveSettings();
             });
         }

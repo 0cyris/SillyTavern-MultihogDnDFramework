@@ -5,10 +5,10 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 ## [7.0.13] - 2026-08-08
 
 ### Added
-- **Lorebook Agent System Prompt Editor**: Exposed the complete, full plain-text system prompt directly in the settings UI. The editor dynamically switches to show the full plain-text prompt for Basic Mode (all rules, sections, and examples fully exposed and editable) or Agent Mode (all agent tool schemas and instructions), with single-click reset functionality.
+- **Lorebook Agent System Prompt Editor**: Exposed the stored Basic Mode prompt template and the Agent Mode base/shared-context templates in settings, with mode-aware reset controls. Dynamic request context and tool schemas remain generated at runtime.
 
 ### Changed
-- **Game System Wizard UI Live Preview**: Made the Live UI Preview container directly text-editable (`contenteditable`), allowing direct interaction and preview adjustment while preserving live rendering for all progress bars, custom markers, and badges.
+- **Game System Wizard UI Live Preview**: Added a read-only live rendering of the matching tracker sample block, including progress bars, custom markers, badges, and preview pagination controls. Edit the source block above it to update both the preview and saved template.
 
 ## [7.0.12] - 2026-08-08
 

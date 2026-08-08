@@ -3,14 +3,11 @@
  * Self-binds into settings-ref so leaf modules can call getSettings() safely.
  */
 
-import { MODULE_NAME, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS } from './schema-sections.js';
+import { MODULE_NAME, DEFAULT_PC_SECTIONS } from './schema-sections.js';
 import { DEFAULT_MODULES } from './default-modules.js';
 import { buildDefaultSettings } from './defaults.js';
 import { isOlderThan } from './versions.js';
-import { buildNpcInstruction, buildLocInstruction, buildFacInstruction, rebuildAllModuleInstructions } from './module-instructions.js';
-import { getNpcRelationshipMax } from './relationship-math.js';
-import { buildNpcRelationshipInstruction } from './relationship-prompts.js';
-import { adjustPromptTimestamps } from './router-utils.js';
+import { buildNpcInstruction, buildLocInstruction, buildFacInstruction } from './module-instructions.js';
 import {
     getDefaultPortraitLocationSystemPrompt,
     isShippedPortraitLocationSystemPrompt,
@@ -667,17 +664,6 @@ function getSettingsInternal(extensionSettings) {
         s.settingsVersion = '5.5.16';
     }
 
-    // v7.0.13: Migrate Lorebook Agent prompts to full editable plain text.
-    // Automatically upgrades all existing users from any version older than current (7.0.13)
-    // so the new raw plain-text templates with full examples and sections are immediately active.
-    if (isOlderThan(s.settingsVersion, '7.0.13')) {
-        s.routerBasicSystemPromptTemplate = defaults.routerBasicSystemPromptTemplate;
-        s.routerSystemPromptTemplate = defaults.routerSystemPromptTemplate;
-        s.routerModularPromptTemplate = defaults.routerModularPromptTemplate;
-        s.routerAgentSharedContextTemplate = defaults.routerAgentSharedContextTemplate;
-        s.settingsVersion = '7.0.13';
-    }
-
     if (s.pcCoreSections && Array.isArray(s.pcCoreSections) && s.pcCoreSections.length === 6) {
         // We check by ID rather than name, because the legacy version might have had "Appearance" instead of "Appearance/Species"
         const idsMatch = s.pcCoreSections.every((sec, idx) => sec.id === DEFAULT_PC_SECTIONS[idx].id);
@@ -691,234 +677,7 @@ function getSettingsInternal(extensionSettings) {
 
     enforceRealtimeVisualizationDisabled(s);
 
-    // ── MIGRATION & SYNCHRONIZATION: Sync all settings into plain-text templates ──────
-    synchronizeAllPromptsAndInstructions(s);
-
     return extensionSettings[MODULE_NAME];
-}
-
-/**
- * Master synchronizer: dynamically updates all plain-text prompt templates, module instructions,
- * and UI elements to reflect all current user settings (max activations, NPC sections, campaign prefix,
- * relationship bars, modules/custom tags, time formats, word targets).
- * @param {object} s - Extension settings object
- * @param {object} [options]
- * @returns {object}
- */
-export function synchronizeAllPromptsAndInstructions(s, options = {}) {
-    if (!s) return s;
-
-    // 1. Rebuild module instructions (NPC word targets, sections, date/time format, rel bars)
-    try {
-        rebuildAllModuleInstructions(s);
-    } catch (_) {}
-
-    // 2. Resolve dynamic properties
-    let coreSections = s.npcCoreSections;
-    if (!coreSections || !Array.isArray(coreSections) || coreSections.length === 0) {
-        coreSections = DEFAULT_NPC_SECTIONS;
-    }
-    const sectionsList = coreSections.map(x => x.name).join(', ');
-
-    const exampleLineByName = {
-        'species': 'Human.',
-        'body': 'A burly man with a scar on his cheek.',
-        'equipment': 'Leather apron, heavy gloves, a hammer at his belt.',
-        'appearance/species': 'A burly human blacksmith with a scar on his cheek.',
-        'appearance': 'A burly human blacksmith with a scar on his cheek.',
-        'personality': 'Gruff but reliable.',
-        'brief background': 'Retired from the militia to open his own forge.',
-        'background': 'Retired from the militia to open his own forge.',
-        'habits/behaviors': 'Wipes his brow with a greasy rag.',
-        'habits & behaviors': 'Wipes his brow with a greasy rag.',
-        'strengths': 'Skilled blacksmithing.',
-        'flaws': 'Can be overly suspicious.',
-    };
-
-    const exampleCoreLines = coreSections.slice(0, 6)
-        .map(sec => `${sec.name}: ${exampleLineByName[sec.name.trim().toLowerCase()] || 'Notable detail here.'}`)
-        .join('\n')
-        .trim();
-
-    const fullExampleText = `Example:
-Thought: I see a new NPC named Barnaby in Khelt's Rust-Lantern District. I will record him and the tavern.
-[[NPC: Barnaby | [CORE]
-${exampleCoreLines}
-[/CORE] | Barnaby, blacksmith, ally]]
-[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]
-A squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.
-[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]
-[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]
-
-(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`;
-
-    const modules = s.routerModules || {};
-    const customTags = s.routerCustomTags || [];
-    const formatLinesArr = [];
-    for (const config of Object.values(modules)) {
-        if (config && config.enabled) {
-            formatLinesArr.push(`- [[${config.tag}: ${config.format}]] (${config.instruction})`);
-        }
-    }
-    for (const custom of customTags) {
-        if (custom) {
-            formatLinesArr.push(`- [[${custom.tag}: ${custom.format || 'Name | Description | Keywords'}]] (${custom.instruction})`);
-        }
-    }
-    formatLinesArr.push(`- [[ACTIVATE: Name]] (Bring entry to active memory)`);
-    formatLinesArr.push(`- [[DEACTIVATE: Name]] (Remove from active memory)`);
-    formatLinesArr.push(`- [[DELETE: Name]] (Permanently remove an entry)`);
-
-    const formatLines = `- [[NPC: Name | [CORE] ... [/CORE] | keywords]] — Persistent named NPC
-- [[LOC: Hierarchical Path | [CORE] ... [/CORE] | keywords]] — Location with full path
-- [[FAC: Name | Status | Description | keywords]] — Faction or organization
-- [[EVENT: Name | Content | keywords]] — Significant event or plot beat
-- [[CONCEPT: Name | Content | keywords]] — Lore, rule, artifact, or world concept
-- [[DEACTIVATE: Name]] — Return entity to archive when over memory budget
-- [[ACTIVATE: Name]] — Bring archived entity into active memory
-- [[UPDATE_CORE: Name | Field | New content]] — Surgically update an NPC field
-- [[UPDATE_APPEARANCE: Name | New body content]] — Update NPC/PC appearance
-- [[UPDATE_EQUIPMENT: Name | New equipment content]] — Update NPC/PC equipment`;
-
-    const fieldInstArr = [
-        `- NPC: ${sectionsList}`,
-        `- LOC: Hierarchical Path, Description`,
-        `- FAC: Name, Status, Description`,
-        `- EVENT: Name, Content`,
-        `- CONCEPT: Name, Content`,
-        ...((customTags.length) ? ['', '### CUSTOM CATEGORIES', ...customTags.map(m => `- ${m.tag.toUpperCase()}: ${m.instruction}`)] : [])
-    ];
-    const fieldInst = fieldInstArr.join('\n');
-
-    const maxActNum = parseInt(String(s.routerMaxActivations), 10) || 8;
-    const prefix = (s.routerCampaignPrefixOverride || s.routerCampaignPrefix || '').trim();
-    const campaignRoot = prefix || 'World Archive';
-    const campaignNpcBook = prefix ? `${prefix}_NPCs` : 'NPCs';
-    const campaignLocBook = prefix ? `${prefix}_Locations` : 'Locations';
-
-    const enableRel = !!s.npcRelationshipBars;
-    const relMax = getNpcRelationshipMax(s);
-    const relSection = enableRel ? `\n## NPC RELATIONSHIPS\n${buildNpcRelationshipInstruction(relMax)}\n` : '';
-
-    const pcGuidance = `- You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
-- You may update the Player Character's own Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new equipment text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
-- Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
-- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.`;
-
-    const existingNpc = `\n- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
-
-    const syncPromptText = (text) => {
-        if (!text || typeof text !== 'string') return text;
-        let res = text;
-
-        // 1. Max activations
-        res = res
-            .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNum} active entries**`)
-            .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNum}**`)
-            .replace(/\{\{maxActivations\}\}/g, String(maxActNum));
-
-        // 2. Sections list
-        res = res
-            .replace(/structured `\[CORE\]` with (?:[^\r\n\(]+) \(see NPC field instructions below\)/i, `structured \`[CORE]\` with ${sectionsList} (see NPC field instructions below)`)
-            .replace(/Eligible UPDATE_CORE fields this pass:\s*[^\r\n\.]+(?=\.)/i, `Eligible UPDATE_CORE fields this pass: ${sectionsList}`)
-            .replace(/Eligible commit\.core fields this pass:\s*[^\r\n\.]+(?=\.)/i, `Eligible commit.core fields this pass: ${sectionsList}`)
-            .replace(/ONLY the sections instructed below \([^\r\n\)]+\) for NPCs/i, `ONLY the sections instructed below (${sectionsList}) for NPCs`)
-            .replace(/-\s*NPC:\s*[^\r\n]+/i, `- NPC: ${sectionsList}`)
-            .replace(/\{\{sectionNames\}\}/g, sectionsList)
-            .replace(/\{\{eligibleCoreFields\}\}/g, sectionsList);
-
-        // 3. Campaign context
-        res = res
-            .replace(/Campaign Root:\s*"[^"]*"/i, `Campaign Root: "${campaignRoot}"`)
-            .replace(/NPCs\s*->\s*"[^"]*"/i, `NPCs -> "${campaignNpcBook}"`)
-            .replace(/Locations\s*->\s*"[^"]*"/i, `Locations -> "${campaignLocBook}"`)
-            .replace(/update (.*?) to reflect new developments/gi, `update ${campaignRoot} to reflect new developments`)
-            .replace(/\{\{campaignRoot\}\}/g, campaignRoot)
-            .replace(/\{\{campaignNpcBook\}\}/g, campaignNpcBook)
-            .replace(/\{\{campaignLocBook\}\}/g, campaignLocBook);
-
-        // 4. Macros expansion
-        res = res
-            .replace(/\{\{formatLines\}\}/g, formatLines)
-            .replace(/\{\{example\}\}/g, fullExampleText)
-            .replace(/\{\{autoPassRestriction\}\}/g, '')
-            .replace(/\{\{existingNpcNudge\}\}/g, existingNpc)
-            .replace(/\{\{pcAppearanceGuidance\}\}/g, pcGuidance)
-            .replace(/\{\{combatProfileGuidance\}\}/g, '')
-            .replace(/\{\{fieldInstructions\}\}/g, fieldInst)
-            .replace(/\{\{relSection\}\}/g, relSection)
-            .replace(/\{\{modularPrompt\}\}/g, '');
-
-        // 5. Dynamic Relationship Section synchronization
-        if (enableRel) {
-            const relBlock = buildNpcRelationshipInstruction(relMax);
-            if (res.includes('## NPC RELATIONSHIPS')) {
-                res = res.replace(/## NPC RELATIONSHIPS[\s\S]*?(?=\n## |$)/, `${relBlock}\n`);
-            } else if (res.includes('## NPC CORE UPDATES')) {
-                res = res.replace(/(## NPC CORE UPDATES[\s\S]*?)(?=\n## DO NOT RE-RECORD|\n## RULES|\n## [A-Z]|$)/, `$1\n\n${relBlock}`);
-            }
-        } else {
-            if (res.includes('## NPC RELATIONSHIPS')) {
-                res = res.replace(/\n*## NPC RELATIONSHIPS[\s\S]*?(?=\n## |$)/, '');
-            }
-        }
-
-        // 6. Update example block if present
-        if (res.includes('[[NPC: Barnaby | [CORE]') && res.includes('[/CORE] | Barnaby, blacksmith, ally]]')) {
-            res = res.replace(/\[\[NPC: Barnaby \| \[CORE\][\s\S]*?\[\/CORE\] \| Barnaby, blacksmith, ally\]\]/i,
-                `[[NPC: Barnaby | [CORE]\n${exampleCoreLines}\n[/CORE] | Barnaby, blacksmith, ally]]`);
-        }
-
-        // 6. Adjust timestamps
-        try {
-            res = adjustPromptTimestamps(res, s);
-        } catch (_) {}
-
-        return res;
-    };
-
-    if (s.routerBasicSystemPromptTemplate) {
-        s.routerBasicSystemPromptTemplate = syncPromptText(s.routerBasicSystemPromptTemplate);
-    }
-    if (s.routerSystemPromptTemplate) {
-        s.routerSystemPromptTemplate = syncPromptText(s.routerSystemPromptTemplate);
-    }
-    if (s.routerAgentSharedContextTemplate) {
-        s.routerAgentSharedContextTemplate = syncPromptText(s.routerAgentSharedContextTemplate);
-    }
-    if (s.routerModularPromptTemplate) {
-        s.routerModularPromptTemplate = syncPromptText(s.routerModularPromptTemplate);
-    }
-
-    // Live UI textarea sync
-    if (typeof $ !== 'undefined') {
-        const $prompt = $('#rpg_tracker_router_prompt');
-        if ($prompt.length) {
-            const currentVal = String($prompt.val() || '');
-            const updatedVal = syncPromptText(currentVal);
-            if (currentVal !== updatedVal) {
-                $prompt.val(updatedVal);
-                if (typeof (/** @type {any} */ ($prompt)).trigger === 'function') {
-                    (/** @type {any} */ ($prompt)).trigger('autosize.resize');
-                }
-            }
-        }
-    }
-
-    return s;
-}
-
-/**
- * Synchronizes the max activations number across all prompt templates and UI prompt textarea.
- * @param {object} s
- * @param {number|string} [newLimit]
- */
-export function updatePromptsForMaxActivations(s, newLimit) {
-    if (!s) return;
-    if (newLimit !== undefined) {
-        s.routerMaxActivations = parseInt(String(newLimit), 10) || 8;
-    }
-    synchronizeAllPromptsAndInstructions(s);
 }
 
 // ── Bar color resolver ─────────────────────────────────────────────────────────

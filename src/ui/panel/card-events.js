@@ -675,7 +675,7 @@ export function bindRenderedCardEvents(el, memo, isDetachedContext = false, onRe
             syncSettingsAndUI(settings => {
                 settings.npcRelationshipBars = !!onboardingRelBarsCb.checked;
                 if (settings.routerModules?.npc) {
-                    settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false);
+                    settings.routerModules.npc.instruction = buildNpcInstruction(settings.npcMajorWords, settings.npcMinorWords, false, settings);
                 }
             });
             setTimeout(() => {

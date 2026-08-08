@@ -1,85 +1,150 @@
-import { describe, expect, it } from 'vitest';
-import { synchronizeAllPromptsAndInstructions } from '../src/state/settings.js';
-import { buildDefaultSettings } from '../src/state/defaults.js';
-import { DEFAULT_NPC_SECTIONS } from '../src/state/schema-sections.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { buildDefaultSettings, FACTORY_SETTINGS_VERSION } from '../src/state/defaults.js';
+import {
+    expandLorebookPromptTemplate,
+    resetLorebookPromptTemplates,
+} from '../src/state/lorebook-prompt-templates.js';
+import { getSettings } from '../src/state/settings.js';
+import { MODULE_NAME } from '../src/state/schema-sections.js';
+import { testExtensionSettings } from './setup.js';
 
-describe('Universal Plain-Text Prompt & Instruction Synchronization', () => {
-    it('resolves maxActivations across all prompt templates without leaving raw macros', () => {
-        const settings = buildDefaultSettings();
-        settings.routerMaxActivations = 12;
-        synchronizeAllPromptsAndInstructions(settings);
-
-        expect(settings.routerBasicSystemPromptTemplate).toContain('You are limited to **12 active entries**');
-        expect(settings.routerBasicSystemPromptTemplate).not.toContain('{{maxActivations}}');
-
-        expect(settings.routerAgentSharedContextTemplate).toContain('Maximum Active Entities: **12**');
-        expect(settings.routerAgentSharedContextTemplate).not.toContain('{{maxActivations}}');
+describe('Lorebook prompt templates', () => {
+    beforeEach(() => {
+        for (const key of Object.keys(testExtensionSettings)) {
+            delete testExtensionSettings[key];
+        }
     });
 
-    it('resolves dynamic NPC core sections into instructions and prompt text', () => {
-        const settings = buildDefaultSettings();
-        settings.npcCoreSections = [
-            { id: 'sec_species', name: 'Ancestry', icon: '🧬', color: '#ff0000', description: 'Ancestry detail' },
-            { id: 'sec_body', name: 'Physique', icon: '💪', color: '#00ff00', description: 'Physique detail' },
-            { id: 'sec_personality', name: 'Demeanor', icon: '🎭', color: '#0000ff', description: 'Demeanor detail' }
-        ];
+    it('keeps user prompt and module edits intact during normal settings reads', () => {
+        const custom = {
+            settingsVersion: FACTORY_SETTINGS_VERSION,
+            routerBasicSystemPromptTemplate: 'custom basic',
+            routerSystemPromptTemplate: 'custom agent base',
+            routerModularPromptTemplate: 'custom modular',
+            routerAgentSharedContextTemplate: 'custom shared context',
+            routerModules: {
+                npc: { enabled: true, tag: 'NPC', format: 'custom format', instruction: 'custom NPC instruction' },
+            },
+        };
+        testExtensionSettings[MODULE_NAME] = custom;
 
-        synchronizeAllPromptsAndInstructions(settings);
+        const settings = getSettings();
 
-        const expectedSectionList = 'Ancestry, Physique, Demeanor';
-        expect(settings.routerBasicSystemPromptTemplate).toContain(`structured \`[CORE]\` with ${expectedSectionList}`);
-        expect(settings.routerBasicSystemPromptTemplate).toContain(`Eligible UPDATE_CORE fields this pass: ${expectedSectionList}`);
-        expect(settings.routerBasicSystemPromptTemplate).toContain(`ONLY the sections instructed below (${expectedSectionList}) for NPCs`);
-        expect(settings.routerAgentSharedContextTemplate).toContain(`Eligible commit.core fields this pass: ${expectedSectionList}`);
-        expect(settings.routerBasicSystemPromptTemplate).not.toContain('{{sectionNames}}');
-        expect(settings.routerBasicSystemPromptTemplate).not.toContain('{{eligibleCoreFields}}');
-        expect(settings.routerModules.npc.instruction).toContain('Ancestry');
-        expect(settings.routerModules.npc.instruction).toContain('Physique');
-        expect(settings.routerModules.npc.instruction).toContain('Demeanor');
+        expect(settings.routerBasicSystemPromptTemplate).toBe('custom basic');
+        expect(settings.routerSystemPromptTemplate).toBe('custom agent base');
+        expect(settings.routerModularPromptTemplate).toBe('custom modular');
+        expect(settings.routerAgentSharedContextTemplate).toBe('custom shared context');
+        expect(settings.routerModules.npc.instruction).toBe('custom NPC instruction');
+        expect(settings.routerModules.npc.format).toBe('custom format');
     });
 
-    it('resolves campaign prefix override into prompt templates', () => {
-        const settings = buildDefaultSettings();
-        settings.routerCampaignPrefixOverride = 'Shadowfell';
+    it('resets both Basic Mode sources without overwriting Agent Mode', () => {
+        const defaults = buildDefaultSettings();
+        const settings = {
+            routerBasicSystemPromptTemplate: 'custom basic',
+            routerSystemPromptTemplate: 'custom agent base',
+            routerModularPromptTemplate: 'custom modular',
+            routerAgentSharedContextTemplate: 'custom shared context',
+        };
 
-        synchronizeAllPromptsAndInstructions(settings);
+        resetLorebookPromptTemplates(settings, 'basic', defaults);
 
-        expect(settings.routerAgentSharedContextTemplate).toContain('Campaign Root: "Shadowfell"');
-        expect(settings.routerAgentSharedContextTemplate).toContain('NPCs -> "Shadowfell_NPCs"');
-        expect(settings.routerAgentSharedContextTemplate).toContain('Locations -> "Shadowfell_Locations"');
-        expect(settings.routerAgentSharedContextTemplate).not.toContain('{{campaignRoot}}');
-        expect(settings.routerAgentSharedContextTemplate).not.toContain('{{campaignNpcBook}}');
-        expect(settings.routerAgentSharedContextTemplate).not.toContain('{{campaignLocBook}}');
+        expect(settings.routerBasicSystemPromptTemplate).toBe(defaults.routerBasicSystemPromptTemplate);
+        expect(settings.routerSystemPromptTemplate).toBe('custom agent base');
+        expect(settings.routerModularPromptTemplate).toBe(defaults.routerModularPromptTemplate);
+        expect(settings.routerAgentSharedContextTemplate).toBe('custom shared context');
     });
 
-    it('resolves relationship sections dynamically when enabled/disabled', () => {
-        const settings = buildDefaultSettings();
-        settings.npcRelationshipBars = true;
-        settings.npcRelationshipMax = 200;
+    it('resets both Agent Mode editors without writing into the Basic Mode field', () => {
+        const defaults = buildDefaultSettings();
+        const settings = {
+            routerBasicSystemPromptTemplate: 'custom basic',
+            routerSystemPromptTemplate: 'custom agent base',
+            routerModularPromptTemplate: 'custom modular',
+            routerAgentSharedContextTemplate: 'custom shared context',
+        };
 
-        synchronizeAllPromptsAndInstructions(settings);
-        expect(settings.routerBasicSystemPromptTemplate).toContain('## NPC RELATIONSHIPS');
-        expect(settings.routerBasicSystemPromptTemplate).toContain('Valid range: -200 to +200.');
-        expect(settings.routerModules.npc.instruction).toContain('## NPC RELATIONSHIPS');
-        expect(settings.routerModules.npc.instruction).toContain('Valid range: -200 to +200.');
+        resetLorebookPromptTemplates(settings, 'agent', defaults);
+
+        expect(settings.routerBasicSystemPromptTemplate).toBe('custom basic');
+        expect(settings.routerSystemPromptTemplate).toBe(defaults.routerSystemPromptTemplate);
+        expect(settings.routerModularPromptTemplate).toBe('custom modular');
+        expect(settings.routerAgentSharedContextTemplate).toBe(defaults.routerAgentSharedContextTemplate);
     });
 
-    it('replaces all macro placeholders leaving zero unexpanded template variables', () => {
-        const settings = buildDefaultSettings();
-        synchronizeAllPromptsAndInstructions(settings);
+    it('resets all four templates only when the prompt-update flow selects Lorebook Agent', () => {
+        const defaults = buildDefaultSettings();
+        const settings = {
+            routerBasicSystemPromptTemplate: 'custom basic',
+            routerSystemPromptTemplate: 'custom agent base',
+            routerModularPromptTemplate: 'custom modular',
+            routerAgentSharedContextTemplate: 'custom shared context',
+            unrelatedSetting: 'keep me',
+        };
 
-        const templates = [
-            settings.routerBasicSystemPromptTemplate,
-            settings.routerSystemPromptTemplate,
-            settings.routerAgentSharedContextTemplate,
-            settings.routerModularPromptTemplate
-        ];
+        resetLorebookPromptTemplates(settings, 'all', defaults);
 
-        for (const t of templates) {
-            if (!t) continue;
-            // Check that no {{macro}} tokens remain (except allowed ST macros like {{user}} or {{char}})
-            const disallowed = t.match(/\{\{(?!user\b|char\b)[a-zA-Z0-9_]+\}\}/g);
-            expect(disallowed).toBeNull();
+        expect(settings.routerBasicSystemPromptTemplate).toBe(defaults.routerBasicSystemPromptTemplate);
+        expect(settings.routerSystemPromptTemplate).toBe(defaults.routerSystemPromptTemplate);
+        expect(settings.routerModularPromptTemplate).toBe(defaults.routerModularPromptTemplate);
+        expect(settings.routerAgentSharedContextTemplate).toBe(defaults.routerAgentSharedContextTemplate);
+        expect(settings.unrelatedSetting).toBe('keep me');
+    });
+
+    it('expands request-time values without mutating stored text or consuming ST macros', () => {
+        const stored = 'Limit {{maxActivations}} for {{user}}; keep {{futureToken}}.';
+        const expanded = expandLorebookPromptTemplate(stored, { maxActivations: 12 });
+
+        expect(expanded).toBe('Limit 12 for {{user}}; keep {{futureToken}}.');
+        expect(stored).toBe('Limit {{maxActivations}} for {{user}}; keep {{futureToken}}.');
+    });
+
+    it('keeps runtime-dependent instructions as placeholders in shipped defaults', () => {
+        const defaults = buildDefaultSettings();
+
+        expect(defaults.routerBasicSystemPromptTemplate).toContain('{{modularPrompt}}');
+        expect(defaults.routerModularPromptTemplate).toContain('{{formatLines}}');
+        expect(defaults.routerBasicSystemPromptTemplate).toContain('{{maxActivations}}');
+        expect(defaults.routerBasicSystemPromptTemplate).toContain('{{eligibleCoreFields}}');
+        expect(defaults.routerBasicSystemPromptTemplate).toContain('{{autoPassRestriction}}');
+        expect(defaults.routerBasicSystemPromptTemplate).toContain('{{combatProfileGuidance}}');
+        expect(defaults.routerAgentSharedContextTemplate).toContain('{{fieldInstructions}}');
+        expect(defaults.routerAgentSharedContextTemplate).toContain('{{campaignRoot}}');
+        expect(defaults.routerAgentSharedContextTemplate).toContain('{{relSection}}');
+    });
+
+    it('composes all Basic and Agent runtime fields while leaving only SillyTavern macros', () => {
+        const defaults = buildDefaultSettings();
+        const formatLines = '- [[NPC: Name | Description | Keywords]]\n- [[CLUE: Name | Details | Keywords]]';
+        const modularPrompt = expandLorebookPromptTemplate(defaults.routerModularPromptTemplate, { formatLines });
+        const common = {
+            maxActivations: 11,
+            relSection: '## NPC RELATIONSHIPS\nRelationship rules.',
+            eligibleCoreFields: 'Personality, Combat Profile',
+            autoPassRestriction: ' Automatic-pass restriction.',
+            existingNpcNudge: ' Existing-NPC chronicle rule.',
+            combatProfileGuidance: 'Combat-profile rules.',
+        };
+        const basic = expandLorebookPromptTemplate(defaults.routerBasicSystemPromptTemplate, {
+            ...common,
+            modularPrompt,
+            sectionNames: 'Species, Body, Personality',
+            example: 'Example output.',
+        });
+        const agent = expandLorebookPromptTemplate(defaults.routerAgentSharedContextTemplate, {
+            ...common,
+            campaignRoot: 'Shadowfell',
+            campaignNpcBook: 'Shadowfell_NPCs',
+            campaignLocBook: 'Shadowfell_Locations',
+            fieldInstructions: '- NPC: dynamic instruction\n- CLUE: custom instruction',
+        });
+
+        expect(basic).toContain('[[CLUE: Name | Details | Keywords]]');
+        expect(basic).toContain('You are limited to **11 active entries**');
+        expect(agent).toContain('Campaign Root: "Shadowfell"');
+        expect(agent).toContain('- CLUE: custom instruction');
+        for (const prompt of [basic, agent]) {
+            expect(prompt.match(/\{\{(?!user\b|char\b)[a-zA-Z0-9_]+\}\}/g)).toBeNull();
         }
     });
 });
