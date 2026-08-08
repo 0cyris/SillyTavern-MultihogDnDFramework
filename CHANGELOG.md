@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.1.0] - 2026-08-08
+
+### Added
+- **Branch Campaign**: One-button pipeline under General & Visuals → Core & Branching that creates a SillyTavern transcript branch, deep-copies all Multihog per-chat data (memo, quests, portraits maps, setup, companion, etc.), clones the lorebook stack under the new chat’s sanitized prefix, then opens the branch — leaving the original chat intact.
+- **Chat rename migration**: Listens for SillyTavern `CHAT_RENAMED` and moves Multihog `chatStates` (plus companion / memo-recovery maps) to the new chat file name so renaming a chat no longer looks like an empty campaign.
+
+### Changed
+- **Clone Stack**: Uses the shared lorebook clone helper; tip points users at Branch Campaign for the full automated branch.
+
 ## [7.0.14] - 2026-08-08
 
 ### Added
