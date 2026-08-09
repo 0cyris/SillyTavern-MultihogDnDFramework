@@ -543,7 +543,7 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
         quests: [],
 
         /** Narrator <narrative> pacing mode: normal | shorter_outputs | high_agency | downtime. */
-        narrativePacing: 'shorter_outputs',
+        narrativePacing: 'normal',
 
         syspromptModules: {
 
