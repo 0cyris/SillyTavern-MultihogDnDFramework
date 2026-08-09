@@ -1658,6 +1658,11 @@ function onChatChanged(newChatId) {
         return;
     }
 
+    // A later CHAT_RENAMED may prove this switch was a rename. Only the exact
+    // unseen-chat reset below is safe to replace; every other collision must be
+    // preserved as potentially real campaign data.
+    runtimeState.pendingUnseenChatReset = null;
+
     // Flush Adventure Companion under the departing chat BEFORE flipping currentChatId /
     // loading the arriving partition (history is per-chat, including when Chat Link is off).
     if (typeof globalThis._rpgFlushAdventureCompanionForChat === 'function' && oldChatId) {
@@ -1812,8 +1817,9 @@ function onChatChanged(newChatId) {
     const found = loadChatState(resolvedId);
     if (!found && !s.chatStates?.[resolvedId]) {
         // Branch Campaign seeds the partition before open; never wipe a just-seeded branch.
-        // Rename: CHAT_CHANGED may briefly reset before CHAT_RENAMED migrates old → new
-        // (remapper restores via loadChatState; empty-vs-rich collision prefers the old partition).
+        // Rename: CHAT_CHANGED may briefly reset before CHAT_RENAMED migrates old → new.
+        // Record that exact reset so the migrator can replace only this known shell;
+        // ambiguous or substantive destination collisions are always preserved.
         if (isBranchSeedInProgress(resolvedId)) {
             const retried = loadChatState(resolvedId);
             if (!retried && !s.chatStates?.[resolvedId]) {
@@ -1821,6 +1827,7 @@ function onChatChanged(newChatId) {
             }
         } else {
             resetUnseenChatState(s);
+            runtimeState.pendingUnseenChatReset = { oldId: oldChatId, newId: resolvedId };
         }
     } else if (!found && typeof globalThis._rpgLoadAdventureCompanionForChat === 'function') {
         // Partition missing but chatStates entry may exist empty — still hydrate companion map
