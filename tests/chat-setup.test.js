@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     applyChatSetup,
     buildDefaultSettings,
+    clearChatBoundActivations,
     getChatSetupItemScope,
     getChatSetupScopeOwner,
     migrateChatSetupCatalogs,
@@ -238,6 +239,58 @@ describe('per-chat Control Room and tracker setup', () => {
         applyChatSetup(settings, chatA);
         expect(settings.customFields.find(item => item.tag === 'SANITY')?.enabled).toBe(true);
         expect(settings.customFields.find(item => item.tag === 'WEATHER')?.enabled).toBe(false);
+    });
+
+    it('clears chat-bound activations for an unseen chat while keeping GLOBAL and Narrator config', () => {
+        const settings = buildDefaultSettings();
+        migrateChatSetupCatalogs(settings);
+        settings.narrativePacing = 'high_agency';
+        settings.syspromptModules = { ...settings.syspromptModules, loot: false, CYOA_mode: true };
+        settings.gameSystems = [
+            {
+                id: 'stress-system',
+                name: 'Stress',
+                enabled: true,
+                scope: 'chat',
+                customFieldTag: 'STRESS',
+                syspromptLibraryId: 'stress-rules',
+            },
+            {
+                id: 'weather-system',
+                name: 'Weather',
+                enabled: true,
+                scope: 'global',
+                customFieldTag: 'WEATHER',
+                syspromptLibraryId: 'weather-rules',
+            },
+        ];
+        settings.customFields = [
+            { tag: 'STRESS', label: 'Stress', enabled: true, scope: 'chat', origin: 'wizard' },
+            { tag: 'WEATHER', label: 'Weather', enabled: true, scope: 'global', origin: 'wizard' },
+            { tag: 'SANITY', label: 'Sanity', enabled: true, scope: 'chat' },
+        ];
+        settings.customSyspromptLibrary = [
+            { id: 'stress-rules', tag: 'stress_rules', content: 'Apply stress.', enabled: true, scope: 'chat', origin: 'wizard' },
+            { id: 'weather-rules', tag: 'weather_rules', content: 'Track weather.', enabled: true, scope: 'global', origin: 'wizard' },
+            { id: 'grim', tag: 'tone', content: 'Grim', enabled: true, scope: 'chat' },
+        ];
+        syncChatSetupCatalogs(settings);
+
+        expect(clearChatBoundActivations(settings)).toBe(true);
+
+        expect(settings.narrativePacing).toBe('high_agency');
+        expect(settings.syspromptModules.loot).toBe(false);
+        expect(settings.syspromptModules.CYOA_mode).toBe(true);
+
+        expect(settings.gameSystems.find(gs => gs.id === 'stress-system')?.enabled).toBe(false);
+        expect(settings.customFields.find(f => f.tag === 'STRESS')?.enabled).toBe(false);
+        expect(settings.customSyspromptLibrary.find(s => s.id === 'stress-rules')?.enabled).toBe(false);
+        expect(settings.customFields.find(f => f.tag === 'SANITY')?.enabled).toBe(false);
+        expect(settings.customSyspromptLibrary.find(s => s.id === 'grim')?.enabled).toBe(false);
+
+        expect(settings.gameSystems.find(gs => gs.id === 'weather-system')?.enabled).toBe(true);
+        expect(settings.customFields.find(f => f.tag === 'WEATHER')?.enabled).toBe(true);
+        expect(settings.customSyspromptLibrary.find(s => s.id === 'weather-rules')?.enabled).toBe(true);
     });
 
     it('makes a Wizard Game System authoritative for both linked children', () => {
