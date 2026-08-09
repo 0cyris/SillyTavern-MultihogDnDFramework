@@ -3,27 +3,36 @@
  * Multihog D&D Framework extension modules outside SillyTavern.
  *
  * Registered by framework-loader.mjs via module.register(). Two jobs:
- *  1. Repo extension files have no package.json and use ESM syntax in .js
- *     files, so force format:'module' for allowlisted repo modules.
- *  2. Any import that is NOT on the allowlist (browser-only modules like
- *     llm-client.js, ui-editors.js, SillyTavern core ../../../*.js) is
+ *  1. Repo extension files have no package.json "type" for these deep paths
+ *     and use ESM syntax in .js files, so force format:'module' for real
+ *     (non-stubbed) repo modules.
+ *  2. Any import NOT in the real-module set computed by framework-loader.mjs's
+ *     resolveModuleGraph() (browser-only modules, SillyTavern core) is
  *     replaced with a synthesized stub module whose export names were
- *     collected by framework-loader.mjs from the importers' import
- *     statements. Every stub export is a callable no-op function.
+ *     collected during that same traversal. Every stub export is a callable
+ *     no-op function.
+ *
+ * Real modules are matched by repo-relative path (e.g. "src/state/settings.js"),
+ * not bare basename — multiple files can share a basename across directories.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 const STUB_SCHEME = 'multihog-stub:';
 
 let repoRootUrl = '';
-let allowNames = new Set();
+let realPaths = new Set();
 let stubExports = {};
 
 export function initialize(data) {
     repoRootUrl = data.repoRootUrl;
-    allowNames = new Set(data.allowNames);
+    realPaths = new Set(data.realPaths);
     stubExports = data.stubExports || {};
+}
+
+function toRepoRelative(url) {
+    return path.relative(fileURLToPath(repoRootUrl), fileURLToPath(url)).split(path.sep).join('/');
 }
 
 export function resolve(specifier, context, nextResolve) {
@@ -33,8 +42,7 @@ export function resolve(specifier, context, nextResolve) {
     if (isRelative && fromRepoModule) {
         const base = parent.startsWith(STUB_SCHEME) ? repoRootUrl : parent;
         const resolved = new URL(specifier, base).href;
-        const name = resolved.split('/').pop();
-        if (resolved.startsWith(repoRootUrl) && allowNames.has(name)) {
+        if (resolved.startsWith(repoRootUrl) && realPaths.has(toRepoRelative(resolved))) {
             return { url: resolved, shortCircuit: true };
         }
         return { url: STUB_SCHEME + encodeURIComponent(resolved), shortCircuit: true };
@@ -54,15 +62,12 @@ export function load(url, context, nextLoad) {
         ].join('\n');
         return { format: 'module', source, shortCircuit: true };
     }
-    if (url.startsWith(repoRootUrl) && url.endsWith('.js')) {
-        const name = url.split('/').pop();
-        if (allowNames.has(name)) {
-            return {
-                format: 'module',
-                source: readFileSync(fileURLToPath(url), 'utf8'),
-                shortCircuit: true,
-            };
-        }
+    if (url.startsWith(repoRootUrl) && url.endsWith('.js') && realPaths.has(toRepoRelative(url))) {
+        return {
+            format: 'module',
+            source: readFileSync(fileURLToPath(url), 'utf8'),
+            shortCircuit: true,
+        };
     }
     return nextLoad(url, context);
 }

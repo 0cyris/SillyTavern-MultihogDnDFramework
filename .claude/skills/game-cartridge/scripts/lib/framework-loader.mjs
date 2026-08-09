@@ -3,14 +3,26 @@
  * modules under plain Node so skill tools (validate / preview / prompt-preview)
  * run the extension's actual logic instead of a reimplementation.
  *
- * Allowlisted real modules: constants.js, state-manager.js, memo-processor.js,
- * renderer.js, game-systems.js. Everything else they import (browser-only
- * modules, SillyTavern core) is stubbed by loader-hooks.mjs; the stub export
- * names are auto-collected here from the allowlisted files' import statements,
- * so new imports in future extension versions keep working without edits.
+ * "Real" modules are computed dynamically, not hardcoded: starting from 5 entry
+ * points (constants.js, state-manager.js, memo-processor.js, renderer.js,
+ * game-systems.js), we follow every relative import/re-export (`import ... from`
+ * AND `export * from`) transitively, loading each target as real source —
+ * UNLESS its basename is in BOUNDARY_NAMES (known browser/SillyTavern-only
+ * files) or the specifier resolves outside the repo root (SillyTavern core,
+ * e.g. `../../../popup.js`), in which case it's stubbed instead and recursion
+ * stops there. This survives internal refactors (e.g. state-manager.js
+ * shrinking to a barrel over 25+ files under src/state/) without needing this
+ * file edited every time the extension's module boundaries shift — only
+ * BOUNDARY_NAMES needs a new entry if a genuinely browser-only file gets
+ * pulled transitively into the closure by name collision (unlikely: entries
+ * here are specific filenames known to need live SillyTavern/DOM context).
+ *
+ * Run `node extract-framework-data.mjs --check` after any extension update —
+ * it fails loudly if a file that should stay stubbed becomes load-bearing, or
+ * vice versa (e.g. a newly real module throwing at import time).
  */
 import { register } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -18,7 +30,7 @@ const LIB_DIR = path.dirname(fileURLToPath(import.meta.url));
 // lib -> scripts -> game-cartridge -> skills -> .claude -> repo root
 export const REPO_ROOT = path.resolve(LIB_DIR, '..', '..', '..', '..', '..');
 
-const ALLOW_NAMES = [
+const ENTRY_POINTS = [
     'constants.js',
     'state-manager.js',
     'memo-processor.js',
@@ -26,9 +38,22 @@ const ALLOW_NAMES = [
     'game-systems.js',
 ];
 
-const IMPORT_RE = /import\s+([\s\S]*?)\s+from\s*['"]([^'"]+)['"]/g;
+/**
+ * Filenames known to require a live browser/SillyTavern-core context (DOM,
+ * jQuery, ST's own `getContext()` surface beyond what installGlobals() stubs,
+ * slash-command registration, etc). Recursion stops here — these load as
+ * auto-generated no-op stubs, and so does anything only reachable through them.
+ */
+const BOUNDARY_NAMES = new Set([
+    'llm-client.js', 'ui-editors.js', 'ui-geometry.js', 'debug-viewer.js',
+    'game-cartridges.js', 'portrait-storage.js', 'index.js', 'theme-manager.js',
+    'character-creator.js', 'immersion.js', 'router.js', 'narrative-hooks.js',
+    'quests.js', 'portraits.js', 'swipe-scheduler-debug.js',
+]);
 
-/** Parse an import clause into the export names the source module must provide. */
+const IMPORT_RE = /(?:import|export)\s+([\s\S]*?)\s+from\s*['"]([^'"]+)['"]/g;
+
+/** Parse an import/re-export clause into the export names the source module must provide. */
 function importedNames(clause) {
     const names = [];
     const braceMatch = clause.match(/\{([\s\S]*?)\}/);
@@ -43,25 +68,50 @@ function importedNames(clause) {
     return names;
 }
 
-/** Scan allowlisted files for imports of non-allowlisted modules → stub export map. */
-function buildStubExports() {
+/**
+ * Compute the transitive closure of real (non-stubbed) repo files reachable
+ * from ENTRY_POINTS, plus the export-name map needed to synthesize stubs for
+ * everything at the boundary.
+ * @returns {{ realPaths: Set<string>, stubExports: Record<string,string[]> }}
+ *   realPaths holds repo-relative paths (e.g. "src/state/settings.js").
+ */
+function resolveModuleGraph() {
+    const realPaths = new Set();
     const stubExports = {};
-    for (const name of ALLOW_NAMES) {
-        const filePath = path.join(REPO_ROOT, name);
-        const source = readFileSync(filePath, 'utf8');
-        const parentUrl = pathToFileURL(filePath).href;
+    const queue = [...ENTRY_POINTS];
+    const entrySet = new Set(ENTRY_POINTS);
+
+    while (queue.length) {
+        const rel = queue.shift();
+        if (realPaths.has(rel)) continue;
+        realPaths.add(rel);
+        const abs = path.join(REPO_ROOT, rel);
+        if (!existsSync(abs)) {
+            throw new Error(`framework-loader: expected file missing after upstream update: ${rel}`);
+        }
+        const isBoundary = !entrySet.has(rel) && BOUNDARY_NAMES.has(path.basename(rel));
+        const source = readFileSync(abs, 'utf8');
+        const parentUrl = pathToFileURL(abs).href;
         for (const match of source.matchAll(IMPORT_RE)) {
             const [, clause, specifier] = match;
             if (!specifier.startsWith('./') && !specifier.startsWith('../')) continue;
-            const resolved = new URL(specifier, parentUrl).href;
-            if (ALLOW_NAMES.includes(resolved.split('/').pop())) continue;
-            const bucket = (stubExports[resolved] ??= []);
-            for (const n of importedNames(clause)) {
-                if (!bucket.includes(n)) bucket.push(n);
+            const resolvedUrl = new URL(specifier, parentUrl).href;
+            const resolvedRel = path.relative(REPO_ROOT, fileURLToPath(resolvedUrl)).split(path.sep).join('/');
+            const isExternal = resolvedRel.startsWith('..');
+            const targetIsBoundary = !isExternal && BOUNDARY_NAMES.has(path.basename(resolvedRel));
+
+            if (isBoundary) continue; // boundary files' own imports are never followed
+            if (isExternal || targetIsBoundary) {
+                const bucket = (stubExports[resolvedUrl] ??= []);
+                for (const n of importedNames(clause)) {
+                    if (!bucket.includes(n)) bucket.push(n);
+                }
+                continue;
             }
+            if (!realPaths.has(resolvedRel)) queue.push(resolvedRel);
         }
     }
-    return stubExports;
+    return { realPaths, stubExports };
 }
 
 function installGlobals() {
@@ -100,12 +150,13 @@ let bootPromise = null;
 export function bootFramework() {
     bootPromise ??= (async () => {
         installGlobals();
+        const { realPaths, stubExports } = resolveModuleGraph();
         register('./loader-hooks.mjs', {
             parentURL: import.meta.url,
             data: {
                 repoRootUrl: pathToFileURL(REPO_ROOT + path.sep).href,
-                allowNames: ALLOW_NAMES,
-                stubExports: buildStubExports(),
+                realPaths: [...realPaths],
+                stubExports,
             },
         });
         const mod = (name) => import(pathToFileURL(path.join(REPO_ROOT, name)).href);

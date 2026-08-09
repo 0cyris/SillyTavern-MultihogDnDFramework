@@ -44,14 +44,25 @@ const defaultCartridge = JSON.parse(readFileSync(DEFAULT_CARTRIDGE, 'utf8'));
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'gc-selftest-'));
 
 // ── Loader invariants ────────────────────────────────────────────────────
-t('factory payload has 33 keys', () => assert(Object.keys(factory).length === 33, `got ${Object.keys(factory).length}`));
-t('sysprompt.txt has exactly the 20 known top-level tags', () => {
+// Counts are intentionally NOT hardcoded — upstream adds payload keys/base
+// sections over time (that's exactly what extract-framework-data.mjs --check
+// exists to surface as drift). These assert known-required members are
+// present and the shape is sane, not an exact frozen count.
+t('factory payload has known core keys', () => {
+    const keys = Object.keys(factory);
+    for (const k of ['modules', 'blockOrder', 'stockPrompts', 'customFields', 'gameSystems', 'syspromptModules', 'syspromptSectionOrder']) {
+        assert(keys.includes(k), `missing core payload key ${k}`);
+    }
+    assert(keys.length >= 33, `expected at least 33 payload keys, got ${keys.length}`);
+});
+t('sysprompt.txt has the known base tags (superset tolerant)', () => {
     const tags = live.lists.baseSectionTags;
-    assert(tags.length === 20, `got ${tags.length}: ${tags.join(',')}`);
+    for (const required of ['role', 'rng_system', 'combat', 'saving_throws', 'loot', 'level_up_protocol', '[PARTY]_mechanics', 'constraints']) {
+        assert(tags.includes(required), `missing required base tag ${required}`);
+    }
     for (const nested of ['rng_queue_instructions', 'leaving_vs_benching', 'bench_ETA_system', 'resolution_constraints']) {
         assert(!tags.includes(nested), `nested tag ${nested} leaked to top level`);
     }
-    assert(tags.includes('[PARTY]_mechanics'), 'missing [PARTY]_mechanics');
 });
 t('marker map exposes ORBS/BAR/GAUGE/PILLS', () => {
     for (const k of ['ORBS', 'BAR', 'GAUGE', 'PILLS', 'XPBAR', 'CHARGE']) {
@@ -74,7 +85,12 @@ function bundlePayload() {
     if (!p.syspromptSectionOrder.length) {
         p.syspromptSectionOrder = live.lists.baseSectionTags.map((t2) => `base:${t2}`);
     }
-    p.syspromptSectionOrder.splice(p.syspromptSectionOrder.length - 1, 0, 'lib:L1');
+    // Mirror the real normalizeSectionOrder rule: new library keys insert just
+    // before base:constraints specifically — NOT "before whatever is array-last"
+    // (constraints is no longer necessarily the last base tag; upstream has
+    // appended tags after it before, e.g. dungeon_reality_and_hidden_mapping).
+    const constraintsIdx = p.syspromptSectionOrder.indexOf('base:constraints');
+    p.syspromptSectionOrder.splice(constraintsIdx === -1 ? p.syspromptSectionOrder.length : constraintsIdx, 0, 'lib:L1');
     p.blockOrder = [...p.blockOrder, 'FOO'];
     return p;
 }
@@ -297,13 +313,26 @@ t('validate --fix is idempotent on a broken cartridge', () => {
 });
 
 // ── prompt-preview invariants ────────────────────────────────────────────
-t('prompt-preview: default shows all base sections, CYOA disabled', () => {
+t('prompt-preview: default shows all base sections', () => {
     const out = run('prompt-preview.mjs', [DEFAULT_CARTRIDGE, '--narrator-only']);
     for (const tag of live.lists.baseSectionTags) {
         assert(out.includes(`\`base:${tag}\``), `missing base:${tag} in section table`);
     }
-    assert(/`base:CYOA_mode` \| base \| NO/.test(out), 'CYOA_mode should be disabled by default');
     assert(out.includes('<role>'), 'assembled prompt missing <role>');
+});
+t('prompt-preview: CYOA_mode toggle is respected regardless of its factory default', () => {
+    const on = clone(defaultCartridge);
+    on.payload.syspromptModules.CYOA_mode = true;
+    const off = clone(defaultCartridge);
+    off.payload.syspromptModules.CYOA_mode = false;
+    const fOn = path.join(tmp, 'cyoa-on.json');
+    const fOff = path.join(tmp, 'cyoa-off.json');
+    writeFileSync(fOn, JSON.stringify(on));
+    writeFileSync(fOff, JSON.stringify(off));
+    const outOn = run('prompt-preview.mjs', [fOn, '--narrator-only']);
+    const outOff = run('prompt-preview.mjs', [fOff, '--narrator-only']);
+    assert(/`base:CYOA_mode` \| base \| yes/.test(outOn), 'CYOA_mode=true should enable the section');
+    assert(/`base:CYOA_mode` \| base \| NO/.test(outOff), 'CYOA_mode=false should disable the section');
 });
 t('prompt-preview: toggles change assembly (loot, relationships, wizard lib position)', () => {
     const c = clone(defaultCartridge);
