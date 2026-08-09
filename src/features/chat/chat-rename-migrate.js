@@ -15,6 +15,35 @@ export function stripChatFileExtension(name) {
 }
 
 /**
+ * Score campaign substance in a chatStates partition.
+ * Narrator/Control Room `setup` snapshots and empty portrait maps do NOT count —
+ * CHAT_CHANGED + resetUnseenChatState often save those under the new name before
+ * CHAT_RENAMED runs, and treating them as "rich" orphans the real campaign.
+ * @param {any} p
+ * @returns {number}
+ */
+export function partitionSubstanceScore(p) {
+    if (!p || typeof p !== 'object') return 0;
+    let score = 0;
+    if (String(p.currentMemo || '').trim()) score += 10;
+    if (p.playerCharacter) score += 8;
+    if (Array.isArray(p.quests) && p.quests.length) score += 5;
+    if (Array.isArray(p.memoHistory) && p.memoHistory.length) score += 3;
+    if (Array.isArray(p.campaignBooks) && p.campaignBooks.length) score += 2;
+    if (Array.isArray(p.activeRouterKeys) && p.activeRouterKeys.length) score += 1;
+    if (Array.isArray(p.activeWorldKeys) && p.activeWorldKeys.length) score += 1;
+    return score;
+}
+
+/**
+ * True when a partition has no campaign substance (setup-only shells count as empty).
+ * @param {any} p
+ */
+export function partitionLooksEmpty(p) {
+    return partitionSubstanceScore(p) === 0;
+}
+
+/**
  * Migrate Multihog per-chat stores when SillyTavern renames a chat file.
  * Moves (not copies) chatStates + local maps so the new name keeps the campaign.
  *
@@ -43,25 +72,18 @@ export async function onChatRenamedMigrate(detail, deps) {
     const hasOld = Object.prototype.hasOwnProperty.call(s.chatStates, oldId);
     const hasNew = Object.prototype.hasOwnProperty.call(s.chatStates, newId);
 
-    const partitionLooksEmpty = (p) => {
-        if (!p || typeof p !== 'object') return true;
-        return !p.currentMemo
-            && !(p.quests?.length)
-            && !(p.memoHistory?.length)
-            && !(p.campaignBooks?.length)
-            && !p.playerCharacter
-            && !(p.setup && Object.keys(p.setup).length);
-    };
-
     let migratedPartition = false;
     if (hasOld && !hasNew) {
         s.chatStates[newId] = s.chatStates[oldId];
         delete s.chatStates[oldId];
         migratedPartition = true;
     } else if (hasOld && hasNew) {
-        // CHAT_CHANGED often runs before CHAT_RENAMED and may seed an empty new partition
-        // after resetUnseenChatState. Prefer the rich old partition in that case.
-        if (partitionLooksEmpty(s.chatStates[newId]) && !partitionLooksEmpty(s.chatStates[oldId])) {
+        // CHAT_CHANGED often runs before CHAT_RENAMED and may seed a setup-only /
+        // wiped shell under the new name after resetUnseenChatState (+ deferred
+        // syncCampaignPrefixAndWorldsForChat save). Prefer the richer old partition.
+        const oldScore = partitionSubstanceScore(s.chatStates[oldId]);
+        const newScore = partitionSubstanceScore(s.chatStates[newId]);
+        if (oldScore > newScore) {
             s.chatStates[newId] = s.chatStates[oldId];
             delete s.chatStates[oldId];
             migratedPartition = true;
