@@ -14,10 +14,14 @@
                     <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                 </div>
                 <div class="inline-drawer-content">
-                    <div class="flex-container flexFlowColumn gap-1">
-
-                        <!-- CORE -->
-                        <small style="display: block; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Core</small>
+                    <div class="inline-drawer">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-sliders" style="margin-right: 6px; opacity: 0.65;"></i>
+                            <b>Core &amp; Branching</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="flex-container flexFlowColumn gap-1">
                         <small style="display: block; padding-left: 4px; font-size: 0.78em; opacity: 0.6; margin-bottom: 2px;">Chat Links</small>
                         <label class="checkbox_label" style="padding-left: 4px;">
                             <input id="rpg_tracker_chat_link_enabled" type="checkbox" />
@@ -25,7 +29,21 @@
                             <i class="fa-solid fa-circle-question interactable"
                                 title="When enabled, the tracker state (memo) is automatically saved and restored per chat ID. Switching chats will reload that specific campaign's state."></i>
                         </label>
+                        <label class="checkbox_label" style="padding-left: 20px;">
+                            <input id="rpg_tracker_chat_setup_link_enabled" type="checkbox" />
+                            <span>Lock Control Room &amp; Modules to each chat</span>
+                            <i class="fa-solid fa-circle-question interactable"
+                                title="Save and restore the Control Room and module setup per chat. Standalone modules and snippets can be Global or Chat-bound; Wizard components inherit scope from their Game System. Turning this off temporarily bypasses those scopes and carries the current setup between chats without changing any saved scope choices."></i>
+                        </label>
                         <button id="rpg_tracker_clear_chat_states" class="menu_button interactable" style="margin-top: 4px; margin-left: 4px; width: calc(100% - 4px); font-size: 0.9em;"><i class="fa-solid fa-trash-can"></i> Remove all chat links</button>
+
+                        <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Branching</small>
+                        <button id="rpg_tracker_branch_campaign_btn" class="menu_button interactable" style="margin-top: 2px; margin-left: 4px; width: calc(100% - 4px); font-size: 0.9em;" title="Creates a SillyTavern branch chat, copies all Multihog campaign data, and clones lorebooks under the new chat prefix. The original chat stays intact."><i class="fa-solid fa-code-branch"></i> Branch Campaign</button>
+                        <div style="font-size: 0.75em; opacity: 0.6; line-height: 1.35; padding: 4px 4px 0 4px;">One-button fork: ST transcript branch + Multihog chat data + lorebook stack. Requires Chat-Linked Mode. Lorebook-only cloning remains under Lorebook Agent → Clone Stack.</div>
+
+                        <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Help</small>
+                        <button id="rpg_tracker_tutorial_help" class="menu_button interactable" style="margin-top: 2px; margin-left: 4px; width: calc(100% - 4px); font-size: 0.9em;"><i class="fa-solid fa-comments"></i> CHAT</button>
+                        <div style="font-size: 0.75em; opacity: 0.6; line-height: 1.35; padding: 4px 4px 0 4px;">Opens the in-panel Adventure Companion. Optional Tutorial Mode injects the framework guide. Its model connection is configured under <strong>Connections &amp; Models</strong>; its context options remain in the Adventure Companion section below.</div>
 
                         <!-- MAIN PROMPT BACKUP -->
                         <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Main Prompt Backup</small>
@@ -45,9 +63,18 @@
                             </div>
                             <div id="rpg_main_sysprompt_backup_status" style="font-size: 0.75em; opacity: 0.7; font-style: italic; min-height: 1.2em;"></div>
                         </div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <!-- APPEARANCE -->
-                        <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Appearance</small>
+                    <div class="inline-drawer">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-palette" style="margin-right: 6px; opacity: 0.65;"></i>
+                            <b>UI Appearance</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="flex-container flexFlowColumn gap-1">
                         <label style="font-size: 0.82em; opacity: 0.75;">Panel Layout</label>
                         <div class="rt-seg-toggle" id="rpg_tracker_layout_mode_seg" role="group" style="width: 100%;" title="Stacked shows every module at once, vertically. Tab Mode pins Character/Combat at the top and puts the rest behind a compact tab strip — better for small screens or mobile.">
                             <button type="button" data-value="stack" style="flex: 1;">📚 Stacked</button>
@@ -162,11 +189,24 @@
                                 <b style="font-size: 0.85em; opacity: 0.8;">Library</b>
                                 <div id="rpg_tracker_saved_themes_list" class="flex-container flexFlowColumn gap-1"></div>
                             </div>
+                            <label class="checkbox_label" style="margin-top: 10px;" title="Animate gains and losses on every custom ((BAR)) and ((BARREL)) marker. Individual bar animation settings still work when this is off.">
+                                <input id="rpg_tracker_animate_all_custom_bars" type="checkbox" />
+                                <span>Animate all custom bar changes in State Tracker</span>
+                                <i class="fa-solid fa-circle-question interactable" title="Shows a green positive value or red negative value and highlights the changed segment for all custom ((BAR)) and ((BARREL)) markers. Does not change XP or native relationship animations."></i>
+                            </label>
                         </div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <!-- CHARACTER PORTRAITS -->
-                        <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Character Portraits</small>
-                        <div id="rpg_portrait_config_block" class="flex-container flexFlowColumn gap-1">
+                    <div class="inline-drawer">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-image" style="margin-right: 6px; opacity: 0.65;"></i>
+                            <b>Portraits</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div id="rpg_portrait_config_block" class="flex-container flexFlowColumn gap-1">
                             <label class="checkbox_label">
                                 <input id="rpg_tracker_enable_portraits" type="checkbox" />
                                 <span>Enable Portraits in Tracker</span>
@@ -402,6 +442,8 @@
                                 <i class="fa-solid fa-trash-can"></i> Emergency: Purge All Portraits
                             </button>
                         </div>
+                        </div>
+                    </div>
 
                         <!-- DEVELOPER & RESET -->
                         <small style="display: block; margin-top: 10px; margin-bottom: 2px; font-weight: bold; opacity: 0.65; text-transform: uppercase; font-size: 0.7em; letter-spacing: 0.4px;">Developer &amp; Reset</small>
@@ -419,15 +461,15 @@
                                 <label class="checkbox_label">
                                     <input id="rpg_tracker_auto_reset_prompts" type="checkbox" />
                                     <span>Auto-Update Prompts on Upgrade</span>
-                                    <i class="fa-solid fa-circle-question interactable" title="When enabled, bundled default prompts are automatically reset on load whenever the shipped prompt defaults change — not on every version bump. No dialog is shown."></i>
+                                    <i class="fa-solid fa-circle-question interactable" title="When enabled, bundled default prompts (and NPC/PC Core Sections from Edit NPC/PC Sections) are automatically reset on load whenever the shipped defaults change — not on every version bump. No dialog is shown."></i>
                                 </label>
                                 <button id="rpg_tracker_btn_force_checkpoint" class="menu_button interactable"
                                     style="width: 100%; margin-top: 6px; background: rgba(0, 180, 120, 0.18); border-color: #00b478;"
-                                    title="Force-writes SillyTavern settings.json to disk RIGHT NOW (awaits the save while this page stays open). Also refreshes the local memo recovery backup. Use this after important changes so the next F5/settings rollback lands on this known-good state instead of an older snapshot.">
+                                    title="Force-writes SillyTavern settings.json to disk RIGHT NOW (awaits the save while this page stays open). It does not use or restore browser-local recovery data.">
                                     <i class="fa-solid fa-floppy-disk"></i> Force Disk Checkpoint
                                 </button>
                                 <small style="display: block; margin-top: 4px; opacity: 0.65; font-size: 0.78em; line-height: 1.25;">
-                                    Keeps the tab open until the toast confirms — that write becomes the rollback baseline if a later reload aborts a save.
+                                    Keeps the tab open until the toast confirms. Browser-local recovery is disabled.
                                 </small>
                                 <button id="rpg_tracker_btn_upgrade_changed_prompts" class="menu_button interactable rt-prompt-upgrade-pending"
                                     style="display:none; width: 100%; margin-top: 6px;"
@@ -442,11 +484,76 @@
                                 <button id="rpg_tracker_btn_factory_reset" class="menu_button interactable" style="background: rgba(181, 31, 31, 0.4); border-color: #ff5555; width: 100%; margin-top: 6px;"><i class="fa-solid fa-radiation"></i> FACTORY RESET</button>
                             </div>
                         </div>
-                    </div>
                 </div>
             </div>
 
-            <!-- SUB-DRAWER 2: GAME SYSTEMS & CUSTOMIZATION -->
+            <!-- SUB-DRAWER 2: CONNECTIONS & MODELS -->
+            <div class="inline-drawer" id="rpg_connections_models_drawer">
+                <div class="inline-drawer-toggle inline-drawer-header">
+                    <i class="fa-solid fa-plug-circle-bolt" style="margin-right: 8px; opacity: 0.7;"></i>
+                    <b>Connections &amp; Models</b>
+                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                </div>
+                <div class="inline-drawer-content">
+                    <div class="rt-connections-models-intro">
+                        Configure the model connection used by each Multihog feature. These are global settings. <b>Main API</b> uses your current SillyTavern connection.
+                    </div>
+
+                    <div id="rpg_connection_slot_state_tracker" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_combat_override" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_lorebook_agent" class="rt-connection-drawer-slot"></div>
+
+                    <div id="rpg_connection_slot_character_creation" class="rt-connection-drawer-slot">
+                        <div class="inline-drawer rt-character-creation-connection-controls" id="rpg_character_creation_connection_drawer">
+                            <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header" style="font-size: 0.88em;">
+                                <i class="fa-solid fa-user-pen" style="margin-right: 6px; opacity: 0.65;"></i>
+                                <b>Character Creation &amp; Starting Modes</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <div style="font-size: 0.75em; opacity: 0.6; line-height: 1.35; margin-bottom: 4px;">Shared by Character Creator, Instant Action, and Other Ways to Begin.</div>
+                                    <label style="font-size: 0.8em;">Connection Source</label>
+                                    <select id="rt-character-creation-connection-source" class="text_pole" style="font-size: 0.8em;">
+                                        <option value="default">Main API</option>
+                                        <option value="profile">Profile</option>
+                                        <option value="ollama">Ollama</option>
+                                        <option value="openai">OpenAI</option>
+                                    </select>
+                                    <div id="rt-character-creation-profile-group" style="display:none;">
+                                        <select id="rt-character-creation-connection-profile" class="text_pole" style="font-size: 0.8em;"></select>
+                                    </div>
+                                    <div id="rt-character-creation-ollama-group" style="display:none;flex-direction:column;gap:5px;">
+                                        <input id="rt-character-creation-ollama-url" type="text" class="text_pole" placeholder="Ollama URL" style="font-size: 0.8em;" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rt-character-creation-ollama-model" class="text_pole" style="flex:1;font-size:0.8em;"></select>
+                                            <button id="rt-character-creation-ollama-refresh" type="button" class="menu_button interactable" title="Refresh Ollama models" style="width:auto;padding:2px 7px;"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                    </div>
+                                    <div id="rt-character-creation-openai-group" style="display:none;flex-direction:column;gap:5px;">
+                                        <input id="rt-character-creation-openai-url" type="text" class="text_pole" placeholder="Endpoint URL" style="font-size: 0.8em;" />
+                                        <input id="rt-character-creation-openai-key" type="password" class="text_pole" placeholder="API Key" style="font-size: 0.8em;" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rt-character-creation-openai-model" class="text_pole" style="flex:1;font-size:0.8em;"></select>
+                                            <button id="rt-character-creation-openai-refresh" type="button" class="menu_button interactable" title="Refresh OpenAI-compatible models" style="width:auto;padding:2px 7px;"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                        <input id="rt-character-creation-openai-model-manual" type="text" class="text_pole" placeholder="Manual Model Name" style="font-size: 0.8em;" />
+                                    </div>
+                                    <label style="font-size: 0.8em; margin-top: 4px;">Preset</label>
+                                    <select id="rt-character-creation-completion-preset" class="text_pole" style="font-size: 0.8em;"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="rpg_connection_slot_adventure_companion" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_game_system_wizard" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_world_progression" class="rt-connection-drawer-slot"></div>
+                    <div id="rpg_connection_slot_portraits" class="rt-connection-drawer-slot"></div>
+                </div>
+            </div>
+
+            <!-- SUB-DRAWER 3: GAME SYSTEMS & CUSTOMIZATION -->
             <div class="inline-drawer">
                 <div class="inline-drawer-toggle inline-drawer-header">
                     <i class="fa-solid fa-hat-wizard" style="margin-right: 8px; opacity: 0.7;"></i>
@@ -459,11 +566,12 @@
                         <div id="rpg_narrator_config_block" style="border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;">
                             <small style="display: block; margin-bottom: 6px; font-weight: bold; opacity: 0.9;">Narrator Configuration</small>
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
-                                <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">Pacing</span>
+                                <span style="font-size: 0.85em; font-weight: bold; opacity: 0.8;">Pacing/Output Length</span>
                                 <button class="rt-narrative-pacing-help" style="background: none; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: inherit; font-size: 0.72em; opacity: 0.7; padding: 1px 7px; cursor: pointer;">What are these?</button>
                             </div>
                             <div class="flex-container flexFlowColumn gap-1" style="margin-bottom: 8px; padding-left: 5px;">
-                                <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="normal" id="rpg_narrative_pacing_normal" /><span>Normal</span></label>
+                                <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="normal" id="rpg_narrative_pacing_normal" /><span>Normal (no length instructions)</span></label>
+                                <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="shorter_outputs" id="rpg_narrative_pacing_shorter_outputs" /><span>Shorter Outputs</span></label>
                                 <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="high_agency" id="rpg_narrative_pacing_high_agency" /><span>High-Agency Mode</span></label>
                                 <label class="checkbox_label"><input type="radio" name="rpg_narrative_pacing" value="downtime" id="rpg_narrative_pacing_downtime" /><span>Downtime/Slice of Life Mode</span></label>
                             </div>
@@ -503,13 +611,13 @@
                                         <span style="font-size: 0.72em; font-weight: bold; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.5px;">Registered RNG Tools</span>
                                     </div>
                                     <div class="flex-container flexFlowColumn gap-1" style="margin-bottom: 6px; padding-left: 5px;">
-                                        <label class="checkbox_label" title="Registers the RollTheDice (d20 version) function tool with the LLM.">
+                                        <label class="checkbox_label" title="Registers RollTheDice — skill/attack checks (1d20 vs DC) and percentage / existence checks (1d100, compare lte).">
                                             <input id="rpg_rng_tool_d20" type="checkbox" />
-                                            <span>RollTheDice (d20 Tool)</span>
+                                            <span>RollTheDice (unified Tool)</span>
                                         </label>
-                                        <label class="checkbox_label" title="Registers the RollTheDiceD100 (d100 version) function tool with the LLM.">
+                                        <label class="checkbox_label" title="Registers RollTheDiceD100 for global d100 Mode / percentage-based rulesets (roll-under). Not required for existence checks when RollTheDice is enabled.">
                                             <input id="rpg_rng_tool_d100" type="checkbox" />
-                                            <span>RollTheDiceD100 (d100 Tool)</span>
+                                            <span>RollTheDiceD100 (d100 Mode Tool)</span>
                                         </label>
                                         <label class="checkbox_label" title="Injects [RNG_QUEUE] pre-seeded rolls (d20 format, length 12) during combat context.">
                                             <input id="rpg_rng_queue_d20" type="checkbox" />
@@ -547,12 +655,16 @@
                                 <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_loot" /><span>🎲 Loot</span></label>
                                 <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_random_events" /><span>🌍 Events</span></label>
                                 <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_resting" /><span>💤 Resting</span></label>
-                                <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_party_bench" /><span>🏕️ Benched Party</span></label>
+                                <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_party_bench" /><span>⛺ Benched Party</span></label>
+                                <label class="checkbox_label" title="Builds a full hidden location map before dungeon/ruin exploration and resolves traps, stealth, and enemies against that map. Experimental."><input type="checkbox" id="rpg_sysprompt_mod_dungeon_reality_and_hidden_mapping" /><span>🗺️ Dungeon Reality Mapping (Experimental)</span></label>
                                 <div style="display:flex;align-items:center;gap:4px;">
-                                <label class="checkbox_label" style="flex:1;"><input type="checkbox" id="rpg_sysprompt_mod_cyoa_mode" /><span>🧭 CYOA Mode</span></label>
+                                <label class="checkbox_label" style="flex:1;" title="Injects CYOA choice instructions (and active pacing tags) into the user-message context every turn, just above the RNG queue — not into Main system prompt. Prior CYOA/pacing copies are stripped first."><input type="checkbox" id="rpg_sysprompt_mod_cyoa_mode" /><span>🧭 CYOA Mode</span></label>
                                 <button id="rpg_cyoa_settings_btn" class="menu_button interactable" style="padding:1px 7px;font-size:11px;flex-shrink:0;" title="CYOA Settings"><i class="fa-solid fa-gear"></i></button>
                                 </div>
-                                <label class="checkbox_label"><input type="checkbox" id="rpg_sysprompt_mod_npc_rel_bars" /><span>💞 Relationship System</span></label>
+                                <div style="display:flex;align-items:center;gap:4px;">
+                                <label class="checkbox_label" style="flex:1;"><input type="checkbox" id="rpg_sysprompt_mod_npc_rel_bars" /><span>💞 Relationship System</span></label>
+                                <button id="rpg_relationship_settings_btn" class="menu_button interactable" style="padding:1px 7px;font-size:11px;flex-shrink:0;" title="Relationship System Settings"><i class="fa-solid fa-gear"></i></button>
+                                </div>
                             </div>
                             <button id="rpg_tracker_btn_update_sysprompt_general" class="menu_button interactable"
                                 style="width: 100%; margin-top: 6px; background: rgba(0, 200, 140, 0.18); border-color: #00c88c;"
@@ -658,34 +770,18 @@
                             title="When enabled (and Custom Sysprompt Mode is off), the framework system prompt is written to Quick Prompt Main. Your previous Main prompt is backed up automatically before the first overwrite and restored when you click the ⏻ button on the tracker panel (or uncheck this box) — so you can quickly return to normal, non-D&amp;D RP without changing profiles."></i>
                     </label>
 
-                    <div class="inline-drawer" style="margin-bottom: 8px;">
-                        <div class="inline-drawer-toggle inline-drawer-header" style="font-size: 0.88em;">
-                            <i class="fa-solid fa-sack-dollar" style="margin-right: 6px; opacity: 0.6;"></i>
-                            <b>Inventory</b>
-                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
-                        </div>
-                        <div class="inline-drawer-content">
-                            <div id="rpg_inventory_config_block" class="flex-container flexFlowColumn gap-1">
-                                <label class="checkbox_label">
-                                    <input id="rpg_tracker_show_total_value" type="checkbox" />
-                                    <span>Show Total Inventory Value</span>
-                                    <i class="fa-solid fa-circle-question interactable" title="When enabled, displays the calculated total value of all items in the inventory header bar."></i>
-                                </label>
-                                <div style="display: flex; align-items: center; gap: 8px; padding-left: 4px;">
-                                    <label style="font-size: 0.82em; opacity: 0.75; white-space: nowrap;">Item Worth
-                                        <i class="fa-solid fa-circle-question interactable" title="Controls how item worth values (e.g. ~120 GP) are shown in Inventory. Hover: stripped from display, shown as a tooltip on hover. Display: shown as an inline coin badge next to the item. Bare currency items (e.g. '45 GP') always render as a coin badge regardless of this setting."></i>
-                                    </label>
-                                    <select id="rpg_tracker_inventory_worth_mode" class="text_pole" style="font-size: 0.82em; padding: 2px 4px; height: 24px; flex: 1;">
-                                        <option value="hover">Hover (tooltip only)</option>
-                                        <option value="display">Display (inline badge)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                    <label class="checkbox_label" style="margin-bottom: 8px;" title="Forces the State Model to output the COMPLETE, verified state for every enabled module on every pass, instead of only the changed sections. Trades tokens/latency for reliability — recommended for weaker/local models that struggle to keep delta-tracked state consistent. While enabled, the Core Prompt and User Prompt Suffix (further below) are temporarily replaced by built-in Full Review versions; your custom edits are preserved and restored when you turn this off.">
+                        <input id="rpg_tracker_full_review_mode" type="checkbox" />
+                        <span>Full Review Mode</span>
+                        <span style="opacity:0.55; font-size:0.88em;">(recommended for weaker/local models)</span>
+                        <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Forces a complete state dump for every enabled module every pass instead of a delta ('only changed sections') update. Costs more tokens per pass but is far more reliable for models that struggle with delta tracking. Overrides the Core Prompt and User Prompt Suffix while active — your custom text is preserved and restored when disabled."></i>
+                    </label>
+                    <div id="rpg_tracker_full_review_note" style="display:none; font-size:0.85em; opacity:0.85; padding:6px 8px; border:1px solid rgba(255,221,136,0.3); border-radius:6px; background:rgba(255,221,136,0.06); margin-bottom:8px;">
+                        Full Review Mode is active — the Core Prompt and User Prompt Suffix boxes (further below) show the built-in Full Review versions being used. Your custom versions are saved and will reappear if you disable this.
                     </div>
 
                     <div class="inline-drawer">
-                        <div class="inline-drawer-toggle inline-drawer-header">
+                        <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header">
                             <b>Connection Settings</b>
                             <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
                         </div>
@@ -724,8 +820,34 @@
                         </div>
                     </div>
 
+                    <div class="inline-drawer" style="margin-bottom: 8px; margin-top: 8px;">
+                        <div class="inline-drawer-toggle inline-drawer-header" style="font-size: 0.88em;">
+                            <i class="fa-solid fa-sack-dollar" style="margin-right: 6px; opacity: 0.6;"></i>
+                            <b>Inventory</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div id="rpg_inventory_config_block" class="flex-container flexFlowColumn gap-1">
+                                <label class="checkbox_label">
+                                    <input id="rpg_tracker_show_total_value" type="checkbox" />
+                                    <span>Show Total Inventory Value</span>
+                                    <i class="fa-solid fa-circle-question interactable" title="When enabled, displays the calculated total value of all items in the inventory header bar."></i>
+                                </label>
+                                <div style="display: flex; align-items: center; gap: 8px; padding-left: 4px;">
+                                    <label style="font-size: 0.82em; opacity: 0.75; white-space: nowrap;">Item Worth
+                                        <i class="fa-solid fa-circle-question interactable" title="Controls how item worth values (e.g. ~120 GP) are shown in Inventory. Hover: stripped from display, shown as a tooltip on hover. Display: shown as an inline coin badge next to the item. Bare currency items (e.g. '45 GP') always render as a coin badge regardless of this setting."></i>
+                                    </label>
+                                    <select id="rpg_tracker_inventory_worth_mode" class="text_pole" style="font-size: 0.82em; padding: 2px 4px; height: 24px; flex: 1;">
+                                        <option value="hover">Hover (tooltip only)</option>
+                                        <option value="display">Display (inline badge)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="inline-drawer" style="margin-top: 4px;">
-                        <div class="inline-drawer-toggle inline-drawer-header">
+                        <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header">
                             <b>Combat API Override</b>
                             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
                         </div>
@@ -766,18 +888,23 @@
                         <button id="rpg_tracker_add_custom_field_ai" class="menu_button interactable" style="flex: 1; background: rgba(180, 100, 255, 0.15); border-color: rgba(180, 100, 255, 0.4);"><i class="fa-solid fa-wand-magic-sparkles"></i> Add Custom (AI)</button>
                     </div>
                     <div class="flex-container gap-1" style="margin-top: 6px;">
+                        <button id="rpg_tracker_export_all_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Export</button>
+                        <button id="rpg_tracker_import_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Import</button>
+                        <button id="rpg_tracker_delete_all_custom_modules" class="menu_button interactable" style="flex: 1; font-size: 11px; color: #ff5555;">Clear All</button>
+                    </div>
+                    <button id="rpg_tracker_btn_reset_all_prompts" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Stock Modules</button>
+                    <div class="flex-container gap-1" style="margin-top: 0;">
                         <button id="rt_btn_tag_library" class="menu_button interactable rt-tag-library-button" aria-label="Open Rendering Tags Library">
                             <span class="rt-tag-library-icon" aria-hidden="true"><i class="fa-solid fa-swatchbook"></i></span>
                             <span class="rt-tag-library-copy"><span>Rendering Tags Library</span><small>Live previews · color alchemy</small></span>
                             <span class="rt-tag-library-sparkle" aria-hidden="true">✦</span>
                         </button>
                     </div>
-                    <div class="flex-container gap-1" style="margin-top: 4px;">
-                        <button id="rpg_tracker_export_all_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Export</button>
-                        <button id="rpg_tracker_import_modules" class="menu_button interactable" style="flex: 1; font-size: 11px;">Import</button>
-                        <button id="rpg_tracker_delete_all_custom_modules" class="menu_button interactable" style="flex: 1; font-size: 11px; color: #ff5555;">Clear All</button>
-                    </div>
-                    <button id="rpg_tracker_btn_reset_all_prompts" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Stock Modules</button>
+                    <button id="rpg_tracker_manage_display_groups" class="menu_button interactable rt-tag-library-button" aria-label="Open Display Groups manager" title="Configure global, display-only module bundles. This never changes prompts, memo blocks, activation, scope, or Wizard Game Systems.">
+                        <span class="rt-tag-library-icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
+                        <span class="rt-tag-library-copy"><span>Display Groups <small style="color:#ffc45c;">BETA</small></span><small>Shared display-only headers</small></span>
+                        <span class="rt-tag-library-sparkle" aria-hidden="true">&#10022;</span>
+                    </button>
 
                     <hr>
                     <b>Scenario Profiles</b>
@@ -791,7 +918,7 @@
 
                     <hr>
                     <div class="inline-drawer">
-                        <div class="inline-drawer-toggle inline-drawer-header">
+                        <div class="inline-drawer-toggle inline-drawer-header rt-centered-drawer-header">
                             <b>Core Prompt</b>
                             <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
                         </div>
@@ -805,9 +932,14 @@
                         </div>
                     </div>
 
-                    <hr>
-                    <b>Advanced Options</b>
-                    <div class="flex-container flexFlowColumn gap-1">
+                    <div class="inline-drawer" style="margin-top: 8px;">
+                        <div class="inline-drawer-toggle inline-drawer-header">
+                            <i class="fa-solid fa-sliders" style="margin-right:6px;opacity:.7;"></i>
+                            <b>Advanced Options</b>
+                            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down"></div>
+                        </div>
+                        <div class="inline-drawer-content">
+                            <div class="flex-container flexFlowColumn gap-1">
                         <label>Message Lookback</label>
                         <label class="checkbox_label" title="When enabled, the State Tracker always reads from the last user message through to the latest AI response — capturing all tool calls and multi-part replies in a single turn. This is the recommended setting.">
                             <input id="rpg_tracker_lookback_since_last_user" type="checkbox" checked />
@@ -837,13 +969,15 @@
                             Auto Rollback Memo on Swipe
                             <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Restores the State Tracker memo to its pre-update snapshot when you swipe to a different AI response. Prevents memo drift from discarded generations."></i>
                         </label>
+                            </div>
+                        </div>
                     </div>
 
 
                 </div>
             </div>
 
-            <!-- SUB-DRAWER 3: LOREBOOK AGENT -->
+            <!-- SUB-DRAWER: LOREBOOK AGENT -->
             <div class="inline-drawer">
                 <div class="inline-drawer-toggle inline-drawer-header">
                     <i class="fa-solid fa-route" style="margin-right: 8px; opacity: 0.7;"></i>
@@ -989,8 +1123,8 @@
 
                                     <label class="checkbox_label">
                                         <input id="rpg_tracker_npc_rel_toast" type="checkbox" />
-                                        <span>Show Relationship Toast Notifications</span>
-                                        <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Emits a toast notification in the bottom-right corner when friendship or affection values change."></i>
+                                        <span>Show Relationship Float Feedback</span>
+                                        <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Shows a floating Friendship/Affection graphic that rises and fades when those values change."></i>
                                     </label>
 
                                     <label style="font-size: 11px; opacity: 0.7;">Default Relationship Max for new chats (± range)</label>
@@ -1095,27 +1229,27 @@
                         <hr>
                         <div class="inline-drawer">
                             <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Agent Prompt</b>
+                                <b>System Prompt</b>
                                 <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
                             </div>
                             <div class="inline-drawer-content">
                                 <div class="flex-container flexFlowColumn gap-1">
-                                    <textarea id="rpg_tracker_router_prompt" class="text_pole autoSetHeight" rows="5"></textarea>
-                                    <button id="rpg_tracker_router_btn_reset_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Agent Prompt</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="inline-drawer" style="margin-top: 6px;">
-                            <div class="inline-drawer-toggle inline-drawer-header">
-                                <b>Modular Agent Prompt</b>
-                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
-                            </div>
-                            <div class="inline-drawer-content">
-                                <div class="flex-container flexFlowColumn gap-1">
-                                    <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">Controls formatting and module-specific rules (LOC, FAC, WORLD, etc). Use <span style="font-family: monospace;">{{formatLines}}</span> to inject the dynamically enabled modules.</div>
-                                    <textarea id="rpg_tracker_router_modular_prompt" class="text_pole autoSetHeight" rows="5"></textarea>
-                                    <button id="rpg_tracker_router_btn_reset_modular_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Modular Prompt</button>
+                                    <div id="rpg_tracker_router_prompt_desc" style="font-size: 10px; opacity: 0.7; margin-bottom: 4px; line-height: 1.3;">
+                                        Editable prompt template for the currently active Lorebook Agent mode.
+                                    </div>
+                                    <div style="font-size: 9px; opacity: 0.52; margin-bottom: 5px; line-height: 1.35;">Dynamic placeholders such as <span style="font-family:monospace">{{maxActivations}}</span>, <span style="font-family:monospace">{{formatLines}}</span>, and <span style="font-family:monospace">{{autoPassRestriction}}</span> are resolved for each request without changing this saved template.</div>
+                                    <textarea id="rpg_tracker_router_prompt" class="text_pole autoSetHeight" rows="12"></textarea>
+                                    <div id="rpg_tracker_router_modular_prompt_wrap" style="display:none; margin-top:8px;">
+                                        <label style="font-size:10px; font-weight:600;">Basic Format &amp; Module Template</label>
+                                        <div style="font-size:9px; opacity:0.52; margin:3px 0 5px; line-height:1.35;">Inserted at <span style="font-family:monospace">{{modularPrompt}}</span> in the Basic base prompt. Enabled modules and custom tags expand at <span style="font-family:monospace">{{formatLines}}</span>.</div>
+                                        <textarea id="rpg_tracker_router_modular_prompt" class="text_pole autoSetHeight" rows="12"></textarea>
+                                    </div>
+                                    <div id="rpg_tracker_router_agent_context_wrap" style="display:none; margin-top:8px;">
+                                        <label style="font-size:10px; font-weight:600;">Agent Shared Context Template</label>
+                                        <div style="font-size:9px; opacity:0.52; margin:3px 0 5px; line-height:1.35;">Rules appended after the Agent base prompt. Native tool schemas and text-action contracts remain generated from the enabled modules.</div>
+                                        <textarea id="rpg_tracker_router_agent_context" class="text_pole autoSetHeight" rows="12"></textarea>
+                                    </div>
+                                    <button id="rpg_tracker_router_btn_reset_prompt" class="menu_button interactable" style="width: 100%; margin-top: 4px; font-size: 11px;"><i class="fa-solid fa-arrow-rotate-left"></i> Reset System Prompt</button>
                                 </div>
                             </div>
                         </div>
@@ -1160,10 +1294,10 @@
                             <div class="inline-drawer-content" style="padding: 10px; font-size: 0.82em; line-height: 1.45; background: rgba(0, 0, 0, 0.15);">
                                 <p style="margin: 0 0 10px; opacity: 0.85;">Creating a World Skeleton is optional but recommended — it gives World Progression content to work with (for Focus Randomization and generally), making the world bigger beyond the player. Without it, reports tend to stay limited to entities in the player's immediate bubble.</p>
                                 <ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
-                                    <li><b>Create the Atmosphere Summary</b>: Either write it manually or click <i>Auto-Generate</i> to grab it from your recent chat story (if one exists already). This establishes the setting's theme.</li>
+                                    <li><b>Create the Skeleton Source</b>: Write anything from a short thematic seed to a granular world description. <i>Auto-Generate</i> safely extracts only a generalized world backdrop from recent chat, without carrying named story entities into the skeleton. You can also source existing lorebooks below.</li>
                                     <li><b>Generate the Skeleton</b>: Click <i>Generate Skeleton</i>. This creates factions, locations, NPCs, and conflicts to simulate off-screen background activity, creating a Day 0 baseline. Remember that you can also add to the Skeleton Lorebook (after generation) yourself or edit the generated entities from the native SillyTavern Lorebook UI. This way, you can even have a fully granularly customized World Skeleton to base the World Reports on.</li>
                                     <li><b>Set up Focus Randomization</b> (Optional but Recommended): Enable this to force diversity in report coverage, rather than focusing only on the player's immediate bubble. Without Focus Randomization, the World Report may end up repeatedly covering the same threads because it has nothing forcing it to deviate. Not necessarily bad per se, but Focus Randomization guarantees a variety of entities are simulated in subsequent World Reports. It turns it into a &ldquo;lottery.&rdquo;</li>
-                                    <li><b>Generate the First Report</b>: Trigger a report immediately using the <i>Generate Now</i> button, or let it fire automatically as the campaign progresses. If you run it later, it will incorporate entities that have organically accumulated in your adventure up to that point. Immediate generation is Skeleton-only.</li>
+                                    <li><b>Generate the First Report</b>: Trigger a report immediately using the <i>Generate Now</i> button, or let it fire automatically as the campaign progresses. If you run it later, it will incorporate entities that have organically accumulated in your adventure up to that point. Immediate generation is Skeleton-only. Generating a Skeleton-only report immediately can be a good way to start a campaign because it gives the adventure immediate world context.</li>
                                 </ol>
                                 <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1);">
                                     <div style="font-size: 0.78em; font-weight: bold; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;">Miscellaneous</div>
@@ -1275,21 +1409,35 @@
                                     </div>
                                     
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 2px; flex-wrap: wrap; gap: 6px;">
-                                        <label style="font-size: 0.85em; font-weight: bold; opacity: 0.8; margin: 0; display: flex; align-items: center;">Atmosphere Summary
-                                            <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="A single paragraph description of the social texture, recurring tensions, and thematic tone of this world — without naming specific characters or events. Serves as the foundation and theme for skeleton generation. Required if not appending with existing entries."></i>
+                                        <label style="font-size: 0.85em; font-weight: bold; opacity: 0.8; margin: 0; display: flex; align-items: center;">Skeleton Source
+                                            <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="Describe the world at any level of detail: atmosphere, cultures, history, factions, locations, named characters, conflicts, technology, magic, or other established facts. A short thematic seed or a granular world description both work. Auto-Generate remains conservative and produces a generalized backdrop without named story entities. Optional when existing lorebook or skeleton entries provide the source."></i>
                                         </label>
                                         <div style="display: flex; align-items: center; gap: 4px;">
                                             <span style="font-size: 0.75em; opacity: 0.7;">Lookback:</span>
                                             <input id="rpg_world_progression_skeleton_atmosphere_lookback" type="text" inputmode="numeric" pattern="[0-9]*" class="text_pole" value="30" style="width: 35px; text-align: center; font-size: 0.8em; padding: 2px; margin: 0;" />
                                             <span style="font-size: 0.75em; opacity: 0.7; margin-right: 2px;">msgs</span>
-                                            <button id="rpg_world_progression_btn_generate_atmosphere" class="menu_button interactable" style="font-size:0.75em; padding:2px 8px; margin: 0;" title="Auto-generate atmosphere summary based on recent chat history">
+                                            <button id="rpg_world_progression_btn_generate_atmosphere" class="menu_button interactable" style="font-size:0.75em; padding:2px 8px; margin: 0;" title="Generate a generalized Skeleton Source from recent chat without copying named story entities">
                                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Generate
                                             </button>
                                         </div>
                                     </div>
-                                    <textarea id="rpg_world_progression_skeleton_atmosphere" class="text_pole" rows="3" style="width:100%; font-size:0.8em; resize:vertical; background:rgba(0,0,0,0.3); color:var(--SmartThemeBodyColor); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:6px; box-sizing:border-box; margin-bottom: 6px;" placeholder="e.g. 'Poverty and desperation define daily life. The nobility maintains control through debt bondage. Corruption is endemic — even the church answers to noble patrons.'"></textarea>
+                                    <textarea id="rpg_world_progression_skeleton_atmosphere" class="text_pole" rows="6" style="width:100%; font-size:0.8em; resize:vertical; background:rgba(0,0,0,0.3); color:var(--SmartThemeBodyColor); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:6px; box-sizing:border-box; margin-bottom: 6px;" placeholder="Describe the world, from a short thematic seed to detailed established lore, or Auto-Generate it from recent chat."></textarea>
 
-                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px; margin-bottom: 6px;">
+                                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
+                                        <label class="checkbox_label" style="margin:0;" title="Use existing lorebooks as established source material when generating or adding to the World Skeleton. If no books are selected, all non-skeleton lorebooks are used.">
+                                            <input id="rpg_world_progression_skeleton_use_lorebooks" type="checkbox" />
+                                            <span>Source from Existing Lorebooks</span>
+                                        </label>
+                                        <button id="rpg_world_progression_skeleton_lorebook_refresh" class="menu_button interactable" style="font-size:0.72em; padding:2px 7px; margin:0;" title="Refresh available lorebooks">
+                                            <i class="fa-solid fa-rotate"></i> Refresh
+                                        </button>
+                                    </div>
+                                    <div id="rpg_world_progression_skeleton_lorebook_filter_group" style="display:none; max-height:140px; overflow-y:auto; border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:5px; margin-bottom:7px;">
+                                        <div style="font-size:0.7em; opacity:0.55; margin-bottom:4px;">Select source books. With none selected, all non-skeleton lorebooks are included.</div>
+                                        <div id="rpg_world_progression_skeleton_lorebook_list"></div>
+                                    </div>
+
+                                    <div id="rpg_world_progression_skeleton_counts" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px; margin-bottom: 6px;">
                                         <div>
                                             <label style="font-size: 0.75em; font-weight: bold; opacity: 0.8; display: block; margin-bottom: 2px;">Factions
                                                 <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7;" title="Number of starting factions in the skeleton. Macro: {factionCount}"></i>
@@ -1316,6 +1464,11 @@
                                         </div>
                                     </div>
 
+                                    <label id="rpg_world_progression_skeleton_lorebook_only_row" class="checkbox_label" style="margin:0 0 7px 0; font-size:0.78em;" title="Only create skeleton entries for entities explicitly mentioned in the selected lorebook source material. The category counts above are ignored while this is enabled.">
+                                        <input id="rpg_world_progression_skeleton_lorebook_only" type="checkbox" />
+                                        <span>Only use entities explicitly mentioned in source lorebooks (no extrapolation)</span>
+                                    </label>
+
                                     <div style="display:flex; align-items:center; gap:6px; margin-top: 4px; margin-bottom: 2px;">
                                         <label style="font-size: 0.85em; font-weight: bold; opacity: 0.8; flex:1; margin:0;">Skeleton System Prompt
                                             <i class="fa-solid fa-circle-question interactable" style="font-size: 0.85em; opacity: 0.7; margin-left: 4px;" title="The system prompt sent to the LLM for generating the foundational World Skeleton."></i>
@@ -1334,7 +1487,7 @@
                                         <button id="rpg_world_progression_btn_add_skeleton" class="menu_button interactable" style="background: rgba(180, 100, 255, 0.15); border-color: rgba(180, 100, 255, 0.4); margin: 0;" title="Generate new entries and append them to the existing skeleton">
                                             <i class="fa-solid fa-plus"></i> Add to Skeleton
                                         </button>
-                                        <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.76em; opacity: 0.8; cursor: pointer; margin: 0;" title="When appending, feed the full descriptions of the existing skeleton entries to the LLM. If checked, Atmosphere Summary is optional.">
+                                        <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.76em; opacity: 0.8; cursor: pointer; margin: 0;" title="When appending, feed the full descriptions of the existing skeleton entries to the LLM. If checked, Skeleton Source is optional.">
                                             <input id="rpg_world_progression_skeleton_use_existing" type="checkbox" style="margin: 0; vertical-align: middle;" />
                                             <span>With existing entries</span>
                                         </label>
@@ -1574,6 +1727,90 @@
                     </div><!-- /.flex-container -->
                 </div><!-- /.inline-drawer-content -->
             </div><!-- /.inline-drawer (World Progression) -->
+
+            <!-- SUB-DRAWER: ADVENTURE COMPANION -->
+            <div class="inline-drawer">
+                <div class="inline-drawer-toggle inline-drawer-header">
+                    <i class="fa-solid fa-compass" style="margin-right: 8px; opacity: 0.7;"></i>
+                    <b>Adventure Companion</b>
+                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                </div>
+                <div class="inline-drawer-content">
+                    <div class="flex-container flexFlowColumn gap-1">
+                        <div style="font-size: 0.8em; opacity: 0.72; line-height: 1.4;">Open Adventure Companion with the <b>CHAT</b> button at the top of the State Tracker. It can help with your adventure when <b>TUTORIAL MODE</b> is enabled, getting you to grips with the extension. In this mode, it has access to robust documentation.<br><br>Otherwise, it's there if you just feel like chatting about your adventure or brainstorm, etc. You can also ask it to make changes in the State Tracker or Lorebook Agent, and it can take actions for you if you ask it to (by typing messages or making CYOA mode choices for you.)</div>
+                        <label class="checkbox_label" title="Attach the Multihog guide to every Adventure Companion request.">
+                            <input id="rpg_adventure_companion_tutorial_mode" type="checkbox" />
+                            <span>TUTORIAL MODE</span>
+                            <i class="fa-solid fa-circle-question interactable"
+                                title="Injects the Multihog documentation Markdown file into every Adventure Companion request. This is useful while learning the framework, but adds a few thousand input tokens."></i>
+                        </label>
+
+                        <div class="inline-drawer">
+                            <div class="inline-drawer-toggle inline-drawer-header">
+                                <b>Context Settings</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <label>Story Lookback</label>
+                                    <input id="rpg_adventure_companion_lookback" type="text" inputmode="numeric" pattern="[0-9]*" min="0" max="100" class="text_pole" title="Number of recent SillyTavern chat messages to include as story context." />
+                                    <label class="checkbox_label" title="Include the entire SillyTavern chat history as story context.">
+                                        <input id="rpg_adventure_companion_lookback_all" type="checkbox" />
+                                        <span>All chat messages</span>
+                                    </label>
+                                    <label class="checkbox_label">
+                                        <input id="rpg_adventure_companion_inject_lore" type="checkbox" />
+                                        <span>Inject Lorebook Agent lore</span>
+                                    </label>
+                                    <label class="checkbox_label">
+                                        <input id="rpg_adventure_companion_inject_memo" type="checkbox" />
+                                        <span>Inject State Tracker</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="inline-drawer">
+                            <div class="inline-drawer-toggle inline-drawer-header">
+                                <b>Connection Settings</b>
+                                <div class="inline-drawer-icon fa-solid fa-circle-down down"></div>
+                            </div>
+                            <div class="inline-drawer-content">
+                                <div class="flex-container flexFlowColumn gap-1">
+                                    <label>Connection Source</label>
+                                    <select id="rpg_adventure_companion_connection_source" class="text_pole">
+                                        <option value="default">Main API</option>
+                                        <option value="profile">Profile</option>
+                                        <option value="ollama">Ollama</option>
+                                        <option value="openai">OpenAI</option>
+                                    </select>
+                                    <div id="rpg_adventure_companion_profile_group" style="display: none;">
+                                        <select id="rpg_adventure_companion_connection_profile" class="text_pole"></select>
+                                    </div>
+                                    <div id="rpg_adventure_companion_ollama_group" style="display: none;">
+                                        <input id="rpg_adventure_companion_ollama_url" type="text" class="text_pole" placeholder="URL" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rpg_adventure_companion_ollama_model" class="text_pole" style="flex: 1;"></select>
+                                            <button id="rpg_adventure_companion_ollama_refresh" class="menu_button interactable" title="Refresh Ollama models"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                    </div>
+                                    <div id="rpg_adventure_companion_openai_group" style="display: none;">
+                                        <input id="rpg_adventure_companion_openai_url" type="text" class="text_pole" placeholder="URL" />
+                                        <input id="rpg_adventure_companion_openai_key" type="password" class="text_pole" placeholder="Key" />
+                                        <div class="flex-container gap-1">
+                                            <select id="rpg_adventure_companion_openai_model" class="text_pole" style="flex: 1;"></select>
+                                            <button id="rpg_adventure_companion_openai_refresh" class="menu_button interactable" title="Refresh OpenAI-compatible models"><i class="fa-solid fa-arrows-rotate"></i></button>
+                                        </div>
+                                        <input id="rpg_adventure_companion_openai_model_manual" type="text" class="text_pole" placeholder="Manual Model Name" />
+                                    </div>
+                                    <label>Preset</label>
+                                    <select id="rpg_adventure_companion_completion_preset" class="text_pole"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             
 

@@ -12,8 +12,47 @@ import {
     adjustPromptTimestamps,
 } from '../state-manager.js';
 import { testExtensionSettings } from './setup.js';
+import { DEFAULT_STOCK_PROMPTS } from '../constants.js';
 
 describe('module instruction builders', () => {
+    it('keeps CHARACTER and PARTY blocks free of biography fields', () => {
+        expect(DEFAULT_STOCK_PROMPTS.character).toContain(
+            'MECHANICS ONLY: Never include Identity, Background, Appearance, personality, biography, or other narrative/lore fields in [CHARACTER].',
+        );
+        expect(DEFAULT_STOCK_PROMPTS.party).toContain(
+            'MECHANICS ONLY: Never include Identity, Background, Appearance, personality, biography, or other narrative/lore fields in [PARTY].',
+        );
+    });
+
+    it('includes the multi-level SPELLS block example in the stock prompt', () => {
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain('[SPELLS]');
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain("Level 1 (4/4): Hunter's Mark, Longstrider, Detect Magic");
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain('Level 2 (3/3): Pass Without Trace, Lesser Restoration');
+        expect(DEFAULT_STOCK_PROMPTS.spells).toContain('[/SPELLS]');
+    });
+
+    it('ends the PARTY prompt with spell-slot and ability-use tracking guidance', () => {
+        expect(DEFAULT_STOCK_PROMPTS.party.trim().endsWith(
+            'SPELL AND ABILITY USE: track PARTY spell slots and ability use accurately.',
+        )).toBe(true);
+    });
+
+    it('ends the COMBAT prompt with spell-slot and ability-use tracking guidance', () => {
+        expect(DEFAULT_STOCK_PROMPTS.combat.trim().endsWith(
+            'SPELL AND ABILITY USE: track COMBAT spell slots and ability use accurately.',
+        )).toBe(true);
+    });
+
+    it('gives both elite combat examples concrete ability rules and usage counters', () => {
+        expect(DEFAULT_STOCK_PROMPTS.combat).toContain(
+            'Brutal Strike (On a Warhammer hit, deal +1d10 Bludgeoning damage and force a Fort DC 16 save or knock the target prone; 2/2)',
+        );
+        expect(DEFAULT_STOCK_PROMPTS.combat).toContain(
+            'Dual Strike (When both a primary-hand and offhand attack hit the same target in one turn, deal +1d6 Piercing damage; 2/2)',
+        );
+        expect(DEFAULT_STOCK_PROMPTS.combat).not.toContain('2/2 per combat');
+    });
+
     it('buildNpcInstruction includes CORE_FORMAT and {{user}} rules', () => {
         const text = buildNpcInstruction(25, 15, true);
         expect(text).toContain('<CORE_FORMAT — NPC only>');
@@ -25,6 +64,33 @@ describe('module instruction builders', () => {
         expect(buildLocInstruction()).toContain('<CORE_FORMAT — LOC only>');
         expect(buildFacInstruction()).toContain('<CORE_FORMAT — FAC only>');
         expect(buildLocInstruction()).toContain('Do NOT use NPC field headers');
+    });
+
+    it('omits the CHARACTER schema when the CHARACTER module is disabled', async () => {
+        const { buildModulesInstructionText } = await import('../memo-processor.js');
+        const settings = {
+            modules: {},
+            stockPrompts: { ...DEFAULT_STOCK_PROMPTS },
+        };
+
+        const text = buildModulesInstructionText(settings);
+
+        expect(text).not.toContain('- [CHARACTER]:');
+        expect(text).not.toContain('- [ABILITIES]:');
+        expect(text).not.toContain('- [INVENTORY]:');
+        expect(text).not.toContain('- [SPELLS]:');
+    });
+
+    it('emits the CHARACTER schema when the CHARACTER module is enabled', async () => {
+        const { buildModulesInstructionText } = await import('../memo-processor.js');
+        const settings = {
+            modules: { character: true },
+            stockPrompts: { ...DEFAULT_STOCK_PROMPTS },
+        };
+
+        const text = buildModulesInstructionText(settings);
+
+        expect(text).toContain('- [CHARACTER]:');
     });
 });
 
@@ -53,6 +119,22 @@ describe('getSettings fresh install', () => {
         expect(s.settingsVersion).toBe(FACTORY_SETTINGS_VERSION);
         expect(s.routerModules?.npc?.tag).toBe('NPC');
         expect(typeof s.routerModules?.npc?.instruction).toBe('string');
+    });
+
+    it('includes implicit spell-slot and resource accounting in the State Tracker core prompt', () => {
+        for (const key of Object.keys(testExtensionSettings)) {
+            delete testExtensionSettings[key];
+        }
+        expect(getSettings().systemPromptTemplate).toContain(
+            "8. Decrement/increment resources such as spell slots if they clearly are spent or gained even if the narrator doesn't explicitly mention that a slot/resource was expended.",
+        );
+    });
+
+    it('ships a compact State Tracker core prompt without blank spacer lines', () => {
+        for (const key of Object.keys(testExtensionSettings)) {
+            delete testExtensionSettings[key];
+        }
+        expect(getSettings().systemPromptTemplate).not.toMatch(/\n[\t ]*\n/);
     });
 });
 
@@ -84,11 +166,39 @@ describe('shipped prompt fingerprint', () => {
         expect(computeBundledPromptsFingerprintForSnapshot(legacyClockSnapshot)).toBe(fingerprint);
     });
 
+    it('ignores live user toggles and custom CORE sections', () => {
+        for (const key of Object.keys(testExtensionSettings)) {
+            delete testExtensionSettings[key];
+        }
+        const settings = getSettings();
+        settings.npcRelationshipBars = true;
+        settings.npcCoreSections = [
+            { id: 'custom', name: 'CustomField', description: 'User-only section', icon: 'fa-star', color: '#fff' },
+        ];
+        const fingerprint = computeBundledPromptsFingerprint();
+
+        settings.npcRelationshipBars = false;
+        settings.npcCoreSections = [];
+        expect(computeBundledPromptsFingerprint()).toBe(fingerprint);
+
+        // Unbound / empty settings bag must not change the shipped fingerprint either.
+        delete testExtensionSettings.rpg_tracker;
+        expect(computeBundledPromptsFingerprint()).toBe(fingerprint);
+    });
+
     it('repairs repeated AM/PM placeholders when changing time format', () => {
         const legacy = 'Current Time: HH:MM AM/PM AM/PM AM/PM, Day N';
         expect(adjustPromptTimestamps(legacy, { useDdMmYyFormat: false, use24hTime: false }))
             .toBe('Current Time: HH:MM AM/PM, Day N');
         expect(adjustPromptTimestamps(legacy, { useDdMmYyFormat: false, use24hTime: true }))
             .toBe('Current Time: HH:MM, Day N');
+    });
+
+    it('does not append a second meridiem when normalizing concrete example times', () => {
+        const canonical = 'Examples: 10:42 AM, 10:44 AM, and HH:MM AM/PM.';
+        const format = { useDdMmYyFormat: false, use24hTime: false };
+
+        expect(adjustPromptTimestamps(adjustPromptTimestamps(canonical, format), format))
+            .toBe(canonical);
     });
 });

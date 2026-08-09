@@ -1,10 +1,12 @@
 # Multihog D&D Framework
 
-*A D&D-based RPG platform/simulation engine for SillyTavern.*
+*A highly customizable and modular RPG platform/simulation engine for SillyTavern.*
 
-This framework essentially turns SillyTavern into something like AI Dungeon, but with actual mechanics/consequences! Started off as a humble "RPG State Tracker" but has since expanded into a more ambitious game engine, simulation system, and modular RPG framework where you can basically make your own game. Mechanical integrity and simulation depth is key here. This isn't a narrative-first philosophy; it aims for relentless "simulation autism." The backbone of the system is time simulation.
+Started off as a humble "RPG State Tracker" but has since expanded into a more ambitious game engine, simulation system, and modular RPG platform where you can even make your own RPGs with their own systems and game logic — and all of this can be done through AI prompting via numerous integrated AI wizards/tools.
 
-In addition to fantasy, the system works just as well for casual "slice of life" scenarios, modern settings, or anything else imaginable, so you're by no means limited to wizards and goblins. Everything is FULLY customizable and homebrew-friendly, complete with AI wizards, so next to no technical knowledge is required.
+By default, ships with a plug-and-play "hardcore" setup that can best be described as simulation autism. Actions have consequences, and there is no scaling. The dragon will kick you to the curb even if you're level 2. The core aim and philosophy is to deliver an immersive experience through robust simulation logic, using realistic time passage as the backbone that ties into numerous other systems, and this aforementioned "player-agnosticism/neutrality." Fundamentally it acts as a cohesive RPG framework as well as an anti-sycophancy system.
+
+I know it says "D&D Framework," but in addition to fantasy, the system works just as well for casual "slice of life" scenarios, modern settings, or anything else imaginable, so you're by no means limited to wizards and goblins. Everything is FULLY customizable and homebrew-friendly, complete with AI wizards, so next to no technical knowledge is required.
 
 ---
 
@@ -32,33 +34,26 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 
 ## Highlights
 
-- **20+ Rendering Tags** with universal inline support and live preview library.
-- **AI-Powered Configuration** — generate custom fields and sysprompt sections from plain language descriptions.
-- **Dual-Engine Physics**: Deterministic queue for instant combat, and interactive tool calls for narrative skill checks.
-- **Draggable HUD** with HP bars, spell pips, colored status pills, alert badges, and economy coins.
-- **Automatic spell slot tracking** via 🔵 pips in the UI; never worry about remembering how many you have left.
-- **Buff/debuff temporal decay** via [TIME] delta tracking; statuses expire automatically over time based on time elapsed.
-- **Dynamic enemy scaling** — enemies adapt to quest difficulty and player level contextually.
-- **Auto model-switching** so that you can use a different model for tracking the state.
-- **Full-context audit mode** with automatic chunking for massive chat histories.
-- **Custom fields, themes, reorderable sections**; track whatever you want beyond the stock fields and customize the visuals to your liking.
-- **Automatic D&D wikidot spell links** - look up spells by clicking on them without awkward googling.
-- **Mobile support** (open from the wand menu).
-- **Talk to the tracker model directly via (💬)**, making editing or adding things easy.
-- **Onboarding system** - roll up a random character or describe one to the model.
-- **Profile saving** - switch between multiple campaigns without losing your state.
-- **Homebrew-friendly** and flexible in general, relying on AI to do a lot of the lifting.
-- **Automatic Long-Context Tracking** via the Lorebook Agent with World Engine simulation.
-- **AI Portrait Generation** via Pollinations.ai — free, non-profit image generation with full lorebook agent context awareness for accurate character portraits.
-- **Inventory Currency Auto-Rendering** — items with a worth value automatically display a styled coin badge (gold, silver, bronze, or dollar) based on the currency type.
+- **Full Mobile support**: Continue on your phone where you left off on desktop.
+- **AI-powered effortless creation**: generate entire game systems effortlessly from plain language prompts. AI handles it all.
+- **Automatic spell slot tracking**: via 🔵 pips in the UI; never worry about remembering how many you have left.
+- **Buff/debuff temporal decay**: via [TIME] delta tracking; statuses expire automatically over time based on time elapsed.
+- **CYOA Mode**: Offers you clickable choices for frictionless gameplay. Completely optional, of course.
+- **Auto model-switching**: The best models for the task.
+- **Party-benching system**: Send your squad on quests; they will automatically eventually return, and their success/failure depends on their aptitude and RNG.
+- **Custom fields, AI theme wizard, reorderable sections**; track whatever you want beyond the stock fields and customize the visuals to your liking.
+- **Robust character creation options**: Specify detailed character information, a simple description, or just roll a completely random character.
+- **Save your RPGs as Game Cartridges**: A complete snapshot of your RPG configuration. Importing and exporting is supported for easy backups or even sharing.
+- **Homebrew-friendliness** and flexibility in general, supporting any genre.
+- **Autonomous Lorebook Agent** handles your lorebooks completely hands-free, with no configuration necessary.
+- **Talk to the models directly via (💬)**, making editing or adding things easy.
+- **AI Portrait Generation and Real-Time Visualization Mode**: Portraits for everything, and a visualizer viewport.
 - **Character card importing** — import any existing character into the story as an NPC; AI will automatically adapt it to the story, regardless of setting/theme.
-- **AI-powered Game Systems Wizard** — Simply describe any mechanic to the wizard in natural language (e.g. "reputation system), and the AI will build the system for you according to the structure of the extension (sysprompt + module.) Iterate, regenerate, or manually edit any block directly within the forge before saving.
-- **Life/dating sim-style friendship/affection component.**
-- **Export your entire setup as a "Game Cartridge."**
-- **d100 (percentage-based rolls) support.**
-- **Real-Time Visualization Mode** — Lorebook Agent can be turned into a visual viewer that generates images of the current scene (with adjustable frequency) and displays the portraits of the currently present entities.
-- **Instant Action** — Get started by simply pressing one button.
-  
+- **Life/dating sim-style friendship/affection component**: Build friendships and romance.
+- **d100 support** for percentage-based systems/calculations.
+- **Adventure Companion**: Learn the framework with an optional Tutorial Mode, discuss your adventure, update campaign state or lore, and even ask it to take your next turn.
+- **Efficient Dual-Engine RNG**: Deterministic queue for instant combat; tool calls for narrative skill checks.
+
 ---
 
 <p align="center">
@@ -84,6 +79,12 @@ Together they solve the four core problems of LLM tabletop RP: the AI forgetting
 3. **Prompt Injection & Execution:** The State Memo and RNG Queue are injected seamlessly into your outgoing prompt to act as the "source of truth." For narrative actions, the framework dynamically catches and resolves the AI's `RollTheDice` tool calls.
 4. **World Progression Skeleton & Settings:** Optionally, create a "world skeleton" for the World Progression component to inject broader macroscopic content into the context/world in the world reports. Optionally set up the randomizers from the WP settings to determine how much skeleton and organic (Lorebook Agent) content is used in world updates.
 
+### Initial Setup Video Guide
+
+https://youtu.be/dKKFQqrH7qQ
+
+---
+
 ## Suggested Companions
 
 - 🧠 **[Summaryception](https://github.com/Lodactio/Extension-Summaryception):** A brilliant summarizer/context compression extension. Also handy for crunching all the combat mechanics of the context into summarized history.
@@ -95,28 +96,48 @@ You can scrap the entire system prompt and all the default fields and track your
 ## What Model to Use?
 Your primary narrator model must support **Tool Calling** for the Hybrid RNG system to work properly, though this is only relevant if you're using tool calls. The extension also works without them (selectable in the settings.)
 
-**MiMo 2.5 Pro** or **DeepSeek 4 Pro**: both are great bang for the buck with high GM output quality. I use MiMo myself through OpenRouter — DeepSeek 4 Pro is another strong pick in the same tier. Try both and see which voice you prefer.
+For the narrator, I'd recommend trying at least the following:
 
-For the State Tracker and Lorebook Agent, I use **Gemini 3.1 Flash-Lite**. It's very inexpensive and handles the job amazingly well. Gemini 3 Flash or 3.5 Flash are of course even better, but I don't think they're needed. Flash-Lite does the job.
+- MiMo 2.5 Pro
+- Deepseek V4 Pro and latest Flash
+- GPT-5.6 Luna, for its great cost-efficiency. Seems to be a decent model overall.
 
-If your model thinks too long in combat, enable **Combat API Override** in State Tracker settings — it auto-switches when the `[COMBAT]` tag is active in the tracker and switches back when combat ends. **Gemini 3.5 Flash** is a great choice for this; set thinking to **Medium** so it still thinks a little.
+*For the State Tracker and Lorebook Agent, I've been recommending the Gemini Flash-Lite and Flash models. However, now I'm not sure at all anymore. Deepseek V4 Flash 0731 recently came out and is very promising, and the same goes for GPT-5.6 Luna. These are seriously inexpensive models and seem to be heavy-hitters in terms of performance.*
+
+*If your model thinks too long in combat, enable* ***Combat API Override*** *in State Tracker settings — it auto-switches when the* *[COMBAT]* *tag is active in the tracker and switches back when combat ends.* ***This way you can have a faster model, so combat is faster.***
 
 These are recommendations, not rules — experiment. Different models shine for different styles of play.
 
 ---
 
+<table border="0">
+  <tr>
+    <td align="center" valign="bottom">
+      <img src="https://github.com/user-attachments/assets/829b233c-19f0-407b-99a8-f58e80573a0a" width="100%" alt="Lorebook Agent" />
+      <br>
+      <strong>Lorebook Agent</strong>
+    </td>
+    <td align="center" valign="bottom">
+      <img src="https://github.com/user-attachments/assets/de2f7522-e3ff-4153-8a3f-d38ca49ceca7" width="100%" alt="Lorebook Agent" />
+      <br>
+      <strong>Relationship system within Lorebook Agent</strong>
+    </td>
+  </tr>
+</table>
+
+---
+
 <div align="center">
   <figure>
-    <img width="1918" height="982" alt="Screenshot 2026-06-18 195917" src="https://github.com/user-attachments/assets/a9778adb-8bdf-485e-ac96-973613321407" />
+    <img width="1918" height="982" alt="Screenshot 2026-06-18 195917" src="https://github.com/user-attachments/assets/7eb15c2b-bfd8-4193-8553-4053bac14c34" />
   </figure>
 </div>
 
 ---
-
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/829b233c-19f0-407b-99a8-f58e80573a0a" width="500" alt="Lorebook Agent" />
+  <img src="https://github.com/user-attachments/assets/a2c8a500-dbdf-4949-b2ee-bad025fd44e5" width="60%" alt="Combat in progress" />
   <br>
-  <strong>Lorebook Agent</strong>
+  <em>Visualization Mode</em>
 </p>
 
 ---

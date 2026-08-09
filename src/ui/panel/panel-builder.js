@@ -4,11 +4,42 @@ import { wireAgentWorldProgression } from './panel-world-progression.js';
 import { wireAgentActivity } from './panel-agent-activity.js';
 import { buildPanelMarkup } from './panel-markup.js';
 import { createSceneViewController } from './panel-scene-view.js';
+import { getCardAppearanceSynopsis as buildCardAppearanceSynopsis } from './card-synopsis.js';
+import { bindAdventureCompanion, closeAdventureCompanion, refreshAdventureCompanionLayout } from '../../../adventure-companion.js';
+import { NEW_NPC_NAMING_RULE } from '../../state/defaults.js';
+import { openSettingsOverlay } from '../settings-overlay.js';
+
+/**
+ * Resolve ST macros (e.g. {{user}}, {{char}}) for READ-ONLY display of Lorebook Agent
+ * entries. Storage keeps macros verbatim (renaming a persona should not desync history),
+ * and edit textareas always load the raw `item.content` — only rendered summaries/sections
+ * pass through this.
+ */
+function substituteDisplayMacros(text) {
+    if (!text) return text;
+    try {
+        const substituteParams = SillyTavern.getContext()?.substituteParams;
+        return typeof substituteParams === 'function' ? substituteParams(text) : text;
+    } catch (_) {
+        return text;
+    }
+}
+
+/** CHAT always owns the integrated tracker pane while it is open. */
+export function resolveModeAfterAgentAttach(chatOpen, storedMode) {
+    return chatOpen ? 'tracker' : (storedMode === 'agent' ? 'agent' : 'tracker');
+}
+
+/** The integrated panel always starts on State Tracker after a UI rebuild/reload. */
+export function resolveInitialPanelContentMode(_storedMode) {
+    return 'tracker';
+}
 
 /** Builds and wires the tracker panel. Dependencies stay explicit to avoid entry-module cycles. */
 export function createPanel(dependencies) {
     const {
         DEFAULT_MODULES,
+        MODULE_BOOK_CATEGORY,
         DEFAULT_NPC_SECTIONS,
         DEFAULT_PC_SECTIONS,
         activateCampaignBooks,
@@ -26,6 +57,8 @@ export function createPanel(dependencies) {
         buildNpcInstruction,
         canResizePanels,
         checkAndTriggerAutoGenerations,
+        clampFloatingPanelToViewport,
+        resolveViewportClampedGeometry,
         clampRelationshipValue,
         confirmAndPurgeWorldHistory,
         deleteLorebookEntry,
@@ -84,6 +117,7 @@ export function createPanel(dependencies) {
         scaleImageToLandscape,
         sendDirectPrompt,
         sendStateRequest,
+        setLorebookEntryPinned,
         setNpcRelationshipMaxForCurrentChat,
         setupDeltaResize,
         setupResizeObserver,
@@ -95,6 +129,7 @@ export function createPanel(dependencies) {
         syncMemoView,
         syncRouterPrefixDisplays,
         toggleDebugViewer,
+        triggerBackgroundPortraitGeneration,
         updateAgentStatusIndicator,
         updateChatLinkUI,
         updateLorebookEntry,
@@ -108,7 +143,8 @@ export function createPanel(dependencies) {
     document.querySelector('body > #rpg-tracker-agent')?.remove();
 
     const agentDetachedOnLoad = localStorage.getItem('rpg_tracker_agent_detached') === 'true';
-    const agentModeOnLoad = settings.trackerContentMode === 'agent';
+    const initialContentMode = resolveInitialPanelContentMode(settings.trackerContentMode);
+    const agentModeOnLoad = initialContentMode === 'agent';
     const mainPanelCollapsedOnLoad = (agentModeOnLoad && !agentDetachedOnLoad)
         ? !!settings.agentCollapsed
         : !!settings.trackerCollapsed;
@@ -192,6 +228,15 @@ export function createPanel(dependencies) {
         });
     }
 
+    const settingsBtn = panel.querySelector('#rpg-tracker-settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openSettingsOverlay();
+        });
+    }
+
     const enableBtn = panel.querySelector('#rpg-tracker-enable-btn');
     if (enableBtn) {
         enableBtn.addEventListener('click', (e) => {
@@ -213,104 +258,7 @@ export function createPanel(dependencies) {
         });
     }
 
-    // ── Chat Link Toggle ──
-    const chatLinkBtn = panel.querySelector('#rpg-tracker-chat-link-btn');
-    if (chatLinkBtn) {
-        chatLinkBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const { Popup, POPUP_RESULT } = SillyTavern.getContext();
-            const s = getSettings();
-            const turningOn = !s.chatLinkEnabled;
-
-            if (turningOn && runtimeState.currentChatId) {
-                const saved = s.chatStates?.[runtimeState.currentChatId];
-                const liveContent = (s.currentMemo || '').trim();
-                const savedContent = (saved?.currentMemo || '').trim();
-
-                const liveKeys = s.activeRouterKeys || [];
-                const savedKeys = saved?.activeRouterKeys || [];
-                const keysChanged = JSON.stringify(liveKeys.sort()) !== JSON.stringify(savedKeys.sort());
-
-                // Show conflict if EITHER content or keys are different
-                const hasConflict = (savedContent && liveContent && liveContent !== savedContent) || (savedKeys.length > 0 && liveKeys.length > 0 && keysChanged);
-
-                if (hasConflict) {
-                    const body = `
-                            <div style="text-align: left;">
-                                <p><b>Conflict Detected:</b> This chat has a saved state (memo or lore keys), but your current session is not empty.</p>
-                                <p style="font-size: 0.9em; opacity: 0.8; margin-top: 10px;">
-                                    <b>RESTORE:</b> Use the chat's saved state. (Current session moved to history)<br>
-                                    <b>OVERWRITE:</b> Keep current session and save it to this chat. (Old chat data moved to history)
-                                </p>
-                            </div>`;
-
-                    const choice = await Popup.show.confirm('⚠️ Chat Link Conflict', body, {
-                        okButton: 'RESTORE',
-                        cancelButton: 'OVERWRITE',
-                        customButtons: [
-                            {
-                                text: 'CANCEL',
-                                result: POPUP_RESULT.CANCELLED,
-                                appendAtEnd: true,
-                            }
-                        ],
-                    });
-
-                    if (choice === POPUP_RESULT.AFFIRMATIVE) {
-                        // User wants to Restore
-                        if (s.currentMemo) {
-                            saved.memoHistory = saved.memoHistory || [];
-                            saved.memoHistory.unshift({
-                                memo: s.currentMemo,
-                                delta: s.lastDelta,
-                                timestamp: Date.now(),
-                                label: 'Global Edit (Pre-Link)'
-                            });
-                            if (saved.memoHistory.length > 50) saved.memoHistory.length = 50;
-                        }
-                        loadChatState(runtimeState.currentChatId);
-                        toastr['success']('Chat Link ON — restored saved state.', 'RPG Tracker');
-                    } else if (choice === POPUP_RESULT.NEGATIVE) {
-                        // User wants to Overwrite
-                        if (saved.currentMemo) {
-                            s.memoHistory.unshift(saved.currentMemo);
-                            if (s.memoHistory.length > 50) s.memoHistory.length = 50;
-                        }
-                        saveChatState(runtimeState.currentChatId);
-                        toastr['success']('Chat Link ON — current state saved to chat.', 'RPG Tracker');
-                    } else {
-                        // User closed the modal or hit escape — cancel the toggle
-                        return;
-                    }
-                } else {
-                    // No conflict or chat was empty
-                    saveChatState(runtimeState.currentChatId);
-                    toastr['success']('Chat Link ON — state bound to this chat.', 'RPG Tracker');
-                }
-            } else if (turningOn) {
-                // Normal lock (empty or new chat)
-                if (runtimeState.currentChatId) {
-                    const found = loadChatState(runtimeState.currentChatId);
-                    if (!found) saveChatState(runtimeState.currentChatId);
-                }
-                toastr['success']('Chat Link ON', 'RPG Tracker');
-            } else {
-                toastr['info']('Chat Link OFF — using global state.', 'RPG Tracker');
-            }
-
-            s.chatLinkEnabled = turningOn;
-            saveSettings();
-            updateChatLinkUI();
-        });
-    }
-
-    const chatLinkFooterBtn = panel.querySelector('#rpg-tracker-chat-link-footer-btn');
-    if (chatLinkFooterBtn && chatLinkBtn) {
-        chatLinkFooterBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            chatLinkBtn.click();
-        });
-    }
+    // Chat Link toggle lives in extension settings (General & Visuals) only.
 
     // ── Router Agent UI ──
     const agentPanel = /** @type {HTMLElement} */ (panel.querySelector('#rpg-tracker-agent'));
@@ -325,6 +273,7 @@ export function createPanel(dependencies) {
         getSettings,
         parseInWorldTime,
         saveSettings,
+        setLorebookEntryPinned,
     })
 
     // Assigned below when the agent panel is wired. Declared here so
@@ -341,6 +290,8 @@ export function createPanel(dependencies) {
             && (!needsPcHandler || typeof globalThis._rpgAgentOpenPcDetail === 'function');
     };
     let updateAgentBtnUI = () => { };
+    /** Assigned when Lorebook Agent detach wiring runs — reattach/clamp helpers. */
+    let applyAgentDetachedState = () => { };
 
     const isAgentDetachedForCollapse = () => localStorage.getItem('rpg_tracker_agent_detached') === 'true';
 
@@ -392,9 +343,14 @@ export function createPanel(dependencies) {
         const updateAgentWorldStatus = agentWorldProgression.updateStatus;
 
         agentCloseBtn.addEventListener('click', () => {
+            // Closing while detached used to hide the float and leave tabs gone
+            // (rt-agent-detached-mode). Reattach so Lorebook Agent stays reachable.
             if (isAgentDetached()) {
-                agentPanel.style.display = 'none';
-                updateAgentBtnUI();
+                const s = getSettings();
+                s.trackerContentMode = 'tracker';
+                localStorage.setItem('rpg_tracker_content_mode', 'tracker');
+                localStorage.setItem('rpg_tracker_agent_detached', 'false');
+                applyAgentDetachedState();
                 return;
             }
             applyPanelContentMode('tracker');
@@ -545,6 +501,7 @@ export function createPanel(dependencies) {
                 s.routerBasicMode = (/** @type {HTMLInputElement} */ (e.target)).checked;
                 $('#rpg_tracker_router_basic_mode').prop('checked', s.routerBasicMode);
                 saveSettings();
+                if (typeof globalThis._rpgSyncSettingsUi === 'function') globalThis._rpgSyncSettingsUi();
             });
         }
 
@@ -611,22 +568,22 @@ export function createPanel(dependencies) {
 
                 if (!isNpcEntry && coreMatch) {
                     coreRead.style.display = 'block';
-                    coreRead.innerHTML = `<div class="rt-agent-core-label">Permanent</div><div class="rt-agent-core-text">${escapeHtml(coreMatch[1].trim())}</div>`;
+                    coreRead.innerHTML = `<div class="rt-agent-core-label">Permanent</div><div class="rt-agent-core-text">${escapeHtml(substituteDisplayMacros(coreMatch[1].trim()))}</div>`;
                 } else {
                     coreRead.style.display = 'none';
                     coreRead.innerHTML = '';
                 }
 
                 if (isNpcEntry) {
-                    contentRead.textContent = dynamic || '(No campaign history recorded yet)';
+                    contentRead.textContent = substituteDisplayMacros(dynamic) || '(No campaign history recorded yet)';
                     contentRead.style.display = 'block';
                 } else if (dynamic) {
-                    contentRead.textContent = dynamic;
+                    contentRead.textContent = substituteDisplayMacros(dynamic);
                     contentRead.style.display = 'block';
                 } else if (coreMatch) {
                     contentRead.style.display = 'none';
                 } else {
-                    contentRead.textContent = raw || '(Empty)';
+                    contentRead.textContent = substituteDisplayMacros(raw) || '(Empty)';
                     contentRead.style.display = 'block';
                 }
             };
@@ -635,6 +592,7 @@ export function createPanel(dependencies) {
             const cleanBtn = entryHdr.querySelector('.rt-agent-entry-clean');
             const editBtn = entryHdr.querySelector('.rt-agent-entry-edit');
             const delBtn = entryHdr.querySelector('.rt-agent-entry-delete');
+            const pinBtn = entryHdr.querySelector('.rt-agent-entry-pin');
 
             readPane.appendChild(keysRead);
             readPane.appendChild(coreRead);
@@ -859,6 +817,24 @@ export function createPanel(dependencies) {
                 });
             }
 
+            if (pinBtn) {
+                pinBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const nextPinned = !item.is_pinned;
+                    const ok = setLorebookEntryPinned(item.id, nextPinned);
+                    if (ok) {
+                        item.is_pinned = nextPinned;
+                        if (nextPinned) item.is_active = true;
+                        await refreshManifest();
+                        if (typeof runtimeState.renderRouterUI === 'function') runtimeState.renderRouterUI();
+                        // @ts-ignore
+                        toastr.info(nextPinned
+                            ? `Pinned "${item.label}" — always active`
+                            : `Unpinned "${item.label}"`, 'Lorebook Agent');
+                    }
+                });
+            }
+
             return body;
         };
 
@@ -924,16 +900,20 @@ export function createPanel(dependencies) {
                 // insert a newline before "Background", leaving a stray "Brief" under Personality).
                 const legacyNames = 'Appearance\\/Species|Appearance|Personality|Brief Background|(?<!Brief\\s)Background|Habits(?:\\/|\\s*&\\s*|\\s+and\\s+)Behaviors|Habits|(?<!Habits\\/)(?<!Habits & )(?<!Habits and )Behaviors|Strengths|Flaws|Relationship with\\s*\\{\\{user\\}\\}|(?<!Friendship\\/)(?<!Affection\\/)Relationship';
 
-                // Discover any lazily-appended fields (e.g. "Combat Profile:") not in the known sets
+                // Discover any lazily-appended fields (e.g. "Combat Profile:") not in the known sets.
+                // Excludes common inline sub-labels (e.g. "Species:", "Ethnicity:", "Gender:") that
+                // models sometimes write as a leading label *inside* the Appearance/Species prose —
+                // those are not real CORE sections and must never be split into their own header.
                 const knownNamesForScan = new Set(customSecs.map(s => s.name.trim().toLowerCase()));
                 const legacySet = new Set(['appearance/species','appearance','personality','brief background','background','habits/behaviors','habits','behaviors','strengths','flaws','relationship']);
+                const inlineSubLabelBlacklist = new Set(['species', 'ethnicity', 'gender', 'age', 'race', 'body type', 'height', 'build']);
                 const discoveredNames = [];
                 for (const rawLine of coreContent.split('\n')) {
                     const hm = rawLine.trim().match(/^([A-Z][A-Za-z0-9 \/&]+?)\s*:/);
                     if (hm) {
                         const nm = hm[1].trim();
                         const nmLc = nm.toLowerCase();
-                        if (!knownNamesForScan.has(nmLc) && !legacySet.has(nmLc)) {
+                        if (!knownNamesForScan.has(nmLc) && !legacySet.has(nmLc) && !inlineSubLabelBlacklist.has(nmLc)) {
                             discoveredNames.push(escRgx(nm));
                         }
                     }
@@ -987,11 +967,15 @@ export function createPanel(dependencies) {
             };
 
             const sectionIcons = {
-                'General': '📋', 'Appearance/Species': '👁️', 'Appearance': '👁️', 'Personality': '🧠',
+                'General': '📋', 'Species': '🧬', 'Body': '👁️', 'Worn Equipment': '🎽', 'Equipment': '🎽',
+                'Appearance/Species': '👁️', 'Appearance': '👁️', 'Personality': '🧠',
                 'Brief Background': '📜', 'Habits/Behaviors': '🔄', 'Habits': '🔄',
                 'Behaviors': '🔄', 'Relationship': '❤️',
                 'Strengths': '⚡', 'Flaws': '⚠️',
             };
+
+            const getCardAppearanceSynopsis = (content) =>
+                buildCardAppearanceSynopsis(content, substituteDisplayMacros);
 
             const renderSectionsHtml = (rawContent, isPC = false) => {
                 const parsed = parseNpcSections(rawContent, isPC);
@@ -1004,8 +988,10 @@ export function createPanel(dependencies) {
                         const config = customSecs.find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
                         const icon = config ? config.icon : (sectionIcons[name] || '📋');
                         const sectionColor = config ? config.color : (
-                            (name === 'Appearance/Species' || name === 'Appearance') ? '#d4a940' :
-                                name === 'Personality' ? '#8b5cf6' :
+                            name === 'Species' ? '#0ea5e9' :
+                                (name === 'Body' || name === 'Appearance/Species' || name === 'Appearance') ? '#d4a940' :
+                                    name === 'Worn Equipment' || name === 'Equipment' ? '#f59e0b' :
+                                        name === 'Personality' ? '#8b5cf6' :
                                     name === 'Brief Background' ? '#3b82f6' :
                                         name.includes('Habit') || name.includes('Behavior') ? '#10b981' :
                                             name === 'Strengths' ? '#22c55e' :
@@ -1017,7 +1003,7 @@ export function createPanel(dependencies) {
                                     <span style="font-size:16px;">${icon}</span> ${escapeHtml(name)}
                                 </div>
                                 <div style="font-size:15px;line-height:1.6;color:var(--SmartThemeBodyColor, inherit);border-left:3px solid ${sectionColor}44;margin-left:3px;padding:6px 0 6px 14px;">
-                                    ${lines.map(l => escapeHtml(l)).join('<br>')}
+                                    ${lines.map(l => escapeHtml(substituteDisplayMacros(l))).join('<br>')}
                                 </div>
                             </div>`;
                     }
@@ -1028,9 +1014,9 @@ export function createPanel(dependencies) {
                     html += parsed.dynamic.map(line => {
                         const match = line.match(/^(\[.+?\])\s*(.*)/);
                         if (match) {
-                            return `<div style="margin-bottom:8px;"><span style="color:#d4a940;font-weight:bold;font-family:monospace;font-size:12px;background:rgba(212,169,64,0.1);padding:2px 6px;border-radius:4px;margin-right:6px;">${escapeHtml(match[1])}</span><span>${escapeHtml(match[2])}</span></div>`;
+                            return `<div style="margin-bottom:8px;"><span style="color:#d4a940;font-weight:bold;font-family:monospace;font-size:12px;background:rgba(212,169,64,0.1);padding:2px 6px;border-radius:4px;margin-right:6px;">${escapeHtml(match[1])}</span><span>${escapeHtml(substituteDisplayMacros(match[2]))}</span></div>`;
                         }
-                        return `<div style="margin-bottom:8px;">${escapeHtml(line)}</div>`;
+                        return `<div style="margin-bottom:8px;">${escapeHtml(substituteDisplayMacros(line))}</div>`;
                     }).join('');
                     html += `</div>`;
                 }
@@ -1048,11 +1034,7 @@ export function createPanel(dependencies) {
                 if (runtimeState.currentChatId && s.chatStates?.[runtimeState.currentChatId]?.playerCharacter) {
                     const pc = s.chatStates[runtimeState.currentChatId].playerCharacter;
 
-                    let desc = '';
-                    if (pc.bio) {
-                        const cleanBio = pc.bio.replace(/\[\/?CORE\]/gi, '');
-                        desc = cleanBio.split('\n').map(l => l.trim()).filter(l => l && !/^\[ID:/i.test(l)).slice(0, 2).join(' ').substring(0, 260);
-                    }
+                    const desc = getCardAppearanceSynopsis(pc.bio || '');
                     const portraitSrc = resolvePortraitSrcForPlayerCharacter(s, pc.name);
 
                     const pcDiv = document.createElement('div');
@@ -1376,6 +1358,9 @@ export function createPanel(dependencies) {
                                 bookNameLowerFull.endsWith('_locations') || bookNameLowerFull.endsWith('_location');
                             const useLocImageView = isLocBook && !!layoutS.locationImages;
 
+                            const isWorldBook = displayNameLower === 'world' ||
+                                bookNameLowerFull.endsWith('_world');
+
                             const folder = document.createElement('div');
                             folder.style.cssText = 'flex-shrink: 0; margin-bottom: 2px;';
 
@@ -1386,6 +1371,7 @@ export function createPanel(dependencies) {
                             folderHdr.innerHTML = `
                             ${useNpcCardView ? '<span class="rt-npc-folder-icon">👤</span>' : ''}
                             ${useLocImageView ? '<span class="rt-loc-folder-icon">🗺️</span>' : ''}
+                            ${isWorldBook ? '<span class="rt-world-folder-icon">🌍</span>' : ''}
                             <span class="rt-mf-icon" style="font-size:9px; opacity:0.5; width:10px; flex-shrink:0; font-family:monospace;">${isOpen ? '▼' : '▶'}</span>
                             <span style="font-weight:bold; font-size:11px; flex:1; color:var(--rt-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(displayName)}</span>
                             <span style="font-size:9px; opacity:0.45; color:var(--rt-text-muted); flex-shrink:0;">${activeCount}/${items.length} (${totalTokens}t)</span>
@@ -1452,14 +1438,14 @@ export function createPanel(dependencies) {
                                     <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:14px;">Shows Friendship/Affection tracking bars on NPC cards and popups. Also adds relationship fields to the AI instruction.</div>
 
                                     <div style="margin-bottom:6px;display:flex;align-items:center;gap:10px;">
-                                        <label style="font-size:12px;color:rgba(255,255,255,0.7);flex:1;">Show Relationship Toast Notifications</label>
+                                        <label style="font-size:12px;color:rgba(255,255,255,0.7);flex:1;">Show Relationship Float Feedback</label>
                                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                                             <input type="checkbox" id="rt-npc-rel-toast" ${curS.npcRelationshipToast !== false ? 'checked' : ''}
                                                 style="width:16px;height:16px;accent-color:#d4a940;cursor:pointer;">
                                             <span style="font-size:11px;color:rgba(255,255,255,0.5);">${curS.npcRelationshipToast !== false ? 'Enabled' : 'Disabled'}</span>
                                         </label>
                                     </div>
-                                    <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:14px;">Emits a toast notification in the bottom-right corner when friendship or affection values change.</div>
+                                    <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:14px;">Shows a floating Friendship/Affection graphic that rises and fades when those values change.</div>
 
                                     <div style="margin-bottom:14px;">
                                         <label style="font-size:12px;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">"Add as is" Import Mode</label>
@@ -1613,7 +1599,7 @@ export function createPanel(dependencies) {
 
                                             // Rebuild the NPC instruction from settings
                                             if (updS.routerModules?.npc) {
-                                                updS.routerModules.npc.instruction = buildNpcInstruction(finalMajor, finalMinor, false); // ignoreLimits only applies at import-time, not stored globally
+                                                updS.routerModules.npc.instruction = buildNpcInstruction(finalMajor, finalMinor, false, updS); // ignoreLimits only applies at import-time, not stored globally
                                             }
 
                                             saveSettings();
@@ -1757,21 +1743,8 @@ export function createPanel(dependencies) {
                                     return `<span class="rt-agent-entry-rel-stats" data-entry-id="${escapeHtml(entryId)}" style="display:inline-flex;align-items:center;gap:5px;margin-left:6px;flex-shrink:0;">${fmtVal(rel.friendship, 'friendship')}${fmtVal(rel.affection, 'affection')}</span>`;
                                 };
 
-                                // Helper: get brief synopsis for the card (pulls from Appearance section or first text)
-                                getNpcDescription = (content) => {
-                                    if (!content) return '';
-                                    // Strip [CORE] and [/CORE] tags before parsing
-                                    const cleanContent = content.replace(/\[\/?CORE\]/gi, '');
-                                    // Try to extract Appearance section content first
-                                    const appMatch = cleanContent.match(/(?:Appearance\/Species|Appearance):\s*(.+?)(?=\s*(?:Personality|Brief Background|Habits|Behaviors|Relationship with|Friendship\/Rapport|Affection\/Interest):|$)/is);
-                                    if (appMatch && appMatch[1].trim()) {
-                                        return appMatch[1].trim().substring(0, 260);
-                                    }
-                                    // Fallback: first meaningful text
-                                    const lines = cleanContent.split('\n').map(l => l.trim())
-                                        .filter(l => l && !/^\[ID:/i.test(l) && !/^Friendship\/Rapport:/i.test(l) && !/^Affection\/Interest:/i.test(l));
-                                    return lines.slice(0, 2).join(' ').substring(0, 260);
-                                };
+                                // Helper: get brief synopsis for the card (Species+Body, legacy Appearance, or first text)
+                                getNpcDescription = getCardAppearanceSynopsis;
 
                                 // Helper: Open the full NPC popup
                                 openNpcDetailPopup = async (item, rel) => {
@@ -1794,7 +1767,8 @@ export function createPanel(dependencies) {
                                             <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--SmartThemeBorderColor, rgba(128,128,128,0.25));"></div>
                                             <div id="rt-npc-detail-${type}-fill" style="position:absolute;top:0;bottom:0;border-radius:6px;background:${bgColor};${isPos ? `left:50%;width:${pct}%;` : `right:50%;width:${pct}%;`}transition:width 0.3s ease;"></div>
                                         </div>
-                                        <span id="rt-npc-detail-${type}-text" style="font-size:15px;font-weight:bold;text-align:right;color:${valColor};font-family:monospace;">${clamped > 0 ? '+' : ''}${clamped}</span>
+                                        <input type="number" id="rt-npc-detail-${type}-input" min="-${relMax}" max="${relMax}" step="1" value="${clamped}"
+                                            aria-label="${label} value" style="width:52px;box-sizing:border-box;font-size:14px;font-weight:bold;text-align:right;color:${valColor};font-family:monospace;background:rgba(0,0,0,.18);border:1px solid var(--SmartThemeBorderColor, rgba(128,128,128,.35));border-radius:4px;padding:2px 4px;">
                                         <div></div>
                                         <div></div>
                                         <input type="range" id="rt-npc-detail-${type}-slider" min="-${relMax}" max="${relMax}" value="${clamped}" step="1"
@@ -2073,9 +2047,9 @@ export function createPanel(dependencies) {
                                     const bindSlider = (type) => {
                                         const slider = popupDom.querySelector(`#rt-npc-detail-${type}-slider`);
                                         const fill = popupDom.querySelector(`#rt-npc-detail-${type}-fill`);
-                                        const text = popupDom.querySelector(`#rt-npc-detail-${type}-text`);
+                                        const input = popupDom.querySelector(`#rt-npc-detail-${type}-input`);
                                         const tierEl = popupDom.querySelector(`#rt-npc-detail-${type}-tier`);
-                                        if (!slider || !fill || !text) return;
+                                        if (!slider || !fill || !input) return;
 
                                         let originalValue = parseInt(slider.value, 10) || 0;
 
@@ -2093,14 +2067,16 @@ export function createPanel(dependencies) {
                                             const bgColor = isPos ? colorPos : colorNeg;
                                             fill.style.background = bgColor;
 
-                                            text.textContent = (val > 0 ? '+' : '') + val;
-                                            text.style.color = val === 0 ? 'var(--SmartThemeEmColor, inherit)' : bgColor;
+                                            input.value = String(val);
+                                            input.style.color = val === 0 ? 'var(--SmartThemeEmColor, inherit)' : bgColor;
 
                                             if (tierEl) tierEl.innerHTML = renderRelTierDetailed(type, val, relMax);
                                         });
 
                                         slider.addEventListener('change', () => {
                                             const val = clampRelationshipValue(parseInt(slider.value, 10) || 0, getNpcRelationshipMax(s));
+                                            slider.value = String(val);
+                                            input.value = String(val);
                                             if (val === originalValue) return;
 
                                             // Update the setting
@@ -2148,6 +2124,25 @@ export function createPanel(dependencies) {
                                                 const tierBadge = cardEl.querySelector(`.rt-npc-tier-badge.${type}`);
                                                 if (tierBadge) applyRelTierBadgeElement(tierBadge, type, val, getNpcRelationshipMax(s));
                                             }
+                                        });
+
+                                        input.addEventListener('input', () => {
+                                            const typed = Number(input.value);
+                                            if (!Number.isFinite(typed)) return;
+                                            const val = clampRelationshipValue(Math.trunc(typed), getNpcRelationshipMax(s));
+                                            slider.value = String(val);
+                                            slider.dispatchEvent(new Event('input'));
+                                        });
+
+                                        input.addEventListener('change', () => {
+                                            const typed = Number(input.value);
+                                            const val = Number.isFinite(typed)
+                                                ? clampRelationshipValue(Math.trunc(typed), getNpcRelationshipMax(s))
+                                                : originalValue;
+                                            input.value = String(val);
+                                            slider.value = String(val);
+                                            slider.dispatchEvent(new Event('input'));
+                                            slider.dispatchEvent(new Event('change'));
                                         });
                                     };
 
@@ -2242,11 +2237,11 @@ export function createPanel(dependencies) {
                                     const cleanContent = content.replace(/\[\/?CORE\]/gi, '');
                                     const coreMatch = cleanContent.match(/(?:^|\n)\s*(?:\[CORE\])?\s*([\s\S]*?)(?=\n\s*(?:Atmosphere|Notable Features|History|Connections|Dangers|Resources):|$)/i);
                                     if (coreMatch?.[1]?.trim()) {
-                                        return coreMatch[1].trim().substring(0, 260);
+                                        return substituteDisplayMacros(coreMatch[1].trim().substring(0, 260));
                                     }
                                     const lines = cleanContent.split('\n').map(l => l.trim())
                                         .filter(l => l && !/^\[ID:/i.test(l));
-                                    return lines.slice(0, 2).join(' ').substring(0, 260);
+                                    return substituteDisplayMacros(lines.slice(0, 2).join(' ').substring(0, 260));
                                 };
 
                                 openLocationDetailPopup = async (item, fullPath) => {
@@ -2391,6 +2386,15 @@ export function createPanel(dependencies) {
                                         ? `<img src="${escapeHtml(portraitSrc)}" alt="${escapeHtml(item.label)}">`
                                         : `<div class="rt-npc-portrait-placeholder">👤</div>`;
 
+                                    const isPinned = !!item.is_pinned;
+                                    const statusBadgeClass = isPinned ? 'active' : (item.is_active ? 'active' : 'inactive');
+                                    const statusBadgeText = isPinned
+                                        ? '📌 Pinned'
+                                        : (item.is_active ? '● Active' : '○ Inactive');
+                                    const statusBadgeStyle = isPinned
+                                        ? ' style="color:#34a853;border-color:rgba(52,168,83,0.45);"'
+                                        : '';
+
                                     card.innerHTML = `
                                 <div class="rt-npc-portrait-wrap">
                                     ${portraitHtml}
@@ -2399,13 +2403,14 @@ export function createPanel(dependencies) {
                                 <div class="rt-npc-info">
                                     <div class="rt-npc-name">${escapeHtml(item.label)}${isDirty ? ' <span style="color:#ffa500; font-size:8px;" title="Unsaved edits">●</span>' : ''}</div>
                                     <div class="rt-npc-desc">${escapeHtml(desc)}</div>
-                                    <span class="rt-npc-status-badge ${item.is_active ? 'active' : 'inactive'}">${item.is_active ? '● Active' : '○ Inactive'}</span>
+                                    <span class="rt-npc-status-badge ${statusBadgeClass}"${statusBadgeStyle}>${statusBadgeText}</span>
                                     ${s.npcRelationshipBars && renderRelBar ? `<div class="rt-npc-bars">
                                         ${renderRelBar(rel.friendship, 'friendship', item.id)}
                                         ${renderRelBar(rel.affection, 'affection', item.id)}
                                     </div>${renderRelTierRow(rel.friendship, rel.affection, getNpcRelationshipMax(s))}` : ''}
                                     <div class="rt-npc-actions">
                                         <button class="rt-npc-action-btn rt-npc-view" data-id="${item.id}" title="View NPC card"><i class="fa-solid fa-address-card"></i> Full NPC Card</button>
+                                        <button class="rt-npc-action-btn rt-npc-pin" data-id="${item.id}" title="${isPinned ? 'Pinned — always active for the Lorebook Agent' : 'Pin — keep this entry permanently active'}" style="${isPinned ? 'color:#34a853;' : ''}"><i class="fa-solid fa-thumbtack"></i></button>
                                         <button class="rt-npc-action-btn rt-npc-edit" data-id="${item.id}" title="Edit entry"><i class="fa-solid fa-pen-to-square"></i></button>
                                         <button class="rt-npc-action-btn rt-npc-clean" data-id="${item.id}" title="Cleanup entry"><i class="fa-solid fa-broom"></i></button>
                                         <button class="rt-npc-action-btn rt-npc-delete" data-id="${item.id}" title="Delete entry"><i class="fa-solid fa-trash"></i></button>
@@ -2502,6 +2507,22 @@ export function createPanel(dependencies) {
                                         const [bk, uid] = item.id.split('::');
                                         await runRouterPass(null, `__CLEANUP__::${bk}::${uid}`, null, true);
                                         await refreshManifest();
+                                    });
+
+                                    const pinBtn = card.querySelector('.rt-npc-pin');
+                                    if (pinBtn) pinBtn.addEventListener('click', async (e) => {
+                                        e.stopPropagation();
+                                        const nextPinned = !item.is_pinned;
+                                        const ok = setLorebookEntryPinned(item.id, nextPinned);
+                                        if (ok) {
+                                            item.is_pinned = nextPinned;
+                                            if (nextPinned) item.is_active = true;
+                                            await refreshManifest();
+                                            if (typeof runtimeState.renderRouterUI === 'function') runtimeState.renderRouterUI();
+                                            toastr['info'](nextPinned
+                                                ? `Pinned "${item.label}" — always active`
+                                                : `Unpinned "${item.label}"`, 'Lorebook Agent');
+                                        }
                                     });
 
                                     const delBtn = card.querySelector('.rt-npc-delete');
@@ -2737,8 +2758,14 @@ export function createPanel(dependencies) {
 
                                     let statusDotHtml = '';
                                     if (node.item) {
-                                        const statusColor = node.item.is_active ? 'var(--rt-accent)' : 'rgba(255,255,255,0.18)';
-                                        statusDotHtml = `<div style="width:5px; height:5px; border-radius:50%; background:${statusColor}; flex-shrink:0;" title="${node.item.is_active ? 'Active (visible to agent)' : 'Inactive'}"></div>`;
+                                        const isPinned = !!node.item.is_pinned;
+                                        const statusColor = isPinned
+                                            ? '#34a853'
+                                            : (node.item.is_active ? 'var(--rt-accent)' : 'rgba(255,255,255,0.18)');
+                                        const statusTitle = isPinned
+                                            ? 'Pinned — always active'
+                                            : (node.item.is_active ? 'Active (visible to agent)' : 'Inactive');
+                                        statusDotHtml = `<div style="width:5px; height:5px; border-radius:50%; background:${statusColor}; flex-shrink:0;" title="${statusTitle}"></div>`;
                                     } else if (!isDayNode) {
                                         statusDotHtml = `<div style="width:5px; height:5px; border-radius:50%; border:1px dashed rgba(255,255,255,0.25); box-sizing:border-box; flex-shrink:0;" title="Virtual parent placeholder (entry not created yet)"></div>`;
                                     }
@@ -2760,6 +2787,7 @@ export function createPanel(dependencies) {
                                     let viewLocHtml = '';
                                     let locThumbHtml = '';
                                     let relStatsHtml = '';
+                                    let pinHtml = '';
                                     let editHtml = '';
                                     let deleteHtml = '';
                                     let locFullPath = '';
@@ -2785,6 +2813,8 @@ export function createPanel(dependencies) {
                                             viewLocHtml = `<button class="rt-agent-entry-view-loc" data-id="${node.item.id}" style="background:rgba(94,184,212,0.12); border:1px solid rgba(94,184,212,0.35); border-radius:3px; color:#5eb8d4; cursor:pointer; font-size:10px; padding:1px 5px; flex-shrink:0; line-height:1.2;" title="View location detail"><i class="fa-solid fa-map"></i></button>`;
                                         }
                                         cleanHtml = !isWorldBook ? `<button class="rt-agent-entry-clean" data-id="${node.item.id}" style="background:none; border:none; color:#e67e22; cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0;" title="Run targeted cleanup for this entry"><i class="fa-solid fa-broom"></i></button>` : '';
+                                        const isPinned = !!node.item.is_pinned;
+                                        pinHtml = `<button class="rt-agent-entry-pin" data-id="${node.item.id}" style="background:none; border:none; color:${isPinned ? '#34a853' : 'var(--rt-text-muted)'}; cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0; ${isPinned ? 'opacity:1;' : 'opacity:0.55;'}" title="${isPinned ? 'Pinned — always active for the Lorebook Agent' : 'Pin — keep this entry permanently active'}"><i class="fa-solid fa-thumbtack"></i></button>`;
                                         editHtml = `<button class="rt-agent-entry-edit" data-id="${node.item.id}" style="background:none; border:none; color:var(--rt-accent); cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0;" title="Edit this lore entry"><i class="fa-solid fa-pen-to-square"></i></button>`;
                                         deleteHtml = `<button class="rt-agent-entry-delete" data-id="${node.item.id}" style="background:none; border:none; color:var(--rt-text-muted); cursor:pointer; font-size:9px; padding:1px 3px; flex-shrink:0;" title="Delete entry"><i class="fa-solid fa-trash"></i></button>`;
                                     }
@@ -2798,6 +2828,7 @@ export function createPanel(dependencies) {
                             <span class="rt-agent-entry-label-span" style="${labelStyle}">${escapeHtml(node.name)}${isDirty ? ' <span style="color:#ffa500; font-size:8px;" title="Unsaved edits">●</span>' : ''}</span>
                             ${relStatsHtml}
                             ${tokensHtml}
+                            ${pinHtml}
                             ${editHtml}
                             ${cleanHtml}
                             ${deleteHtml}
@@ -2886,7 +2917,7 @@ export function createPanel(dependencies) {
 
                                     if (node.item) {
                                         entryHdr.addEventListener('click', (e) => {
-                                            if (/** @type {HTMLElement} */ (e.target).closest('.rt-agent-subfolder-toggle, .rt-agent-entry-delete, .rt-agent-entry-clean, .rt-agent-entry-edit, .rt-agent-entry-view-npc, .rt-agent-entry-view-loc, .rt-loc-thumb-wrap')) return;
+                                            if (/** @type {HTMLElement} */ (e.target).closest('.rt-agent-subfolder-toggle, .rt-agent-entry-delete, .rt-agent-entry-clean, .rt-agent-entry-edit, .rt-agent-entry-pin, .rt-agent-entry-view-npc, .rt-agent-entry-view-loc, .rt-loc-thumb-wrap')) return;
                                             const opening = entryBody.style.display === 'none';
                                             entryBody.style.display = opening ? 'flex' : 'none';
                                             entryHdr.style.background = opening ? 'rgba(255,255,255,0.05)' : '';
@@ -3141,6 +3172,12 @@ export function createPanel(dependencies) {
                 }
             }
 
+            // Manual "Add NPC to Story" writes do not produce a Lorebook Agent
+            // finish event, so enqueue this newly saved entry directly.
+            if (s.enablePortraits !== false && s.npcPortraits !== false && s.portraitAutoGenerateNpcs) {
+                triggerBackgroundPortraitGeneration(name, refreshAll, content);
+            }
+
             return true;
         };
 
@@ -3265,7 +3302,7 @@ RULES:
                 }
             } catch (_) { }
 
-            const npcInstruction = buildNpcInstruction(s.npcMajorWords || 25, s.npcMinorWords || 15, !!s.ignoreNpcImportLimits);
+            const npcInstruction = buildNpcInstruction(s.npcMajorWords || 25, s.npcMinorWords || 15, !!s.ignoreNpcImportLimits, s);
 
             const coreSections = s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0 ? s.npcCoreSections : DEFAULT_NPC_SECTIONS;
             const sectionNamesList = coreSections.map(sec => sec.name).join(', ');
@@ -3379,6 +3416,7 @@ Rules:
             const coreSections = s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0 ? s.npcCoreSections : DEFAULT_NPC_SECTIONS;
             const sectionNamesList = coreSections.map(sec => sec.name).join(', ');
 
+            const namingRule = substituteDisplayMacros(NEW_NPC_NAMING_RULE);
             const systemPrompt = `${s.routerSystemPromptTemplate || ''}
 
 ---
@@ -3391,8 +3429,9 @@ ${s.routerModules?.npc?.instruction || ''}
 
 Rules:
 - Use the USER'S NPC CONCEPT as your primary source. Expand it into a full, vivid character.
-- If no name is provided, create a fitting one for the world setting.
-- You MUST NOT use any of the names listed in the Forbidden Names section. If the concept implies a name from this list, modify or create a new unique name.
+- If no name is provided, create a fitting one for the world setting using the New NPC Naming Rule below.
+- You MUST NOT use any of the names listed in the Forbidden Names section. If the concept implies a name from this list, modify or create a new unique name using the New NPC Naming Rule below.
+- If the user already provided a name, keep it (do not rename) unless it is forbidden.
 - Adapt appearance, background and habits to fit naturally into the current campaign setting/tone inferred from context.
 - Your output MUST be strictly formatted as a lorebook entry tag:
   [[NPC: Name | Description | keywords]]
@@ -3400,7 +3439,9 @@ Rules:
 - Replace "Description" with the full formatted entry. Wrap all immutable identity sections (${sectionNamesList}) inside a single [CORE] and [/CORE] block. DO NOT use "|" inside Description. Use newlines.
 - CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below (${sectionNamesList}) and ignore any other sections.
 - Replace "keywords" with a comma-separated list including their name.
-- Output ONLY this single [[NPC: ...]] tag. No preamble, no explanation.`;
+- Output ONLY this single [[NPC: ...]] tag. No preamble, no explanation.
+
+${namingRule}`;
 
             const aiSettings = {
                 connectionSource: s.routerConnectionSource ?? 'default',
@@ -3445,6 +3486,7 @@ Rules:
             const coreSections = s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0 ? s.npcCoreSections : DEFAULT_NPC_SECTIONS;
             const sectionNamesList = coreSections.map(sec => sec.name).join(', ');
 
+            const namingRule = substituteDisplayMacros(NEW_NPC_NAMING_RULE);
             const systemPrompt = `${s.routerSystemPromptTemplate || ''}
 
 ---
@@ -3457,8 +3499,9 @@ ${s.routerModules?.npc?.instruction || ''}
 
 Rules:
 - The NPC MUST embody the requested archetype (e.g. a "Lover" should have romantic motivation toward the player; an "Arch Nemesis" should be a credible threat with personal stakes).
-- Invent a name suitable for the world if not provided.
-- You MUST NOT use any of the names listed in the Forbidden Names section.
+- Invent a name suitable for the world if not provided, using the New NPC Naming Rule below.
+- You MUST NOT use any of the names listed in the Forbidden Names section. If you must invent a replacement name, use the New NPC Naming Rule below.
+- If a Desired Name is provided, keep it (do not rename) unless it is forbidden.
 - Ground the NPC's appearance, backstory, and habits in the current campaign setting inferred from context.
 - Your output MUST be strictly formatted as a lorebook entry tag:
   [[NPC: Name | Description | keywords]]
@@ -3466,7 +3509,9 @@ Rules:
 - Replace "Description" with the full formatted entry. Wrap all immutable identity sections (${sectionNamesList}) inside a single [CORE] and [/CORE] block. DO NOT use "|" inside Description. Use newlines.
 - CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below (${sectionNamesList}) and ignore any other sections.
 - Replace "keywords" with a comma-separated list including their name.
-- Output ONLY this single [[NPC: ...]] tag. No preamble, no explanation.`;
+- Output ONLY this single [[NPC: ...]] tag. No preamble, no explanation.
+
+${namingRule}`;
 
             const aiSettings = {
                 connectionSource: s.routerConnectionSource ?? 'default',
@@ -4161,9 +4206,15 @@ Rules:
 
                 const header = document.createElement('div');
                 header.style.cssText = 'display:flex; align-items:center; gap:4px; margin-bottom:3px;';
+                // Show the actual lorebook name this module writes to (e.g. "Locations") alongside
+                // its prompt tag (LOC) so the naming never appears to mismatch the user's own books.
+                const bookCategory = MODULE_BOOK_CATEGORY?.[id];
+                const moduleLabel = bookCategory
+                    ? `${bookCategory} <span style="opacity:0.6; font-weight:normal;" title="Prompt tag used in the Lorebook Agent's output — the actual lorebook is named ..._${bookCategory}">(${config.tag})</span>`
+                    : config.tag;
                 header.innerHTML = `
                         <input type="checkbox" class="rt-agent-module-check" ${config.enabled ? 'checked' : ''} style="cursor:pointer; margin:0; flex-shrink:0;">
-                        <span style="font-size:0.769em; font-weight:bold; opacity:0.7; flex:1;">${config.tag}</span>
+                        <span style="font-size:0.769em; font-weight:bold; opacity:0.7; flex:1;">${moduleLabel}</span>
                         <button class="rt-agent-module-reset" style="background:transparent; border:none; color:var(--rt-accent); cursor:pointer; font-size:0.692em; padding:0 4px; opacity:0.5;" title="Reset slots and instruction to default"><i class="fa-solid fa-arrow-rotate-left"></i></button>
                     `;
                 header.querySelector('.rt-agent-module-check').addEventListener('change', (e) => {
@@ -4176,7 +4227,7 @@ Rules:
                         const st = getSettings();
                         if (DEFAULT_MODULES[id]) {
                             if (id === 'npc') {
-                                st.routerModules[id].instruction = buildNpcInstruction(st.npcMajorWords, st.npcMinorWords);
+                                st.routerModules[id].instruction = buildNpcInstruction(st.npcMajorWords, st.npcMinorWords, false, st);
                             } else {
                                 st.routerModules[id].instruction = DEFAULT_MODULES[id].instruction;
                             }
@@ -4234,12 +4285,21 @@ Rules:
                     const st = getSettings();
                     st.routerCustomTags[idx].tag = tagInp.value.toUpperCase();
                     saveSettings();
+                    renderAgentCustomTags();
                 });
                 header.appendChild(tagInp);
 
-                const spacer = document.createElement('span');
-                spacer.style.flex = '1';
-                header.appendChild(spacer);
+                // Live preview of the lorebook name this custom tag actually writes to, using the
+                // exact same rule as the router (see catMap fallback in router.js): capitalize the
+                // first letter, lowercase the rest. Keeps the UI honest about real book names.
+                const bookPreview = document.createElement('span');
+                bookPreview.style.cssText = 'font-size:0.692em; opacity:0.5; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+                const previewName = (t) => t ? (t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()) : '';
+                bookPreview.textContent = tag.tag ? `→ ..._${previewName(tag.tag)}` : '';
+                tagInp.addEventListener('input', () => {
+                    bookPreview.textContent = tagInp.value ? `→ ..._${previewName(tagInp.value)}` : '';
+                });
+                header.appendChild(bookPreview);
 
                 const delBtn = document.createElement('button');
                 delBtn.style.cssText = 'background:#422; color:#f99; border:none; font-size:0.692em; cursor:pointer; padding:1px 6px; border-radius:3px;';
@@ -4297,7 +4357,8 @@ Rules:
         if (maxAct) {
             maxAct.addEventListener('input', () => {
                 const s = getSettings();
-                s.routerMaxActivations = parseInt(maxAct.value) || 8;
+                const val = parseInt(maxAct.value) || 8;
+                s.routerMaxActivations = val;
                 $('#rpg_tracker_router_max_activations').val(s.routerMaxActivations);
                 saveSettings();
             });
@@ -4628,7 +4689,7 @@ Rules:
                     const v = parseInt(/** @type {HTMLInputElement} */(e.target).value) || 300;
                     s.routerCleanupTokenThreshold = Math.max(50, Math.min(5000, v));
                         /** @type {HTMLInputElement} */ (e.target).value = String(s.routerCleanupTokenThreshold);
-                    SillyTavern.getContext().saveSettingsDebounced();
+                    void saveSettings();
                 });
             }
 
@@ -4639,7 +4700,7 @@ Rules:
                     const v = parseInt(/** @type {HTMLInputElement} */(e.target).value);
                     s.routerCleanupEvery = isNaN(v) ? 0 : Math.max(0, Math.min(100, v));
                         /** @type {HTMLInputElement} */ (e.target).value = String(s.routerCleanupEvery);
-                    SillyTavern.getContext().saveSettingsDebounced();
+                    void saveSettings();
                 });
             }
 
@@ -4650,7 +4711,7 @@ Rules:
                     s.routerCleanupUseThreshold = cleanupUseThresholdChk.checked;
                     cleanupThresholdRow.style.opacity = cleanupUseThresholdChk.checked ? '1' : '0.35';
                     cleanupThresholdRow.style.pointerEvents = cleanupUseThresholdChk.checked ? 'auto' : 'none';
-                    SillyTavern.getContext().saveSettingsDebounced();
+                    void saveSettings();
                 });
             }
         }
@@ -4713,8 +4774,13 @@ Rules:
                     agentPanel.classList.remove('rt-agent-integrated');
                     agentPanel.classList.add('rt-detached-panel');
                     const s = getSettings();
-                    const showDetached = s.trackerContentMode === 'agent';
-                    agentPanel.style.display = showDetached ? 'flex' : 'none';
+                    // Always show the float while detached — never leave tabs hidden
+                    // with the agent display:none / off-screen and unreachable.
+                    if (s.trackerContentMode !== 'agent') {
+                        s.trackerContentMode = 'agent';
+                        localStorage.setItem('rpg_tracker_content_mode', 'agent');
+                    }
+                    agentPanel.style.display = 'flex';
                     document.body.appendChild(agentPanel);
                     moveAgentHeaderToDetached();
                     syncRouterPrefixDisplays(s.routerCampaignPrefix || '');
@@ -4742,44 +4808,35 @@ Rules:
                         try {
                             const savedStr = localStorage.getItem(GEO_KEY);
                             const saved = savedStr ? JSON.parse(savedStr) : null;
-
-                            let left = 100;
-                            let top = 100;
-                            let width = 300;
-                            let height = 400;
-
-                            if (saved && typeof saved.left === 'number') {
-                                const isOffScreen = (
-                                    saved.left + 50 > window.innerWidth ||
-                                    saved.top + 50 > window.innerHeight ||
-                                    saved.left < -250 ||
-                                    saved.top < -50
-                                );
-
-                                if (!isOffScreen) {
-                                    left = saved.left;
-                                    top = saved.top;
-                                    if (saved.width) width = saved.width;
-                                    if (saved.height) height = saved.height;
-                                }
-                            }
-
-                            agentPanel.style.left = left + 'px';
-                            agentPanel.style.top = top + 'px';
-                            agentPanel.style.width = width + 'px';
-                            if (height) agentPanel.style.height = height + 'px';
+                            const geo = resolveViewportClampedGeometry(saved, {
+                                defaultLeft: 100,
+                                defaultTop: 100,
+                                defaultWidth: 300,
+                                defaultHeight: 400,
+                            });
+                            agentPanel.style.left = geo.left + 'px';
+                            agentPanel.style.top = geo.top + 'px';
+                            agentPanel.style.width = geo.width + 'px';
+                            agentPanel.style.height = geo.height + 'px';
                             agentPanel.style.maxHeight = '';
                             agentPanel.style.right = 'auto';
+                            // Persist clamped geometry so a laptop reopen stays correct.
+                            localStorage.setItem(GEO_KEY, JSON.stringify(geo));
                         } catch (e) {
-                            agentPanel.style.left = '100px';
-                            agentPanel.style.top = '100px';
-                            agentPanel.style.width = '300px';
+                            const geo = resolveViewportClampedGeometry(null);
+                            agentPanel.style.left = geo.left + 'px';
+                            agentPanel.style.top = geo.top + 'px';
+                            agentPanel.style.width = geo.width + 'px';
+                            agentPanel.style.height = geo.height + 'px';
                         }
                     }
 
                     applyPanelContentMode('tracker', { skipPersist: true });
+                    // applyPanelContentMode always writes memory mode; keep agent while detached.
+                    s.trackerContentMode = 'agent';
                     applyViewState();
                 } else {
+                    const chatOpen = panel.classList.contains('rt-tutorial-active');
                     if (destroyAgentDraggable) {
                         destroyAgentDraggable();
                         destroyAgentDraggable = null;
@@ -4804,11 +4861,20 @@ Rules:
                     detachBtn.innerHTML = '⧉';
                     detachBtn.title = 'Detach Lorebook Agent';
 
-                    applyPanelContentMode(getSettings().trackerContentMode || 'tracker');
+                    applyPanelContentMode(resolveModeAfterAgentAttach(
+                        chatOpen,
+                        getSettings().trackerContentMode,
+                    ));
+                    // CHAT may be open in its floating panel, in which case the
+                    // main panel intentionally no longer has rt-tutorial-active.
+                    // The refresh helper already no-ops when CHAT is truly closed.
+                    refreshAdventureCompanionLayout();
                 }
                 applyPanelBackgroundToDom();
                 updateAgentBtnUI();
             };
+
+            applyAgentDetachedState = applyDetachedState;
 
             detachBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -4827,9 +4893,12 @@ Rules:
             }
 
             window.addEventListener('resize', () => {
-                if (isDetached() && isMobileLayout()) {
+                if (!isDetached()) return;
+                if (isMobileLayout()) {
                     applyMobileAgentGeometry();
+                    return;
                 }
+                clampFloatingPanelToViewport(agentPanel, GEO_KEY);
             });
         }
 
@@ -4934,7 +5003,7 @@ Rules:
         // Day/night tint + badge update live as the user edits (esp. [TIME] changes in Raw view)
         refreshDayNightCycleFromMemo(newText);
 
-        // Persist immediately — ST's saveSettingsDebounced still coalesces disk writes.
+        // Persist immediately through the tracker-owned checkpoint service.
         _rawMemoDirty = true;
         settings.currentMemo = applyQuestSyncAndStripMemo(newText);
         _rawMemoDirty = false;
@@ -5040,6 +5109,12 @@ Rules:
             return;
         }
 
+        // Tutorial mode owns the tracker body — do not flip memo/render visibility
+        if (panel.classList.contains('rt-tutorial-active')) {
+            updateAgentBtnUI();
+            return;
+        }
+
         const taEl = panel.querySelector('#rpg-tracker-memo');
         const rvEl = panel.querySelector('#rpg-tracker-render');
         const viewBtnEl = panel.querySelector('#rpg-tracker-view-btn');
@@ -5088,11 +5163,20 @@ Rules:
         });
     }
 
-    applyPanelContentMode(settings.trackerContentMode || 'tracker', { skipPersist: true });
+    // Opening/rebuilding the UI deliberately starts on State Tracker. Persist
+    // that opening mode so a previously selected Lorebook Agent tab cannot
+    // override the static tracker-selected markup on a later settings read.
+    applyPanelContentMode(initialContentMode);
 
     applyViewState();
 
     _viewBtn.addEventListener('click', () => {
+        // CHAT morph owns the tracker body — leave it so Raw/Rendered can show again.
+        if (panel.classList.contains('rt-tutorial-active')) {
+            closeAdventureCompanion();
+            applyViewState();
+            return;
+        }
         if (typeof flushRawMemoChanges === 'function') flushRawMemoChanges();
         runtimeState.renderedViewActive = !runtimeState.renderedViewActive;
         settings.renderedViewActive = runtimeState.renderedViewActive;
@@ -5402,5 +5486,7 @@ Rules:
     });
 
     syncMemoView();
+
+    bindAdventureCompanion(/** @type {HTMLElement} */ (panel));
 
 }

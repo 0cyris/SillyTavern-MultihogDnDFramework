@@ -11,6 +11,13 @@
 
 import { getSettings } from './state-manager.js';
 import { DEFAULT_STOCK_PROMPTS, resolveTimePromptKey } from './constants.js';
+import {
+    partitionResolvedCombatants,
+    stripResolvedCombatantsFromMemo,
+} from './src/state/combat-persistence.js';
+
+const DEFEATED_COMBATANTS_PROMPT_RULE = '- DEFEATED COMBATANTS: Mark defeated enemies as Status: Defeated. Do not omit them from the memo.';
+const COMBAT_SIDES_PROMPT_RULE = '- COMBAT SIDES: Group combatants under ENEMIES: and NON-PARTY ALLIES: headers, with enemies first. NON-PARTY ALLIES are allied combatants who are NOT listed in [PARTY]. Never put any [PARTY] member in [COMBAT]. Include both headers when non-party allies are present; otherwise include ENEMIES: only.';
 
 // ── String utilities ──────────────────────────────────────────────────────────
 
@@ -399,9 +406,26 @@ export function mergeMemo(currentMemo, aiOutput) {
             continue;
         }
 
-        const isRemoval = /^(?:REMOVED|EXPIRED|CLEARED|NONE|END_COMBAT)$/i.test(newContent);
+        // An empty tag pair (e.g. `[PARTY]\n[/PARTY]`) carries zero information — treat it
+        // identically to an explicit removal marker so it never gets written into the
+        // persisted memo as literal clutter. This matters most for Full Review Mode, where
+        // weaker models sometimes emit a hollow block for a module with nothing to report
+        // instead of omitting the section entirely.
+        const isRemoval = newContent === '' || /^(?:REMOVED|EXPIRED|CLEARED|NONE|END_COMBAT)$/i.test(newContent);
 
         const escapedTag = escapeRegex(tag);
+        let mergedContent = newContent;
+        if (tag.toUpperCase() === 'COMBAT') {
+            if (isRemoval) {
+                settings.combatDefeatedUi = [];
+            } else {
+                const hadActiveCombat = /\[COMBAT\][\s\S]*?\[\/COMBAT\]/i.test(memo);
+                const priorArchive = hadActiveCombat ? settings.combatDefeatedUi : [];
+                const partitioned = partitionResolvedCombatants(newContent, priorArchive);
+                mergedContent = partitioned.activeContent;
+                settings.combatDefeatedUi = partitioned.defeatedCombatants;
+            }
+        }
         const existingPattern = new RegExp(
             `\\s*\\[${escapedTag}\\][\\s\\S]*?\\[\\/${escapedTag}\\]`,
             'i'
@@ -415,7 +439,7 @@ export function mergeMemo(currentMemo, aiOutput) {
             memo = memo.replace(existingPattern, "").trim();
             if (settings.debugMode) console.log(`[RPG Tracker] mergeMemo: [${tag}] REMOVED`);
         } else {
-            const fullBlock = `[${tag}]\n${newContent}\n[/${tag}]`;
+            const fullBlock = `[${tag}]\n${mergedContent}\n[/${tag}]`;
             const before = memo;
             memo = memo.replace(existingPattern, () => '\n\n' + fullBlock);
             if (memo !== before) {
@@ -681,9 +705,12 @@ function dedupePartyAgainstBenched(memo) {
     const partyContent = blockContentFromMemo(memo, 'PARTY');
     if (!partyContent) return memo;
 
-    const entries = splitPartyMemberEntries(partyContent).filter(
-        e => !benchedKeys.has(memberNameKey(e.name)),
-    );
+    const rawEntries = splitPartyMemberEntries(partyContent);
+    // If the block has content but nothing parsed as a member header (unrecognized custom
+    // format), leave it untouched rather than treating it as an empty roster.
+    if (!rawEntries.length) return memo;
+
+    const entries = rawEntries.filter(e => !benchedKeys.has(memberNameKey(e.name)));
     if (!entries.length) return stripMemoBlock(memo, 'PARTY');
     return replaceMemoBlock(memo, 'PARTY', rebuildPartyBlockContent(entries));
 }
@@ -788,19 +815,17 @@ function replaceMemoBlock(memo, tag, innerContent) {
     return (memo ? memo.trimEnd() + '\n\n' : '') + block;
 }
 
-// Member boundary: ONLY a true entity header line, never a sub-field like "Combat:"
-// or "Status:" (sub-field lines are continuations of the current entry). Three header
-// shapes are recognized, tried in order:
-//   1. HP-anchored, the D&D-default stock format: "Name (Class): X/Y HP"
-//   2. Compact "Benched" entries written by the bench-relocation code itself
-//   3. A parenthetical role before the colon: "Name (Role): ...anything..." — the
-//      general "Name (Class/Archetype): ..." shape every stock party prompt in this
-//      framework teaches (Default's "Name (Class): X/Y HP", or a non-HP system's own
-//      "Name (Archetype): Tier X | Rank X" etc). Sub-field lines put any parenthetical
-//      AFTER their colon (e.g. "Talents: Foo (+1 Bar)"), never before it, so this stays
-//      safe against false positives from arbitrary custom sub-field labels a cartridge
-//      author might invent, without needing to hardcode every possible label.
-const PARTY_MEMBER_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?):\s*([\d,]+)(?:\/([\d,]+))?\s*HP\b/i;
+// Member boundary: ONLY a true entity header line (Name (Class): X/Y HP), never a sub-field
+// like "Combat:" or "Status:". Sub-field lines are continuations of the current entry.
+// Custom templates often wrap the HP value in a rendering marker, e.g.
+// "Alice: ((BAR)) 100/100 HP" or "Alice: ((BARRED - #ff0000)) 100/100 HP" — tolerate any
+// number of ((...)) tokens between the colon and the HP figure so those headers still count
+// as a member boundary instead of silently vanishing from the parsed roster.
+const PARTY_MEMBER_MARKER_TOKEN = '(?:\\(\\([^)]*\\)\\)\\s*)*';
+const PARTY_MEMBER_HEADER_RX = new RegExp(
+    `^\\s*[-*+•–—]?(?:\\s+)?(.+?):\\s*${PARTY_MEMBER_MARKER_TOKEN}([+-]?[\\d,]+)(?:\\/([\\d,]+))?\\s*HP\\b`,
+    'i',
+);
 const PARTY_MEMBER_COMPACT_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?):\s*(Benched\s*\([^)]*\)|Benched\b.*)$/i;
 const PARTY_MEMBER_PAREN_HEADER_RX = /^\s*[-*+•–—]?(?:\s+)?(.+?)\s*\([^()]*\)\s*:\s*(.*)$/;
 const PARTY_SUBFIELD_LABELS = /^(Combat|Gear|Proficiencies|Attr|Saves|Skills|Traits|Abilities|Spells|HD|Status):/i;
@@ -937,7 +962,18 @@ export function hydratePartyRelocationStats(priorMemo, mergedMemo) {
         if (!content) continue;
         if (/^(?:REMOVED|EXPIRED|CLEARED|NONE)$/i.test(content.trim())) continue;
 
-        const hydrated = splitPartyMemberEntries(content).map(entry => {
+        const rawEntries = splitPartyMemberEntries(content);
+        // Guard against wiping the block: if the content is non-empty but no member
+        // headers were recognized (e.g. an unexpected custom header format), leave the
+        // block exactly as the model emitted it instead of collapsing it to empty.
+        if (!rawEntries.length) {
+            if (getSettings().debugMode) {
+                console.warn(`[RPG Tracker] hydratePartyRelocationStats: [${tag}] has content but 0 parsed member headers — leaving block untouched to avoid data loss.`);
+            }
+            continue;
+        }
+
+        const hydrated = rawEntries.map(entry => {
             const text = entryText(entry);
             if (isFullPartyStatEntry(text)) return entry;
 
@@ -984,7 +1020,8 @@ export function hydratePartyRelocationStats(priorMemo, mergedMemo) {
  * @returns {string}
  */
 export function memoForTrackerContext(memo) {
-    return compactBenchedPartyForContext(stripCompletedQuestsFromMemo(memo || ''));
+    const activeMemo = stripResolvedCombatantsFromMemo(memo || '');
+    return compactBenchedPartyForContext(stripCompletedQuestsFromMemo(activeMemo));
 }
 
 /**
@@ -1001,7 +1038,8 @@ export function memoForTrackerContext(memo) {
  * @returns {string}
  */
 export function memoForGmContext(memo) {
-    const stripped = (memo || '').replace(/\[QUESTS\][\s\S]*?\[\/QUESTS\]/gi, '').trim();
+    const activeMemo = stripResolvedCombatantsFromMemo(memo || '');
+    const stripped = activeMemo.replace(/\[QUESTS\][\s\S]*?\[\/QUESTS\]/gi, '').trim();
     const noMarkers = stripped
         .replace(/\(\([^)]*\)\)/g, '')
         .replace(/ {2,}/g, ' ');
@@ -1475,8 +1513,60 @@ export function cleanMessageContent(msg) {
 // ── User action extraction ────────────────────────────────────────────────────
 
 /**
+ * Strip Multihog core prompt injections from a user-message string.
+ * @param {string} text
+ * @param {{ keepRng?: boolean, keepMemo?: boolean }} [opts]
+ * @returns {string}
+ */
+export function stripPromptInjectionsFromUserText(text, opts = {}) {
+    let raw = String(text || '');
+    if (!raw) return '';
+
+    // Prefer the payload after the last CURRENT USER INPUT marker (fresh typed text).
+    const inputParts = raw.split(/###\s*CURRENT USER INPUT\s*\n/i);
+    if (inputParts.length > 1) {
+        raw = inputParts[inputParts.length - 1];
+    }
+
+    if (!opts.keepMemo) {
+        raw = raw.replace(/<state_memo>[\s\S]*?<\/state_memo>[ \t]*\n?/gi, '');
+        raw = raw.replace(/###\s*STATE MEMO[^]*?(?=\n\[RNG_QUEUE|\n###|\n\[(?!RNG_QUEUE)[A-Z]|<CYOA_mode>|<high_agency_mode_on>|<output_length>|<slice_of_life_mode_on>|$)/i, '');
+        raw = raw.replace(/##\s*TRACKER STATE 0[^\n]*\n?/gi, '');
+    }
+    if (!opts.keepRng) {
+        raw = raw.replace(/\[RNG_QUEUE(?:_d100)?\s[^\]]*\][\s\S]*?\[\/RNG_QUEUE(?:_d100)?\][ \t]*\n?/gi, '');
+    }
+    raw = raw.replace(/<CYOA_mode>[\s\S]*?<\/CYOA_mode>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<high_agency_mode_on>[\s\S]*?<\/high_agency_mode_on>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<output_length>[\s\S]*?<\/output_length>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<slice_of_life_mode_on>[\s\S]*?<\/slice_of_life_mode_on>[ \t]*\n?/gi, '');
+    raw = raw.replace(/\[PLAYER_CHARACTER\][\s\S]*?\[\/PLAYER_CHARACTER\][ \t]*\n?/gi, '');
+    raw = raw.replace(/\[NPC_RELATIONS\][\s\S]*?\[\/NPC_RELATIONS\][ \t]*\n?/gi, '');
+    raw = raw.replace(/\[[A-Z_]+\][\s\S]*?\[\/[A-Z_]+\]/g, '');
+    raw = raw.replace(/###\s*CURRENT USER INPUT[^\n]*\n?/gi, '');
+    raw = raw.replace(/\[Continue the narrative\]/gi, '');
+
+    return raw.trim();
+}
+
+/**
+ * Strip only CYOA + pacing tags (leave RNG/memo intact on older turns).
+ * @param {string} text
+ * @returns {string}
+ */
+export function stripCyoaAndPacingInjections(text) {
+    let raw = String(text || '');
+    if (!raw) return '';
+    raw = raw.replace(/<CYOA_mode>[\s\S]*?<\/CYOA_mode>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<high_agency_mode_on>[\s\S]*?<\/high_agency_mode_on>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<output_length>[\s\S]*?<\/output_length>[ \t]*\n?/gi, '');
+    raw = raw.replace(/<slice_of_life_mode_on>[\s\S]*?<\/slice_of_life_mode_on>[ \t]*\n?/gi, '');
+    return raw.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
  * Extracts the last user message from the chat, stripping injected blocks
- * (STATE MEMO, RNG_QUEUE) so only the player's actual typed input remains.
+ * (STATE MEMO, RNG_QUEUE, CYOA, pacing) so only the player's actual typed input remains.
  */
 export function getLastUserAction() {
     const { chat } = SillyTavern.getContext();
@@ -1498,13 +1588,7 @@ export function getLastUserAction() {
         raw = String(raw);
     }
 
-    raw = raw.replace(/###\s*STATE MEMO[^]*?(?=\n\[RNG_QUEUE|\n###|\n\[(?!RNG_QUEUE)[A-Z]|$)/i, '');
-    raw = raw.replace(/\[RNG_QUEUE(?:_d100)?\s[^\]]*\][\s\S]*?\[\/RNG_QUEUE(?:_d100)?\][ \t]*\n?/gi, '');
-    raw = raw.replace(/\[[A-Z_]+\][\s\S]*?\[\/[A-Z_]+\]/g, '');
-    raw = raw.replace(/###\s*CURRENT USER INPUT[^\n]*\n?/gi, '');
-    raw = raw.replace(/\[Continue the narrative\]/gi, '');
-
-    return raw.trim();
+    return stripPromptInjectionsFromUserText(raw);
 }
 
 // ── Lorebook context builder ──────────────────────────────────────────────────
@@ -1623,6 +1707,15 @@ export function buildModulesInstructionText(settings) {
                 if (timeKey !== 'time') {
                     p = promptsMap[timeKey] || DEFAULT_STOCK_PROMPTS[timeKey];
                 }
+            }
+
+            // This is a state-transport invariant, not theme text. Keep it active
+            // for legacy and customized COMBAT prompts without modifying the saved prompt.
+            if (key === 'combat' && !/\bDEFEATED COMBATANTS\s*:/i.test(p)) {
+                p = `${p}\n${DEFEATED_COMBATANTS_PROMPT_RULE}`;
+            }
+            if (key === 'combat' && !/\bNON-PARTY\s+ALLIES\b/i.test(p)) {
+                p = `${p}\n${COMBAT_SIDES_PROMPT_RULE}`;
             }
 
             modulesText += `- [${key.toUpperCase()}]: ${p}\n`;

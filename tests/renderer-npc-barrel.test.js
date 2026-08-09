@@ -50,6 +50,34 @@ describe('universal tag colors', () => {
         expect(tryRenderMarker('((PILLS - rebeccapurple)) Smitten', 'NPC')).toContain('color:rebeccapurple');
         expect(tryRenderMarker('((PILL - #ff69b4)) Smitten', 'NPC')).toContain('color:#ff69b4');
     });
+
+    it('colors only the badge value when a colored badge follows a label', () => {
+        const html = tryRenderMarker('Status: ((BADGEPINK)) Respected', 'CUSTOM');
+        const normalizedHtml = html.toLowerCase();
+
+        expect(html).toContain('<span class="rt-entity-sub-label">Status:</span>');
+        expect(normalizedHtml).not.toContain('<span class="rt-entity-sub-label" style="color:pink">');
+        expect(normalizedHtml).toContain('color:pink');
+        expect(html).toContain('Respected');
+    });
+
+    it('colors only the pill value when a colored pill follows a label', () => {
+        const html = tryRenderMarker('Status: ((PILLGREEN)) Full', 'CUSTOM');
+        const normalizedHtml = html.toLowerCase();
+
+        expect(html).toContain('<span class="rt-entity-sub-label">Status:</span>');
+        expect(normalizedHtml).not.toContain('<span class="rt-entity-sub-label" style="color:green">');
+        expect(normalizedHtml).toContain('color:green');
+        expect(html).toContain('Full');
+    });
+
+    it('keeps separately colored PILLS markers as compact as a normal pill row', () => {
+        const html = tryRenderMarker('Status: ((PILLSBLUE)) Respected, ((PILLSGREEN)) Good', 'CUSTOM');
+
+        expect(html).toContain('rt-multi-marker-row--compact-pills');
+        expect(html).toContain('Respected');
+        expect(html).toContain('Good');
+    });
 });
 
 describe('explicit marker columns', () => {

@@ -14,9 +14,11 @@ describe('runtime bridge', () => {
     });
 
     it('binds the card-event module through configured runtime actions', () => {
-        const calls = [];
+        const quickStartCalls = [];
+        const connectionCalls = [];
         configureRuntimeActions({
-            bindQuickStartEvents: (element) => calls.push(element),
+            bindQuickStartEvents: (element) => quickStartCalls.push(element),
+            bindCharacterCreationConnectionSettings: (element) => connectionCalls.push(element),
             getPillDeselectHandler: () => null,
             setPillDeselectHandler: () => {},
             getSettings: () => ({}),
@@ -30,7 +32,8 @@ describe('runtime bridge', () => {
 
         globalThis.document = { addEventListener: () => {} };
         bindRenderedCardEvents(root, '');
-        expect(calls).toEqual([root]);
+        expect(quickStartCalls).toEqual([root]);
+        expect(connectionCalls).toEqual([root]);
         delete globalThis.document;
     });
 

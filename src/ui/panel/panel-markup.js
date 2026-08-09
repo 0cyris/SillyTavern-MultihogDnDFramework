@@ -14,7 +14,8 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
                 </div>
                 <div class="rpg-tracker-header-center" id="rpg-tracker-pause-banner"></div>
                 <div class="rpg-tracker-header-right">
-                    <button class="rpg-tracker-icon-btn" id="rpg-tracker-chat-link-btn" style="font-size:13px;" title="Chat Link ON">🔗</button>
+                    <button type="button" class="rpg-tracker-icon-btn" id="rpg-tracker-settings-btn" title="Open Settings"><i class="fa-solid fa-wrench" aria-hidden="true"></i></button>
+                    <button class="rpg-tracker-icon-btn rt-tutorial-help-btn" id="rpg-tracker-help-btn" title="CHAT">CHAT</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-view-btn" title="Toggle rendered view">⊞</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-enable-btn" title="${settings.enabled ? 'Disable State Tracker' : 'Enable State Tracker'}" style="${settings.enabled ? '' : 'opacity:0.4;'}" >⏻</button>
                     <button class="rpg-tracker-icon-btn" id="rpg-tracker-update-btn" title="Update State Now">🔄</button>
@@ -65,6 +66,10 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
             </div>
             <div class="rpg-tracker-content">
                 <div class="rt-panel-mode-switch-wrap" id="rt-panel-mode-switch-wrap">
+                    <div class="rt-adventure-companion-header" id="rt-adventure-companion-header" style="display:none;" aria-hidden="true">
+                        <i class="fa-solid fa-compass" aria-hidden="true"></i>
+                        <span>Adventure Companion</span>
+                    </div>
                     <div class="rt-agent-view-mode-switch rt-panel-mode-switch" id="rt-panel-mode-switch" role="tablist" aria-label="Panel content mode">
                         <button type="button" id="rt-panel-mode-tracker" class="rt-agent-view-mode-btn rt-agent-view-mode-btn-active" role="tab" aria-selected="true">State Tracker</button>
                         <button type="button" id="rt-panel-mode-agent" class="rt-agent-view-mode-btn" role="tab" aria-selected="false">Lorebook Agent</button>
@@ -73,6 +78,7 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
                 <div class="rt-panel-mode-pane" id="rt-panel-tracker-pane">
                 <textarea class="rpg-tracker-memo-area" id="rpg-tracker-memo">${settings.currentMemo}</textarea>
                 <div class="rpg-tracker-render-view" id="rpg-tracker-render" style="display:none;"></div>
+                <div class="rt-tutorial-view" id="rt-tutorial-view" style="display:none;" aria-label="CHAT"></div>
                 </div>
                 <div class="rt-panel-mode-pane" id="rt-panel-agent-pane" style="display:none;">
             <div class="rpg-tracker-panel rpg-tracker-agent-panel rt-agent-integrated ${agentPanelCollapsedClass}${settings.trackerTheme || 'rt-theme-native'}" id="rpg-tracker-agent">
@@ -342,7 +348,6 @@ export function buildPanelMarkup({ settings, agentPanelCollapsedClass }) {
                     <div id="rt-footer-location" class="rt-footer-location-text" title="Current Location (Main, Sub)"></div>
                 </div>
                 <div class="flex-container gap-1 alignitemscenter rt-utility-footer-group">
-                    <button class="rpg-tracker-nav-btn" id="rpg-tracker-chat-link-footer-btn" title="Chat Link ON" style="padding: 1px 8px; font-size: 0.85em;">🔗 Link</button>
                     <span id="rpg-tracker-count">~${Math.round(settings.currentMemo.length / 2.62)} tokens</span>
                     <button class="rpg-tracker-nav-btn" id="rpg-tracker-delta-btn" title="Toggle change log" style="padding: 1px 5px; font-size: 0.692em; opacity: 0.8; margin-left: 5px;">δ</button>
                     <button class="rpg-tracker-nav-btn" id="rpg-tracker-memo-clear" style="padding: 1px 5px; font-size: 0.692em; opacity: 0.8; margin-left: 5px;" title="Clear memo and history">CLEAR</button>

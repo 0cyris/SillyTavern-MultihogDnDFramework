@@ -2,10 +2,699 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
-## [6.0.24] - 2026-07-23
+## [7.1.52] - 2026-08-09
+
+### Changed
+- **Worn Equipment**: Renamed the Lorebook Agent CORE field from Equipment to Worn Equipment (and clarified prompts) so LA treats it as visibly worn/carried gear — not coins, loot piles, or inventory lists. Legacy `Equipment:` headers in existing entries still patch in place.
+
+## [7.1.51] - 2026-08-09
 
 ### Fixed
-- **Custom mechanics across chats**: Chat Link no longer treats custom tracker definitions as chat-private. Modules created in one chat now appear in every chat, while existing legacy chat-only modules are merged into the global library on upgrade.
+- **CHAT-BOUND Game Systems on new chat**: Unseen chats with Chat Link + Lock Control Room no longer keep previous-chat CHAT-BOUND activations enabled. Catalog items deactivate for the new chat; GLOBAL enablement and inherited Narrator Configuration stay intact.
+
+## [7.1.50] - 2026-08-09
+
+### Added
+- **Dungeon Reality Mapping (Experimental)**: New native `<dungeon_reality_and_hidden_mapping>` sysprompt section (below `<constraints>`) that builds a full hidden location map before high-risk exploration and resolves traps, stealth, and enemies against it. Toggleable under Components; on by default.
+- **XP rule**: Do not award XP as a consequence of a failed check.
+
+### Changed
+- **Settings overlay appearance**: Defaults to Light on first boot.
+
+## [7.1.35] - 2026-08-08
+
+### Added
+- **Settings overlay**: Extensions drawer keeps a light Multihog stub with **Open Settings**; full settings open in a floating external window with a left tab rail (General, Connections, Game Systems, State Tracker, Lorebook Agent, World Progression, Adventure Companion). Not a fullscreen takeover — centered/draggable panel with mobile safe-area sizing.
+- **Settings window Dark / Light lock**: Appearance toggle at the top of General forces readable locked chrome so ST/tracker themes cannot wash out the settings menu. Defaults to Dark.
+- **State Tracker settings shortcut**: Wrench button in the tracker header (left of CHAT) opens the settings overlay.
+- **Critical settings WAL**: Browser-local backup for Display Groups and prompt-defaults acknowledgement so cancelled settings saves during reload are less likely to resurrect deleted groups or the upgrade dialog.
+
+### Fixed
+- **Prompt defaults fingerprint**: Shipped-default fingerprint no longer reads live user settings (e.g. relationship max / CORE sections) via module getters, which could false-trigger Prompt Defaults Updated.
+- **Settings overlay mobile layout**: Panel no longer spawns clipped above the viewport or collapses to a header-only strip.
+- **Settings overlay readability**: Strengthened muted/inline-opacity description text in locked Dark/Light chrome.
+- **Settings overlay background**: Removed probe for missing `assets/settings-bg.png` (kept SVG gradient only).
+
+## [7.1.2] - 2026-08-08
+
+### Changed
+- **World Skeleton prompt**: Adds a procedural NPC naming rule with culture-matched construction and randomized first/last-name root macros so new skeleton NPCs avoid high-frequency placeholder names.
+
+## [7.1.0] - 2026-08-08
+
+### Added
+- **Branch Campaign**: One-button pipeline under General & Visuals → Core & Branching that creates a SillyTavern transcript branch, deep-copies all Multihog per-chat data (memo, quests, portraits maps, setup, companion, etc.), clones the lorebook stack under the new chat’s sanitized prefix, then opens the branch — leaving the original chat intact.
+- **Chat rename migration**: Listens for SillyTavern `CHAT_RENAMED` and moves Multihog `chatStates` (plus companion / memo-recovery maps) to the new chat file name so renaming a chat no longer looks like an empty campaign.
+
+### Changed
+- **Clone Stack**: Uses the shared lorebook clone helper; tip points users at Branch Campaign for the full automated branch.
+
+## [7.0.14] - 2026-08-08
+
+### Added
+- **Lorebook Agent System Prompt Editor**: Exposed the stored Basic Mode prompt template and the Agent Mode base/shared-context templates in settings, with mode-aware reset controls. Dynamic request context and tool schemas remain generated at runtime.
+
+### Changed
+- **Game System Wizard UI Live Preview**: Added a read-only live rendering of the matching tracker sample block, including progress bars, custom markers, badges, and preview pagination controls. Edit the source block above it to update both the preview and saved template.
+
+### Fixed
+- **Lorebook Agent Prompt Updates**: Routed all four Lorebook templates through the normal prompt-fingerprint/update dialog, preserving custom prompts and cartridge backups until the user explicitly applies the update.
+- **Lorebook Agent Prompt Runtime**: Dynamic module, relationship, campaign, activation-limit, and combat guidance now expands per request without rewriting stored templates or crossing Basic/Agent editor fields.
+- **Lorebook Agent Prompt Whitespace**: Removed empty spacer lines from shipped templates and dynamic insertions.
+- **Game System Wizard Preview**: Preview extraction now matches exactly what saving retains instead of rendering unrelated fallback blocks.
+
+## [7.0.13] - 2026-08-08
+
+### Fixed
+- **Custom Module Editor**: Save/Delete after alt-tab (or any `saveSettings` → catalog sync) no longer targets an orphaned field object. Renaming a module ID could previously remove the live entry entirely; edits could silently fail to persist.
+
+## [7.0.12] - 2026-08-08
+
+### Changed
+- **CYOA prompt**: clarify resource eligibility as >0 (not depleted) in TRACKER STATE 0 (Current).
+
+## [7.0.11] - 2026-08-08
+
+### Changed
+- **CYOA prompt**: choices that spend a resource are only eligible when that resource is >0 in TRACKER STATE 0 (Current).
+
+## [7.0.10] - 2026-08-08
+
+### Changed
+- **Quests sysprompt**: objectives must be multiple, obtainable, clear immediate goals whose completion can be determined — not long-term vague goals.
+
+## [7.0.3] - 2026-08-08
+
+### Changed
+- **RNG explanation**: rewritten RollTheDice vs RNG Queue flow (pros/cons), plus how CYOA/combat close queue foresight — in the Narrator Configuration help popup and `docs/multihogDnDdoc.md`.
+
+## [7.0.2] - 2026-08-08
+
+### Changed
+- **XP system**: `<xp_system>` now awards for real consequences (info/threat/option/obstacle/quest), scales to stakes, defaults to award when in doubt, and ties skill-check XP to DC / combat XP to challenge.
+
+## [7.0.1] - 2026-08-08
+
+### Changed
+- **State memo inject**: every-turn TRACKER STATE 0 injection now uses a short `<state_memo>` preamble (resource availability / spend guidance) plus `## TRACKER STATE 0 (Current)`, instead of `### STATE MEMO (DO NOT REPEAT)`. Main system prompt `<state_memo>` wording is unchanged.
+
+## [7.0.0] - 2026-08-08
+
+### Changed
+- **CYOA injection**: `<CYOA_mode>` is no longer written into Quick Prompt Main. When CYOA is enabled, the built CYOA block is injected every turn into the user-message core (with active narrative pacing tags), immediately above the RNG queue. Prior CYOA/pacing copies are stripped from older user turns first.
+- **Narrative pacing tags**: mode instructions are nested as `<high_agency_mode_on>`, `<output_length>`, and `<slice_of_life_mode_on>` inside `<narrative>`, and the active tags are re-injected every turn with CYOA.
+- **CYOA prompt**: removed the generic “USER-DEFINED: Use the exact complete choice text…” type line.
+- **Prompt Defaults Updated**: fingerprint now includes runtime narrative pacing variants, the live CYOA builder block, and the context-inject contract so interceptor/builder changes surface in the upgrade dialog.
+
+## [6.9.41] - 2026-08-07
+
+### Fixed
+- **Lookback Update**: explicit Last N messages (panel / `/statetracker lookback=N`) no longer ignored when “Since last user message” is enabled — that mode still applies to regular auto/manual updates only.
+
+## [6.9.40] - 2026-08-07
+
+### Fixed
+- **Visualization Mode location resolve**: footer location text using em/en dashes (e.g. `Elderbough — Orra Venn's Workshop`) now tokenizes like `::` / commas, so hierarchical lore paths match instead of showing a duplicated unresolved label.
+
+## [6.9.35] - 2026-08-07
+
+### Changed
+- **Quests sysprompt**: clearer accept/complete/fail markers, broader objectives, and difficulty/emergent-quest guidance.
+- **Prompt order**: `<quests>` now sits above `<homebrew_and_custom_classes>`; Control Room order migrates for setups still on the old stock relative order (settings 5.5.16).
+
+## [6.9.34] - 2026-08-07
+
+### Fixed
+- **Location Scene Prompt**: Portrait Prompt Library save/load now includes the Location Scene Prompt (and the present-NPC toggle). Previously only NPC/PC and Character/Party/Combat prompts were persisted, so loading a saved setup left Location Scene unchanged/stale.
+- **Location Scene Prompt reset**: enabling Real-Time Visualization or toggling "Include Present NPCs" no longer force-overwrites a custom Location Scene Prompt — factory swap only happens when the current text is still a shipped default.
+
+## [6.9.33] - 2026-08-07
+
+### Changed
+- **CYOA prompt**: nudge line now reads "Not every looking around needs to be an investigation check, but investigating something specific should be."
+
+## [6.9.32] - 2026-08-07
+
+### Changed
+- **CHARACTER module toggle**: `[CHARACTER]` can now be turned off in Modules & Order like other stock modules (UI checkbox, State Tracker schema injection, and character-creation active blocks all respect `modules.character`). Default remains on.
+
+## [6.9.31] - 2026-08-07
+
+### Changed
+- **CYOA prompt**: restored to the pre-discipline wording (removed the "DC only on concrete targets / vague scans = NORMAL" rule — it made the model too conservative and encouraged silent rolls without committing DCs in choice text). Matches the v6.9.22 CYOA/sysprompt text.
+- **CYOA prompt**: added one soft nudge line — "Not every looking around needs to be an investigation check, but investigating something specific should be."
+
+## [6.9.29] - 2026-08-07
+
+### Changed
+- **Unified RollTheDice**: the d20 tool can also handle percentage odds via `formula: "1d100"` + `compare: "lte"` (auto-inferred for pure d100 formulas). Global **d100 Mode** and `RollTheDiceD100` remain for percentage-based rulesets.
+
+### Removed
+- Upstream existence-check / risk-scale prompt machinery and the per-turn `EXISTENCE ROLLS (d100)` queue pool (too much prompt weight for the ROI).
+
+## [6.9.28] - 2026-08-06
+
+### Added
+- **Species / Body / Equipment CORE split**: Lorebook Agent NPC/PC Core Sections replace the old combined `Appearance/Species` with Species (static), Body (lasting physical look), and Equipment (worn/carried gear). LA can sync PC Body/Equipment; automatic cadence passes may only touch Combat Profile via CORE tools (other identity fields require Direct Prompt). One-shot per-chat `[CHARACTER]` seed grounds first-pass Equipment. Prompt-defaults upgrade UI can reset NPC/PC Core Sections. Card-list synopsis + docs/tests included.
+
+## [6.9.27] - 2026-08-06
+
+### Added
+- **Existence checks**: d20 RNG queues now include a short `EXISTENCE ROLLS (d100):` pool (3 values) for upstream "is there something at all?" rolls (traps/hazards, hostile presence, notable finds) before any detection/skill DC. New `<existence_checks>` sysprompt section with category-specific follow-ups (traps held until triggered; missed loot gone forever; enemies contextual, not auto-stealth). CYOA examples gain pure-percentage chance brackets plus a dungeoneering Example 3.
+
+### Changed
+- Removed stale embedded `<RNG_constraints>` text that banned queue use for traps/exploration (contradicted Pre-Seeded / existence-check design).
+
+## [6.9.26] - 2026-08-06
+
+### Changed
+- **Tutorial docs**: First-Time Setup now recommends wiring Connections & Models to suitable components, and drops the redundant "Enable the framework" subsection.
+
+## [6.9.25] - 2026-08-06
+
+### Added
+- **Full Review Mode**: optional State Tracker operating mode (checkbox under Enable State Tracker) that wholesale-replaces the Core Prompt and User Prompt Suffix with a built-in "dump every module with real content" prompt. Recommended for weaker/local models that struggle with delta-only tracking. Custom Core Prompt / suffix are preserved and restored when the toggle is off. Documented in the Adventure Companion tutorial docs as the go-to fix when running Gemma / Mistral Small / Qwen / Llama / Phi as the tracker.
+
+### Fixed
+- **Empty `[TAG]…[/TAG]` pairs polluting the memo**: `mergeMemo` now treats hollow empty blocks (e.g. `[PARTY]\n[/PARTY]`) as removals instead of writing them into the persisted memo — a common Full Review failure mode on weak models. The Full Review prompt also no longer forbids omitting inapplicable modules.
+
+## [6.9.24] - 2026-08-05
+
+### Fixed
+- **"No message generated" / walled Direct Prompt & Character Creator requests**: the default (generateRaw) connection path now disables SillyTavern's `trimNames` cleanup. Previously, if a raw completion happened to start with `"{{user}}:"` or `"{{char}}:"` (very plausible for a full character sheet whose first line is the generated name — especially once Character Creator's "Create SillyTavern Persona" option sets `{{user}}` to that exact name), ST's core `cleanUpMessage` silently deleted the **entire response**, surfacing as an opaque "No message generated" error and blocking character creation / state updates.
+
+## [6.9.23] - 2026-08-05
+
+### Added
+- **Sexual Orientation in Character Creator**: restored next to Age, with a help tip explaining it is needed for the relationship system and CYOA romantic options. Draft/prompt plumbing included.
+
+## [6.9.22] - 2026-08-05
+
+### Fixed
+- **Combat Profile dumps whole [COMBAT] block**: Lorebook Agent guidance now requires one combatant's own stat block only — never the `COMBAT ROUND` header, side headers, or sibling combatants — with examples matching the real per-entity format.
+
+### Changed
+- **Level-up skill points**: `<level_up_protocol>` now includes `+[2+INT mod, min 1] Skill Pts → +1 each to that many Key Skills (cap: skill bonus ≤ level+3)`.
+
+## [6.9.21] - 2026-08-05
+
+### Added
+- **Pin Lorebook Agent entries**: thumbtack pin on tree entries / NPC cards (and green Active Lore Keys pills) permanently activates an entry. Pins are exempt from budget counting, agent deactivation, and keyword auto-expire — handled in JS only, so the agent prompt is unchanged.
+- **Modular Repertoire book-name labels**: stock modules now show the real lorebook category (e.g. `Locations (LOC)`) instead of only the prompt tag; custom tags show a live `→ ..._Bookname` preview matching the router's naming rule.
+
+### Changed
+- **`[CORE]` markers stripped for the GM/narrator**: lore injected into the narrator prompt no longer includes `[CORE]`/`[/CORE]` bookkeeping tags (a blank line keeps the permanent-vs-chronicle break). Stored lorebook content and the Lorebook Agent's own context still keep the tags.
+
+### Fixed
+- **Full NPC Cards broken**: restored the `renderRelTierDetailed` dependency wiring so opening a Full NPC Card no longer throws `ReferenceError`.
+
+## [6.9.20] - 2026-08-05
+
+### Fixed
+- **{{user}} still literal in Lorebook Agent tree view**: the default expanded entry view (Permanent description + campaign history lines) used a separate rendering path that the 6.9.16 fix missed — it now also resolves `{{user}}`/`{{char}}` macros for display.
+
+## [6.9.16] - 2026-08-05
+
+### Fixed
+- **{{user}} not substituted in read-only views**: the State Tracker sidebar (Character/Party cards, quest log) and the Lorebook Agent panel (NPC/Location summaries and campaign history) now resolve `{{user}}`/`{{char}}` macros for display. Stored memo/lorebook content and edit textareas still keep the raw macro, so renaming a persona doesn't desync history.
+- **Redundant class/profession in Lorebook Agent entries**: the Lorebook Agent is now explicitly instructed to write the bare `{{user}}` macro in chronicle/history lines, never followed by a class, profession, title, or parenthetical.
+
+## [6.9.15] - 2026-08-05
+
+### Added
+- **Initial campaign time**: Character Creator and Other Ways to Begin now let you set the starting time of day for the first `[TIME]` block (alongside Day 1/DD/MM/YYYY and 12h/24h), with the value persisted per chat and reformatted when the clock toggle changes.
+
+## [6.9.10] - 2026-08-05
+
+### Fixed
+- **Character creation formatting**: always inject the live `[CHARACTER]` module schema into the system prompt so creation never free-forms fields when modules are off.
+- **Abilities preference leak**: omit the Creator "Abilities" preference line (and hide the UI field) unless the `[ABILITIES]` module is enabled.
+- **CHARACTER module toggle**: treat `[CHARACTER]` as mandatory in the Modules list so its schema cannot be silently disabled.
+
+## [6.85.0] - 2026-08-03
+
+### Added
+- **Display Groups (BETA)**: globally bundle related tracker modules under a shared display-only header, with Stack and Tab Mode support, a dedicated manager, and safe opt-out behavior.
+
+### Changed
+- **State Tracker settings layout**: reorganized Advanced Options, module import/export controls, Display Groups, and custom bar animation settings into clearer drawers and controls.
+- **Rendering polish**: centered selected drawer labels, compacted separately colored pill spacing, isolated marker colors from their preceding labels, and aligned custom key/value rows.
+
+## [6.8.0] - 2026-08-03
+
+### Added
+- **Game System Wizard UI Live Preview**: generated tracker sample blocks now render through the real tracker renderer while editing, with working pagination and Full List controls for long blocks.
+- **Shared Character Creation connection**: Character Creator, Instant Action, and Other Ways to Begin now use one configurable connection setting.
+
+### Changed
+- **Wizard preview controls**: persistent Category Rendering Options are hidden from the temporary preview; pagination and full-list mode remain available locally without changing tracker settings.
+
+## [6.7.5] - 2026-08-03
+
+### Changed
+- **CYOA prompt context**: retains the four newest `<choices>` blocks (T-1 through T-4), stripping only T-5 and older blocks while preserving all historical choices in the visible chat.
+
+## [6.7.0] - 2026-08-02
+
+### Added
+- **World Skeleton lorebook sources**: World Skeleton generation can now use selected existing lorebooks as established source material, with per-chat selection and a strict mode that only creates explicitly mentioned entities.
+
+### Changed
+- **Skeleton Source**: replaced the narrow Atmosphere Summary concept with a freeform source field; Auto-Generate remains conservative and produces only a generalized backdrop without named story entities.
+- **Character Creator presets**: duplicate names now prompt before overwriting, and confirmed overwrites replace the existing preset instead of creating duplicates.
+- **World Progression onboarding**: clarified that an immediate Skeleton-only report can provide useful starting context for a new campaign.
+
+## [6.6.40] - 2026-08-02
+
+### Changed
+- **Quest XP scaling**: XP rewards now account for both quest complexity and the task's difficulty for the player character.
+
+## [6.6.35] - 2026-08-02
+
+### Changed
+- **Character Creator fields**: removed example placeholders and the Orientation field, including its draft and prompt plumbing.
+
+## [6.6.30] - 2026-08-01
+
+### Changed
+- **COMBAT ability examples**: elite enemy abilities now include concrete triggers, effects, save DCs, damage, and `2/2` encounter-use counters; the general format now instructs the model to define these properties.
+
+## [6.6.25] - 2026-08-01
+
+### Changed
+- **Narrator Configuration inheritance**: new chats now carry over the configuration from the previously active chat instead of resetting it to factory defaults, while retaining independent per-chat state.
+- **High-Agency Mode explanation**: clarified that this mode omits the instruction to lightly expand on the user's actions.
+
+## [6.6.20] - 2026-08-01
+
+### Changed
+- **NPC stat scaling prompt**: removed the instruction to always leave a fighting chance, allowing narrative realism to determine outcomes without guaranteed safety margins.
+
+## [6.6.15] - 2026-08-01
+
+### Added
+- **Prompt restoration guidance**: onboarding now explains that Multihog auto-applies its system prompt and points to the backup restore control for recovering the previous Main prompt.
+
+## [6.6.10] - 2026-08-01
+
+### Changed
+- **Tentative model guidance**: onboarding, Lorebook Agent help, README, documentation, and Adventure Companion now present Gemini Flash-Lite/Flash, Deepseek V4 Flash 0731, and GPT-5.6 Luna as inexpensive, promising options without a firm recommendation.
+- **Combat API Override guidance**: explains that the feature lets users switch to a faster model while combat is active, without prescribing a specific model.
+
+## [6.6.8] - 2026-08-01
+
+### Fixed
+- **Inventory item names**: bullet-delimited items containing commas (such as `Runekind, Quarterstaff +2`) now render as one item instead of being split across multiple rows. Legacy comma-separated inventory lines remain supported.
+
+## [6.6.5] - 2026-08-01
+
+### Changed
+- **CYOA prompt context**: keeps the two newest completed choice blocks (T-1 and T-2) as fresh examples for the AI, while stripping T-3 and older blocks only from the outgoing prompt. All historical choice buttons remain visible and usable in chat.
+- **Model guidance**: Gemini 3.5 Flash-Lite is again the suggested default for the State Tracker and Lorebook Agent; Deepseek V4 Flash 0731 and GPT-5.6 Luna are presented as alternatives with their respective tradeoffs. Combat API Override now points to faster models such as Gemini 3.5 Flash or Deepseek Flash.
+- **Out-of-range attacks**: the narrator now reports the failed range attempt and asks for another action instead of automatically moving the player closer.
+
+### Tests
+- Added regression coverage to keep the standard, legacy, and embedded prompt copies synchronized for the out-of-range attack rule.
+
+## [6.6.0] - 2026-08-01
+
+### Changed
+- **State Tracker resource accounting**: the Core Prompt now requires implicit spell-slot and resource changes to be tracked when the narrative clearly spends or grants them.
+- **Compact Core Prompt**: removed redundant blank spacer lines without changing prompt structure or instructions.
+- **Model recommendation**: GPT-5.6 Luna is now the primary State Tracker, Lorebook Agent, and Combat API Override recommendation; obsolete Gemini and thinking-level recommendations were removed.
+
+### Fixed
+- **CYOA mechanics wrapping**: long bracketed mechanics now wrap within choice buttons instead of overflowing the viewport.
+
+## [6.5.90] - 2026-08-01
+
+### Changed
+- **COMBAT example clarity**: the elite combatant example now gives Brutal Strike a concrete melee-hit trigger, Fortitude save DC, knockdown effect, and per-combat usage limit.
+
+## [6.5.85] - 2026-08-01
+
+### Changed
+- **Prompt accounting guidance**: PARTY and COMBAT prompts now explicitly require accurate spell-slot and ability-use tracking.
+- **Authoritative state memo**: clarified that TRACKER STATE 0 is read-only, already accounts for prior events, and must not be reconstructed from earlier narration.
+- **RNG queue prompt**: standardized the compact RNG_QUEUE v7.0 block and removed the stray blank line under its tags.
+
+## [6.5.75] - 2026-07-31
+
+### Added
+- **Universal custom-bar trickle animations**: opted-in `((BAR))` and `((BARREL))` changes now transfer progressively, with timing scaled to the percentage of the bar changed. Equivalent proportional changes take the same amount of time regardless of the bar's numeric scale.
+- **Enabled by default**: universal custom-bar animations are now on by default, while remaining user-toggleable.
+
+## [6.5.35] - 2026-07-30
+
+### Fixed
+- **Paused relationship regex updates**: chat-regex Friendship/Affection awards continue to process while the State Tracker or Lorebook Agent is paused, while tracker/LLM relationship commands remain pause-gated.
+- **Regression coverage**: automated tests now protect the pause-boundary behavior.
+
+## [6.5.30] - 2026-07-30
+
+### Changed
+- **CYOA settings scope**: choice composition and behavior remain per-chat, while visual theme settings are shared globally.
+
+### Fixed
+- **CYOA migration**: legacy per-chat snapshots retain their choice setup while no longer overriding the global visual theme.
+
+## [6.5.10] - 2026-07-30
+
+### Added
+- **Temporary combat allies**: `[COMBAT]` now supports optional `ENEMIES:` and `ALLIES:` sections with red and blue UI headers.
+- **RNG multi-die guidance**: queue prompts now specify how additional matching damage dice consume successive queue lines, including a `2d8` example.
+
+### Fixed
+- **Combat section parsing**: `ALLIES:` boundaries no longer get absorbed into the preceding enemy entry, while headerless combat remains backward-compatible.
+
+## [6.5.0] - 2026-07-30
+
+### Added
+- **Adventure Companion connections and settings**: Adventure Companion now has its own connection configuration and a mirrored settings drawer, including Tutorial Mode.
+- **XP gain animation**: gained XP now visibly trickles from a glowing blue award into the XP bar.
+- **Combat defeat presentation**: explicitly defeated combatants remain visually marked until combat ends, with negative HP values supported by combat and party renderers.
+- **Onboarding releases link**: the startup screen now links to the GitHub Releases page as the project development blog.
+- **SPELLS example**: the stock SPELLS module prompt now demonstrates multi-level spell-slot formatting.
+
+### Changed
+- **Adventure Companion mobile behavior**: its header now keeps the standard collapse control available on mobile for quick minimize/maximize access.
+- **Relationship award feedback**: Friendship and Affection floaters are larger, last four seconds, and may extend beyond the tracker edge so long NPC names remain visible.
+- **Narrator and combat prompts**: refined realistic time-passage, XP, spell, and defeated-combatant instructions.
+
+### Fixed
+- **Adventure Companion collapse**: collapsing the Companion no longer flips the tracker view while leaving the Companion header behind.
+- **Combat parsing**: negative current HP such as `-4/15 HP` now renders as a structured combatant instead of unformatted text.
+
+## [6.4.3] - 2026-07-29
+
+### Fixed
+- **Older mobile WebView initialization**: missing `ResizeObserver` support no longer aborts State Tracker panel setup and leaves a visible but non-interactive panel.
+
+## [6.4.0] - 2026-07-29
+
+### Added
+- **Genre-aware character names**: Instant Action and Other Ways to Begin now use genre-specific first-name / surname pools, with reroll controls and editable name fields. The Character Creator random-name button includes the combined library.
+- **Discord onboarding help**: the onboarding help card now links directly to the SillyTavern Discord Extensions subforum.
+
+### Changed
+- **Character-generation prompts**: Quick Start, Character Creator, Other Ways to Begin, and PC Import now receive active tracker-module instructions without the full State Extractor prompt. Character creation also excludes the COMBAT block.
+- **Name selection flow**: users can roll, reroll, type, or edit a name before accepting Instant Action or the Custom onboarding path. Persona and Import Card paths continue to use their source names.
+- **Narrator constraints**: added the cheese-and-abuse safeguard to the default and legacy narrator configurations.
+
+### Fixed
+- **Instant Action name propagation**: the accepted name is now passed through to character generation instead of being independently re-invented by the model.
+- **Wizard module scope guidance**: clicking GLOBAL / CHAT-BOUND on a Wizard-created tracker module now explains that bundle scope is controlled from Manage Game Systems.
+
+## [6.3.60] - 2026-07-29
+
+### Added
+- **Shorter Outputs pacing**: Narrator Configuration now includes a dedicated modest-output-length mode, alongside the renamed Normal (no length instructions) option.
+
+## [6.3.53] - 2026-07-29
+
+### Fixed
+- **Adventure Companion story lookback**: “All” / lookback count are global prefs again and no longer get overwritten by per-chat or Chat Link companion snapshots on reload.
+
+### Changed
+- **Adventure Companion story lookback**: fresh installs default to lookback 5 with “All” off.
+
+### Added
+- **Character Creator custom modules**: enabled custom tracker modules now inject their full tracking instructions and templates into character-generation prompts, not just the tag name.
+
+## [6.3.52] - 2026-07-29
+
+### Changed
+- **Adventure Companion story lookback**: restored the previous default — new sessions use full chat history (“All” on).
+
+## [6.3.51] - 2026-07-29
+
+### Changed
+- **Adventure Companion actions**: hard-limits the Companion to State Tracker commands, Lorebook Agent commands, and acting for the player (chat / CYOA); it must not invent Multihog UI workflows.
+
+## [6.3.50] - 2026-07-28
+
+### Added
+- **Global / Chat-bound item scopes**: standalone tracker modules and system-prompt snippets can now share one enabled state across every chat or retain activation separately per chat. Wizard-created modules and snippets inherit one atomic scope from their Game System bundle.
+- **Scope bypass mode**: turning off the per-chat Control Room/module lock temporarily carries the current setup between chats without changing saved item scopes.
+
+### Fixed
+- **First scope change on new modules**: newly created module rows now persist the first Global / Chat-bound selection immediately, even when catalog synchronization has just replaced the in-memory definition.
+
+## [6.3.0] - 2026-07-28
+
+### Added
+- **Per-chat Control Room & Module setups**: an optional setup lock now saves and restores System Prompt Control Room sections, Game Systems, custom/stock State Tracker modules, prompts, ordering, and related toggles per chat. Unseen chats start from stock; temporarily disabling Chat-Linked Mode carries the current setup between chats.
+- **Global module & snippet catalogs**: created tracker modules, Game Systems, and system-prompt snippets now remain available across chats. Each chat stores only membership/activation and ordering; definitions from other chats appear in dedicated inactive pools instead of disappearing.
+- **Separate Player Card / ST Persona controls**: Character Creator and Other Ways to Begin now independently control the rich Lorebook Agent Player Card and the name-only SillyTavern persona used for the outgoing message header.
+
+### Fixed
+- **Instant Action persona duplication**: the matching SillyTavern persona now has an empty description, keeping the rich PC biography exclusively in the Lorebook Agent Player Card.
+- **System Prompt section editor wrappers**: editing or appending text to a custom/unlocked section no longer nests another copy of its outer XML tag on every save. The editor now exposes only the section body, and saving repairs previously duplicated matching wrappers without losing their instructions.
+- **Custom `[PARTY]` templates**: member headers with inline rendering markers (e.g. `Name: ((BAR)) 100/100 HP`) are recognized again, so merge/hydrate no longer empties the party roster.
+- **Benched portrait overlay**: removed the mojibake’d camping badge on individual chips; tent emoji stays on the Benched header only.
+
+### Changed
+- **Benched Party icon**: uses ⛺ across State Tracker UI, settings, and badges.
+
+## [6.2.52] - 2026-07-27
+
+### Fixed
+- **Settings drawer hierarchy**: restored the Framework drawer’s complete nesting so General & Visuals and all other primary sections share the same layout and toggle behavior.
+- **Mobile settings rendering**: removed the collapsed-content optimization that could hide the first nested drawer until interaction.
+- **CHAT persistence**: Adventure Companion now restores its open/closed state after a page reload.
+
+## [6.2.50] - 2026-07-27
+
+### Added
+- **Adventure Companion actions**: the Companion can now delegate clear player requests to State Tracker or Lorebook Agent, and can submit a player action through chat or CYOA controls.
+- **Tutorial Mode**: the Companion can optionally include the learning guide in its context, with a concise explanation available from the new help control.
+
+### Changed
+- **Unified Companion**: Tutorial Bot and Adventure Companion are now one Companion experience, with tutorial guidance controlled by the Tutorial Mode setting.
+- **Responsive Companion layout**: CHAT can be detached on desktop; mobile always uses the clean floating presentation without dock/undock controls.
+- **Natural player-action reactions**: after acting for the player, Companion responds with table-side commentary instead of a mechanical receipt.
+
+## [6.2.34] - 2026-07-27
+
+### Changed
+- **Mobile Adventure Companion**: CHAT now always opens in its full-height floating presentation on mobile, with dock/undock controls hidden. Resizing back to desktop restores the normal docked view unless the player had explicitly detached it there.
+
+## [6.2.33] - 2026-07-27
+
+### Changed
+- **Organic player-action reactions**: after acting for the player, Adventure Companion now gives a brief entertaining or funny table-side comment instead of echoing a dry `Player Turn: Submitted...` receipt.
+- **Single-turn commentary**: the reaction is generated alongside the action itself, avoiding a second Companion request that could compete with the main narrator.
+
+## [6.2.32] - 2026-07-27
+
+### Added
+- **Detachable Adventure Companion**: CHAT can be moved into its own draggable, resizable floating panel and reattached without losing its live conversation or request state.
+- **Detached CHAT geometry**: desktop position and size are remembered and clamped to the viewport; mobile uses a full-height layout.
+
+## [6.2.31] - 2026-07-27
+
+### Changed
+- **Adventure Companion header**: CHAT now displays its name as a styled, non-interactive header rather than a redundant top button.
+
+## [6.2.30] - 2026-07-27
+
+### Changed
+- **Free-form actions in CYOA**: Adventure Companion can now type and submit a normal player action even while CYOA mode is active, instead of being limited to pressing a listed choice.
+
+## [6.2.29] - 2026-07-27
+
+### Changed
+- **One Adventure Companion**: CHAT no longer separates framework help and story conversation into different bots or histories.
+- **Tutorial Mode**: a new toggle injects `docs/multihogDnDdoc.md` into every Adventure Companion request. Its `?` popup explains the extra context and token cost.
+- **Unified capabilities**: framework questions, story discussion, State Tracker and Lorebook Agent commands, and acting for the player are all available in the same conversation.
+
+## [6.2.28] - 2026-07-27
+
+### Added
+- **Adventure Companion player actions**: when clearly asked to choose or act for the player, the Companion can submit the player's next turn through SillyTavern.
+- **CYOA-aware acting**: with CYOA mode active, the Companion receives the currently actionable choices and must select one of their buttons. With CYOA inactive, it composes and submits a normal player chat message.
+
+### Changed
+- **Terminal player submissions**: successfully submitting a player turn ends the Companion action loop immediately, avoiding a competing follow-up request while narrator generation begins.
+
+## [6.2.27] - 2026-07-27
+
+### Fixed
+- **Connection Manager action feedback**: post-action results now use a profile-compatible conversation role, avoiding `Bad Request` failures caused by inserting a system message after the Companion's action response.
+- **Successful action misreported as failure**: if the State Tracker or Lorebook Agent command completes but the optional conversational summary request fails, CHAT now displays the authoritative completed-action receipt instead of claiming the entire operation failed.
+
+## [6.2.26] - 2026-07-27
+
+### Changed
+- **Natural Companion action intent**: Adventure Companion no longer expects command-like wording or exact strings. Polite questions, indirect requests, and requests to demonstrate or test an action now count when the user's intent to make a change is clear.
+- **Underspecified demos**: the Companion may choose and execute one small, harmless, clearly labeled demo addition instead of explaining how the player should ask again.
+
+## [6.2.25] - 2026-07-27
+
+### Fixed
+- **CHAT with detached Lorebook Agent**: Adventure Companion navigation remains visible while the Lorebook Agent is detached.
+- **CHAT during Lorebook Agent reattachment**: reattaching no longer switches the main panel underneath CHAT to Lorebook Agent or leaves the CHAT tabs unresponsive.
+
+## [6.2.24] - 2026-07-27
+
+### Added
+- **Adventure Companion actions**: explicit player requests can now be forwarded as direct commands to the State Tracker and Lorebook Agent. Native tool calls are used when supported, with a validated tagged fallback for other connection types.
+- **Action result reporting**: Companion commands report completed, unchanged, unavailable, busy, cancelled, and failed outcomes instead of assuming an update succeeded.
+
+### Changed
+- **Adventure Companion capability instructions**: the embedded persona and framework documentation now explain the two available actions and prohibit turning brainstorming or theories into campaign state.
+
+## [6.2.23] - 2026-07-27
+
+### Fixed
+- **Detached Lorebook Agent**: clamp floating panel into the viewport; closing while detached reattaches so State Tracker / Lorebook Agent tabs return.
+
+### Added
+- **`/multihogresetui`**: emergency UI rebuild that clears stuck layout state (detached agent, geometry, visibility) and recreates the panels. Aliases: `/rpgresetui`, `/rtresetui`.
+
+## [6.2.21] - 2026-07-26
+
+### Fixed
+- **CYOA on ST welcome screen**: no longer wraps or binds SillyTavern’s API Connections / Character Management / Extensions drawer buttons as CYOA choices.
+
+## [6.2.20] - 2026-07-25
+
+### Changed
+- **Character creation prompts**: do not invent quests or emit a `[QUESTS]` block unless the player explicitly asks (Character Creator, Other Ways to Begin, Quick Start, and PC Import). `QUESTS` is excluded from onboarding active blocks the same way `PARTY` already was.
+
+## [6.2.12] - 2026-07-25
+
+### Changed
+- **CHAT mobile layout**: Adventure Companion chat uses the primary panel area while CHAT is open; Back, options, and Clear share one compact row.
+- **CHAT context controls**: moved Story lookback into the options menu and defaulted new CHAT sessions to the full chat history.
+
+## [6.2.11] - 2026-07-24
+
+### Fixed
+- **CHAT composer focus**: after sending a message, the input is re-focused when the reply finishes so you don’t have to click it again.
+
+## [6.2.10] - 2026-07-24
+
+### Added
+- **Startup “How It Works”**: noticeable tip to open **CHAT** in the State Tracker header and ask the Adventure Companion (knows most of the framework).
+
+### Changed
+- **Tutorial docs**: updates to `docs/multihogDnDdoc.md` (Adventure Companion knowledge base).
+- **System Prompt Control Room**: section/content editors wrap long lines instead of forcing horizontal scroll.
+
+## [6.2.1] - 2026-07-24
+
+### Changed
+- **Abilities module prompt**: use-limited abilities must include remaining/max uses inside the parentheses (e.g. `Silver-Tongued Pivot (…, 1/1 per rest)`).
+
+## [6.2.0] - 2026-07-24
+
+### Changed
+- **Lorebook Agent / State Tracker auto-runs**: only fire when the latest assistant speaker is the active `{{char}}`. Other speakers (e.g. `/sendas` announcement names like “System Notifications”) no longer tick run-every or start auto passes. Manual `/lorebookagent` and `/statetracker` are unchanged. When a message has an explicit speaker name, that name wins over avatar matching.
+
+## [6.1.50] - 2026-07-24
+
+### Fixed
+- **Adventure Companion Chat Link isolation**: entering an unseen SillyTavern chat no longer copies the previous chat's Companion conversation. New ChatIDs now begin with the default Companion message, while existing per-chat sessions remain intact.
+
+## [6.1.1] - 2026-07-24
+
+### Added
+- **Adventure Companion story lookback**: adjustable header control (**Story lookback**) injects the last N SillyTavern chat messages so players can discuss their adventure with the Companion.
+
+### Changed
+- **Adventure Companion lookback UI**: moved from the composer to the header, with a clear label.
+
+## [6.1.0] - 2026-07-24
+
+### Added
+- **Adventure Companion**: in-panel HELP chat that morphs the State Tracker into a multi-turn instructor. Answers from `docs/multihogDnDdoc.md` via the State Tracker LLM connection. Open from the tracker **HELP** button or **General & Visuals → Adventure Companion (HELP)**. Chat persists across reloads until Clear; replies render Markdown (showdown).
+- **Framework documentation**: `docs/multihogDnDdoc.md` (tutorial knowledge base) covering setup, turn flow, RNG, modules, Lorebook Agent, World Progression, and more.
+
+### Changed
+- **Chat Link**: removed header/footer icons from the State Tracker panel; toggle and conflict handling live in **General & Visuals** only.
+- **Mobile Raw View**: larger tap target for the Raw/Rendered view toggle.
+
+### Fixed
+- **Mobile HELP button**: no longer stays green after closing Adventure Companion (sticky touch hover/focus).
+
+## [6.0.85] - 2026-07-24
+
+### Added
+- **`/lorebookagent` slash command**: manually invoke a Lorebook Agent pass from STscript (aliases: `/lbagent`, `/la`, `/router`). Useful after `/sendas`, which does not auto-trigger the agent. Supports `quiet=true`, `lookback=N`, `save [hint]`, and Direct Command text.
+- **`/statetracker` slash command**: manually invoke a State Tracker update from STscript (alias: `/st`). Supports regular update, `full` audit, `lookback=N`, and `quiet=true`.
+
+### Changed
+- **QUEST DIFFICULTY**: clarifies that quests should not be made harder than the narrative/context reasonably supports.
+- **Attacks per round**: notes that the STATE MEMO APR lines (`Melee/Ranged X attacks`) are authoritative.
+
+## [6.0.83] - 2026-07-24
+
+### Fixed
+- **System Prompt Control Room on mobile**: section scrolling no longer competes with reordering. Swipe anywhere in a row to scroll; long-press and drag the enlarged grip to reorder. The contained list also works on Android browsers that do not support the CSS selector previously used to identify this popup.
+
+## [6.0.82] - 2026-07-24
+
+### Fixed
+- **Relationship command leakage**: `[RELATIONS]` blocks are now removed before State Memo merging, including malformed or unclosed blocks.
+
+## [6.0.81] - 2026-07-24
+
+### Fixed
+- **CYOA choice rendering**: bracketed mechanics such as DCs and modifiers now decorate immediately after narration ends, without waiting for the State Tracker pass.
+
+## [6.0.80] - 2026-07-24
+
+### Fixed
+- **World Skeleton entries**: preserves model-supplied titles when descriptions contain hyphens or metadata such as “Parties involved,” and the default prompt now requires a strict title/content layout.
+
+## [6.0.78] - 2026-07-24
+
+### Fixed
+- **Relationship prompt reset**: keeps the Reset to built-in control compact and horizontal.
+
+## [6.0.77] - 2026-07-24
+
+### Changed
+- **Relationship-delta recognition**: State Tracker now accepts clear narrator point awards with minor wording, punctuation, capitalization, spacing, or formatting variations.
+
+## [6.0.76] - 2026-07-24
+
+### Added
+- **Relationship prompt reset**: the State Tracker relationship-instruction editor now has a Reset to built-in button.
+
+## [6.0.75] - 2026-07-24
+
+### Changed
+- **State Tracker relationship instruction**: removes memo-storage implementation details; the tracker is now instructed only on relationship-delta criteria and command syntax.
+
+## [6.0.74] - 2026-07-23
+
+### Added
+- **Editable State Tracker relationship instruction**: the Relationship System settings cog now lets users customize the prompt used for State Tracker relationship updates.
+
+## [6.0.73] - 2026-07-23
+
+### Added
+- **Portrait popup controls**: adaptive full-size portrait viewing with cursor-anchored zoom, pan clamping, and a wrapper that expands with the image.
+
+## [6.0.72] - 2026-07-23
+
+### Changed
+- **Legacy browser recovery**: retained in the source code but disabled. The tracker no longer creates, compares, prompts for, or restores browser-local recovery copies.
+
+## [6.0.71] - 2026-07-23
+
+### Added
+- **Relationship update methods**: choose between narrator annotations and State Tracker relationship commands, with dedicated settings and live relationship feedback.
+
+### Fixed
+- **Persistence rollback**: removes the unavailable server disk-state endpoint and restores the established SillyTavern save and recovery behavior.
+
+## [6.0.70] - 2026-07-23
+
+### Fixed
+- **Emergency rollback release**: restores the proven 6.0.23 persistence behavior so installs affected by the unavailable disk-state endpoint can update normally and retain their existing tracker data.
 
 ## [6.0.23] - 2026-07-23
 
@@ -179,7 +868,7 @@ All notable changes to the **Multihog D&D Framework** will be documented in this
 
 ### Changed
 - **APR threshold**: Second attack at BAB +8 (−5), was +10.
-- **Model guidance**: Onboarding + README note Combat API Override for slow-thinking GM models (Gemini 3.5 Flash, Medium thinking).
+- **Model guidance**: Onboarding + README note Combat API Override for slow-thinking GM models (GPT-5.6 Luna).
 
 ## [5.7.93] - 2026-07-18
 
@@ -854,7 +1543,7 @@ Release tag for portrait file-storage work (5.1.6–5.1.8).
 - **Time/date UI sync**: All time and date controls (onboarding, Modules & Order pills, Extension Settings) funnel through shared setters so they never show contradictory state.
 - **TIME module prompt editor**: Edit/Reset now picks the correct stock prompt variant (`time`, `time_24h`, `time_ddmmyy`, `time_ddmmyy_24h`) based on both clock and calendar toggles.
 - **Status footer placement**: `<end_of_output_footer>` moved immediately after `</combat>` in both sysprompt files for higher prompt attention.
-- **Onboarding copy**: Updated How It Works, Initial Setup (time/date step), and simplified model recommendations (MiMo 2.5 Pro GM, Gemini 3.1 Flash-Lite for tracker/agent).
+- **Onboarding copy**: Updated How It Works, Initial Setup (time/date step), and simplified model recommendations (MiMo 2.5 Pro GM, GPT-5.6 Luna for tracker/agent).
 - **Lorebook Agent docs**: Removed obsolete Max Tokens control reference; Campaign Records now explains native Lorebook book creation instead of a separate Campaign Prefix control entry.
 
 ## [4.3.5] - 2026-07-05
@@ -1747,7 +2436,7 @@ A comprehensive upgrade to the external LLM pipeline and settings organization, 
 ## [1.7.1] - 2026-05-04
 
 ### Fixed
-- **Silent Model/Preset Switching**: Fixed a major regression where background RPG tracker passes would ignore the selected Connection Profile and Generation Settings Preset. The system now correctly routes requests through specific models (like Gemini 3 Flash) with custom sampler overrides (like disabling reasoning) silently and reliably.
+- **Silent Model/Preset Switching**: Fixed a major regression where background RPG tracker passes would ignore the selected Connection Profile and Generation Settings Preset. The system now correctly routes requests through specific models (like GPT-5.6 Luna) with custom sampler overrides (like disabling reasoning) silently and reliably.
 
 ## [1.7.0] - 2026-05-04
 

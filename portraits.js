@@ -4,6 +4,8 @@ import { sendStateRequest } from './llm-client.js';
 import { parseMemoBlocks } from './renderer.js';
 import { escapeHtml, memoForGmContext } from './memo-processor.js';
 import { getLorebookManifest, scanRecentOutputForPresentNpcs } from './router.js';
+import { SlashCommandAbortController } from '../../../slash-commands/SlashCommandAbortController.js';
+import { setRealtimeVisualizationDisabled } from './src/state/realtime-visualization-guard.js';
 import {
     persistPortraitSrc,
     deletePortraitFile,
@@ -13,6 +15,7 @@ import {
     resolvePortraitDisplaySrc,
     normalizeEntityName,
     lookupCustomPortraitSrc,
+    snapshotPortraitMapsForChat,
 } from './portrait-storage.js';
 
 /**
@@ -63,17 +66,14 @@ export async function applyPortraitData(entityName, src) {
 
     if (!src) {
         delete s.customPortraits[normName];
+        snapshotPortraitMapsForChat(s, chatId);
         if (previous && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);
         }
     } else {
         const stored = await persistPortraitSrc(src, chatId, normName);
         s.customPortraits[normName] = stored;
-
-        // Keep the active chat partition in sync so saveChatState cannot resurrect the old path.
-        if (s.chatLinkEnabled && chatId && s.chatStates?.[chatId]?.customPortraits) {
-            s.chatStates[chatId].customPortraits[normName] = stored;
-        }
+        snapshotPortraitMapsForChat(s, chatId);
 
         if (previous && previous !== stored && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);
@@ -106,17 +106,7 @@ function migratePortraitMapKey(oldName, newName) {
     const displaced = s.customPortraits[newKey] || null;
     s.customPortraits[newKey] = src;
     delete s.customPortraits[oldKey];
-
-    if (s.chatStates && typeof s.chatStates === 'object') {
-        for (const chatId of Object.keys(s.chatStates)) {
-            const part = s.chatStates[chatId];
-            if (!part?.customPortraits || typeof part.customPortraits !== 'object') continue;
-            if (part.customPortraits[oldKey]) {
-                part.customPortraits[newKey] = part.customPortraits[oldKey];
-                delete part.customPortraits[oldKey];
-            }
-        }
-    }
+    snapshotPortraitMapsForChat(s, getActiveChatId());
 
     return { moved: true, displaced: displaced && displaced !== src ? displaced : null, src };
 }
@@ -688,11 +678,14 @@ export async function showPortraitPromptPopup(prompt, entityName, localApply, re
  * Direct image generation backend helper. Generates the image based on settings source.
  * @param {string} prompt
  * @param {string} entityName
+ * @param {{ signal?: AbortSignal, allowFallback?: boolean }} [opts]
  * @returns {Promise<string>} data URL or image relative URL
  */
-export async function generatePortraitDirect(prompt, entityName) {
+export async function generatePortraitDirect(prompt, entityName, opts = {}) {
     const s = getSettings();
     const isNative = s.portraitGeneratorSource === 'native';
+    const externalSignal = opts.signal;
+    const allowFallback = opts.allowFallback !== false;
 
     if (isNative) {
         const { SlashCommandParser } = SillyTavern.getContext();
@@ -703,8 +696,22 @@ export async function generatePortraitDirect(prompt, entityName) {
         const parser = new SlashCommandParser();
         const escapedPrompt = prompt.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         const command = `/imagine quiet=true gallery=false extend=false "${escapedPrompt}"`;
-        const closure = parser.parse(command);
-        const result = await closure.execute();
+        const slashAbortController = new SlashCommandAbortController();
+        const abortSlashCommand = () => slashAbortController.abort('Real-Time Visualization stopped', true);
+        if (externalSignal?.aborted) abortSlashCommand();
+        else externalSignal?.addEventListener('abort', abortSlashCommand, { once: true });
+        const closure = parser.parse(command, true, null, slashAbortController);
+        let result;
+        try {
+            result = await closure.execute();
+        } finally {
+            externalSignal?.removeEventListener('abort', abortSlashCommand);
+        }
+        if (externalSignal?.aborted || result?.isAborted) {
+            const abortError = new Error('Image generation was stopped');
+            abortError.name = 'AbortError';
+            throw abortError;
+        }
         if (result && result.isError) {
             throw new Error(result.errorMessage || 'ST Image Generation execution failed');
         }
@@ -724,6 +731,9 @@ export async function generatePortraitDirect(prompt, entityName) {
             const url = `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?key=${apiKey}&model=${modelName}`;
             
             const controller = new AbortController();
+            const abortRequest = () => controller.abort();
+            if (externalSignal?.aborted) abortRequest();
+            else externalSignal?.addEventListener('abort', abortRequest, { once: true });
             const timeoutId = setTimeout(() => controller.abort(), 20000); // 20-second timeout
             
             let resp;
@@ -736,6 +746,8 @@ export async function generatePortraitDirect(prompt, entityName) {
                     throw new Error('Pollinations request timed out after 20 seconds');
                 }
                 throw err;
+            } finally {
+                externalSignal?.removeEventListener('abort', abortRequest);
             }
 
             if (!resp.ok) {
@@ -761,6 +773,10 @@ export async function generatePortraitDirect(prompt, entityName) {
                 reader.readAsDataURL(blob);
             });
         };
+
+        if (!allowFallback) {
+            return await doRequest(currentModel);
+        }
 
         try {
             return await doRequest(currentModel);
@@ -1703,16 +1719,14 @@ export async function applyLocationImageData(locationPath, src) {
 
     if (!src) {
         delete s.customLocationImages[normPath];
+        snapshotPortraitMapsForChat(s, chatId);
         if (previous && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);
         }
     } else {
         const stored = await persistPortraitSrc(src, chatId, storageKey);
         s.customLocationImages[normPath] = stored;
-
-        if (s.chatLinkEnabled && chatId && s.chatStates?.[chatId]?.customLocationImages) {
-            s.chatStates[chatId].customLocationImages[normPath] = stored;
-        }
+        snapshotPortraitMapsForChat(s, chatId);
 
         if (previous && previous !== stored && isManagedPortraitPath(previous) && countPortraitPathRefs(s, previous) === 0) {
             await deletePortraitFile(previous);
@@ -1942,6 +1956,40 @@ export async function generateLocationImagePrompt(locationPath, locContent) {
 }
 
 const activeLocationGenerations = new Set();
+let realtimeLocationGenerationFailed = false;
+let activeRealtimeLocationAbortController = null;
+
+/**
+ * Allow Real-Time Mode to try again only after the user explicitly enables it.
+ * A failed endpoint must otherwise remain terminal for the current enable cycle.
+ */
+export function resetRealtimeLocationGenerationFailure() {
+    realtimeLocationGenerationFailed = false;
+    setRealtimeVisualizationDisabled(false);
+}
+
+/** Stop an active/queued Real-Time request and prevent another attempt. */
+export function stopRealtimeLocationGeneration() {
+    realtimeLocationGenerationFailed = true;
+    setRealtimeVisualizationDisabled(true);
+    activeRealtimeLocationAbortController?.abort();
+    activeRealtimeLocationAbortController = null;
+}
+
+async function disableRealtimeLocationGenerationAfterFailure(err) {
+    stopRealtimeLocationGeneration();
+    const s = getSettings();
+    s.portraitAutoGenerateSceneView = false;
+    s.portraitRegenerateVisitedLocations = false;
+    globalThis._rpgSyncLocationImageDependentUi?.();
+    const detail = String(err?.message || err || 'Unknown image generation failure').substring(0, 140);
+    imageGenToast('error', `Real-Time Visualization was disabled after one failed image request: ${detail}`, 'RPG Tracker');
+    try {
+        await saveSettings(true);
+    } catch (saveErr) {
+        console.error('[RPG Tracker] Failed to persist disabled Real-Time Visualization state:', saveErr);
+    }
+}
 
 /** @param {string} locationPath */
 export function isLocationImageGenerating(locationPath) {
@@ -1957,8 +2005,12 @@ export function isLocationImageGenerating(locationPath) {
  */
 export function triggerBackgroundLocationGeneration(locationPath, refresh, locContent = '', opts = {}) {
     const s = getSettings();
+    const isRealtimeArrival = !!opts.realtimeArrival;
     // Real-Time Mode: only Scene View arrival may auto-generate; block Lorebook Agent paths.
-    if (s.portraitAutoGenerateSceneView && !opts.realtimeArrival) return;
+    if (s.portraitAutoGenerateSceneView && !isRealtimeArrival) return;
+    // Respect a mode switch made while a previous request was queued, and never
+    // retry Real-Time generation after the first failure in this enable cycle.
+    if (isRealtimeArrival && (!s.portraitAutoGenerateSceneView || realtimeLocationGenerationFailed)) return;
 
     const normPath = normalizeLocationPath(locationPath);
     if (!normPath) return;
@@ -1968,7 +2020,6 @@ export function triggerBackgroundLocationGeneration(locationPath, refresh, locCo
 
     activeLocationGenerations.add(normPath);
     const leaf = normPath.split(' :: ').pop() || normPath;
-    const isRealtimeArrival = !!opts.realtimeArrival;
     if (!isRealtimeArrival) {
         const queuePos = _imageGenQueue.length + (_imageGenQueueRunning ? 1 : 0);
         if (queuePos <= 0) {
@@ -1981,30 +2032,55 @@ export function triggerBackgroundLocationGeneration(locationPath, refresh, locCo
     }
 
     enqueueImageGen(async () => {
+        const realtimeAbortController = isRealtimeArrival ? new AbortController() : null;
+        if (realtimeAbortController) activeRealtimeLocationAbortController = realtimeAbortController;
         try {
+            // The user may have disabled Real-Time Mode while this job waited in
+            // the shared queue. Abandon it before touching either endpoint.
+            if (isRealtimeArrival && (!getSettings().portraitAutoGenerateSceneView || realtimeLocationGenerationFailed)) {
+                return;
+            }
             // generateLocationImagePrompt runs the Present-Now keyword scanner (latest
             // output only) before building the image prompt — must stay ahead of generatePortraitDirect.
             const prompt = await generateLocationImagePrompt(normPath, locContent);
             if (!prompt) {
-                if (isRealtimeArrival && typeof refresh === 'function') refresh();
+                if (isRealtimeArrival) {
+                    await disableRealtimeLocationGenerationAfterFailure(new Error('No image prompt was returned'));
+                }
                 return;
             }
-            const dataUrl = await generatePortraitDirect(prompt, normPath);
+            if (isRealtimeArrival && !getSettings().portraitAutoGenerateSceneView) return;
+            const dataUrl = await generatePortraitDirect(prompt, normPath, {
+                signal: realtimeAbortController?.signal,
+                allowFallback: !isRealtimeArrival,
+            });
             const scaled = await scaleImageToLandscape(dataUrl);
             await applyLocationImageData(normPath, scaled);
             if (!isRealtimeArrival) {
                 imageGenToast('success', `${forceReplace ? 'Location image regenerated' : 'Location image auto-generated'} for ${leaf}!`, 'RPG Tracker');
             }
-            if (typeof refresh === 'function') refresh();
+            if (!isRealtimeArrival && typeof refresh === 'function') refresh();
         } catch (err) {
             console.error(`[RPG Tracker] Background location image generation failed for ${normPath}:`, err);
             const errMsg = String(err.message || err);
-            if (!isRealtimeArrival) {
+            if (isRealtimeArrival) {
+                // A user-initiated mode switch already persisted the disabled state.
+                if (getSettings().portraitAutoGenerateSceneView) {
+                    await disableRealtimeLocationGenerationAfterFailure(err);
+                } else {
+                    stopRealtimeLocationGeneration();
+                }
+            } else {
                 toastr['error'](`Location image generation failed for "${leaf}": ${errMsg.substring(0, 120)}`, 'RPG Tracker');
             }
-            if (isRealtimeArrival && typeof refresh === 'function') refresh();
         } finally {
+            if (activeRealtimeLocationAbortController === realtimeAbortController) {
+                activeRealtimeLocationAbortController = null;
+            }
             activeLocationGenerations.delete(normPath);
+            // Refresh only after clearing the active marker. The failure latch
+            // makes this final UI refresh incapable of scheduling a retry.
+            if (isRealtimeArrival && typeof refresh === 'function') refresh();
         }
     });
 }

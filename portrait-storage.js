@@ -34,6 +34,11 @@ function normalizeEntityName(name) {
 }
 
 export { normalizeEntityName };
+export {
+    snapshotPortraitMapsForChat,
+    loadPortraitMapsForChat,
+    migrateLegacyPortraitMapsToChat,
+} from './src/state/portrait-chat-scope.js';
 
 /** Resolve a stored portrait ref for an entity label (handles HTML entities + class suffix). */
 export function lookupCustomPortraitSrc(settings, entityName, portraitsMap) {

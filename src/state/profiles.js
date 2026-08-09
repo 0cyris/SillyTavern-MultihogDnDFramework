@@ -4,6 +4,7 @@
 
 import { DEFAULT_STOCK_PROMPTS, BLOCK_ORDER } from '../../constants.js';
 import { getSettings } from './settings.js';
+import { saveSettings } from '../app/runtime-bridge.js';
 
 export function snapshotStockPromptsForProfile(stockPrompts) {
     return {
@@ -88,7 +89,13 @@ export function saveProfile(name) {
         worldProgressionConsolidateInterval: s.worldProgressionConsolidateInterval ?? 7,
         worldProgressionSkeletonAtmosphereSummary: s.worldProgressionSkeletonAtmosphereSummary || '',
         worldProgressionSkeletonAtmosphereLookback: s.worldProgressionSkeletonAtmosphereLookback ?? 30,
-        worldProgressionSkeletonUseExisting: s.worldProgressionSkeletonUseExisting ?? true,
+        worldProgressionSkeletonUseExisting: s.worldProgressionSkeletonUseExisting ?? true,
+
+        worldProgressionSkeletonUseLorebooks: s.worldProgressionSkeletonUseLorebooks ?? false,
+
+        worldProgressionSkeletonLorebookFilter: JSON.parse(JSON.stringify(s.worldProgressionSkeletonLorebookFilter || [])),
+
+        worldProgressionSkeletonLorebookOnly: s.worldProgressionSkeletonLorebookOnly ?? false,
         worldProgressionExclusionList: s.worldProgressionExclusionList || '',
 
         portraitGeneratorSource: s.portraitGeneratorSource ?? "native",
@@ -127,11 +134,27 @@ export function saveProfile(name) {
         gameSystemWizardOllamaModel: s.gameSystemWizardOllamaModel || "",
         gameSystemWizardOpenaiUrl: s.gameSystemWizardOpenaiUrl || "",
         gameSystemWizardOpenaiKey: s.gameSystemWizardOpenaiKey || "",
-        gameSystemWizardOpenaiModel: s.gameSystemWizardOpenaiModel || "",
+        gameSystemWizardOpenaiModel: s.gameSystemWizardOpenaiModel || "",
+
+        characterCreationConnectionSource: s.characterCreationConnectionSource ?? "default",
+
+        characterCreationConnectionProfileId: s.characterCreationConnectionProfileId || "",
+
+        characterCreationCompletionPresetId: s.characterCreationCompletionPresetId || "",
+
+        characterCreationOllamaUrl: s.characterCreationOllamaUrl || "http://localhost:11434",
+
+        characterCreationOllamaModel: s.characterCreationOllamaModel || "",
+
+        characterCreationOpenaiUrl: s.characterCreationOpenaiUrl || "",
+
+        characterCreationOpenaiKey: s.characterCreationOpenaiKey || "",
+
+        characterCreationOpenaiModel: s.characterCreationOpenaiModel || "",
         gameSystemWizardSystemPrompt: s.gameSystemWizardSystemPrompt || "",
     };
     s.activeProfile = name;
-    SillyTavern.getContext().saveSettingsDebounced();
+    void saveSettings();
 }
 
 /**
@@ -143,7 +166,7 @@ export function deleteProfile(name) {
     if (!s.profiles?.[name]) return;
     delete s.profiles[name];
     if (s.activeProfile === name) s.activeProfile = '';
-    SillyTavern.getContext().saveSettingsDebounced();
+    void saveSettings();
 }
 
 /**

@@ -6,6 +6,11 @@ import { BLOCK_ORDER } from '../../constants.js';
 import { getNpcRelationshipMax } from './relationship-math.js';
 import { getSettings, stripChatStateGlobalUiPrefs } from './settings.js';
 import { snapshotStockPromptsForProfile } from './profiles.js';
+import { snapshotChatSetup } from './chat-setup.js';
+
+// Kept only so legacy recovery code can be re-enabled deliberately. Normal tracker
+// operation must not create or consume a browser-local recovery copy.
+const LEGACY_BROWSER_SCHEMA_BACKUP_ENABLED = false;
 
 /** Active chat id — prefer tracker-tracked id over raw ST context. */
 export function getActiveChatId() {
@@ -149,6 +154,7 @@ export function applyDeletedCustomTagTombstones() {
 
     s.customFields = stripFields(s.customFields || []);
     s.blockOrder = stripOrder(s.blockOrder || []);
+    s.trackerModuleDatabase = stripFields(s.trackerModuleDatabase || []);
 
     if (s.chatStates && typeof s.chatStates === 'object') {
         for (const chatId of Object.keys(s.chatStates)) {
@@ -156,6 +162,16 @@ export function applyDeletedCustomTagTombstones() {
             if (!part || typeof part !== 'object') continue;
             if (part.customFields) part.customFields = stripFields(part.customFields);
             if (part.blockOrder) part.blockOrder = stripOrder(part.blockOrder);
+            if (part.setup?.customFields) part.setup.customFields = stripFields(part.setup.customFields);
+            if (part.setup?.blockOrder) part.setup.blockOrder = stripOrder(part.setup.blockOrder);
+            if (part.setup?.customFieldStates) {
+                for (const tag of banned) {
+                    if (Object.prototype.hasOwnProperty.call(part.setup.customFieldStates, tag)) {
+                        delete part.setup.customFieldStates[tag];
+                        changed = true;
+                    }
+                }
+            }
         }
     }
 
@@ -166,6 +182,7 @@ export function applyDeletedCustomTagTombstones() {
  * @param {string|null|undefined} chatId
  */
 export function writeModuleSchemaBackup(chatId) {
+    if (!LEGACY_BROWSER_SCHEMA_BACKUP_ENABLED) return;
     try {
         const s = getSettings();
         const payload = {
@@ -195,6 +212,7 @@ export function writeModuleSchemaBackup(chatId) {
  * @returns {object|null}
  */
 export function getPendingModuleSchemaBackup() {
+    if (!LEGACY_BROWSER_SCHEMA_BACKUP_ENABLED) return null;
     try {
         const raw = localStorage.getItem(MODULE_SCHEMA_BACKUP_KEY);
         if (!raw) return null;
@@ -234,6 +252,7 @@ export function getPendingModuleSchemaBackup() {
  * @returns {boolean} true if a backup was applied
  */
 export function applyModuleSchemaBackup(preferredChatId, backupOverride = null) {
+    if (!LEGACY_BROWSER_SCHEMA_BACKUP_ENABLED) return false;
     try {
         const backup = backupOverride || getPendingModuleSchemaBackup();
         if (!backup) return false;
@@ -292,6 +311,7 @@ export function saveChatState(chatId, opts = {}) {
     const existing = s.chatStates[chatId] || {};
     s.chatStates[chatId] = {
         currentMemo:  s.currentMemo,
+        combatDefeatedUi: JSON.parse(JSON.stringify(s.combatDefeatedUi || [])),
         memoPersistedAt,
         memoPersistedBy: s.memoPersistedBy || null,
         memoHistory:  JSON.parse(JSON.stringify(s.memoHistory)),
@@ -311,6 +331,7 @@ export function saveChatState(chatId, opts = {}) {
         routerLookback: s.routerLookback || 4,
         routerLastRunChatLength: s.routerLastRunChatLength ?? 0,
         routerLastRunAt: s.routerLastRunAt ?? 0,
+        pcCharacterBlockSeeded: !!s.pcCharacterBlockSeeded,
         routerDirectPrompt: s.routerDirectPrompt || '',
         routerDirectLookback: s.routerDirectLookback || 10,
         routerDefaultPosition: s.routerDefaultPosition ?? 4,
@@ -346,6 +367,9 @@ export function saveChatState(chatId, opts = {}) {
         worldProgressionSkeletonAtmosphereSummary: s.worldProgressionSkeletonAtmosphereSummary || '',
         worldProgressionSkeletonAtmosphereLookback: s.worldProgressionSkeletonAtmosphereLookback ?? 30,
         worldProgressionSkeletonUseExisting: s.worldProgressionSkeletonUseExisting ?? true,
+        worldProgressionSkeletonUseLorebooks: s.worldProgressionSkeletonUseLorebooks ?? false,
+        worldProgressionSkeletonLorebookFilter: JSON.parse(JSON.stringify(s.worldProgressionSkeletonLorebookFilter || [])),
+        worldProgressionSkeletonLorebookOnly: s.worldProgressionSkeletonLorebookOnly ?? false,
         worldProgressionConsolidateEnabled: s.worldProgressionConsolidateEnabled ?? false,
         worldProgressionConsolidateInterval: s.worldProgressionConsolidateInterval ?? 7,
         worldProgressionExclusionList: s.worldProgressionExclusionList || '',
@@ -354,7 +378,12 @@ export function saveChatState(chatId, opts = {}) {
         use24hTime: !!s.use24hTime,
         useDdMmYyFormat: !!s.useDdMmYyFormat,
         initialDate: s.initialDate || 'Day 1',
+        initialTime: s.initialTime || '08:00 AM',
         npcRelationshipMax: getNpcRelationshipMax(s),
+
+        // Optional full configuration lock. State-only Chat Link behavior remains
+        // unchanged unless the user explicitly enables this setting.
+        setup: s.chatSetupLinkEnabled ? snapshotChatSetup(s) : existing.setup,
 
         // Preserve lorebook stack link — written by Link button and router, not by normal state saves
         campaignBooks: existing.campaignBooks || [],
@@ -366,6 +395,18 @@ export function saveChatState(chatId, opts = {}) {
 
         // Preserve Player Character pseudo-persona which is injected into the chat state
         playerCharacter: existing.playerCharacter,
+
+        // Adventure Companion (CHAT mode) — per-chat brainstorming history.
+        // Only overwrite from the live session when saving the *active* chat; otherwise
+        // keep the partition value (e.g. flush-before-switch already wrote the departing chat).
+        adventureCompanion: (() => {
+            const liveSnap = typeof globalThis._rpgGetAdventureCompanionSnapshot === 'function'
+                ? globalThis._rpgGetAdventureCompanionSnapshot()
+                : null;
+            const activeId = getActiveChatId();
+            if (chatId === activeId && liveSnap) return liveSnap;
+            return existing.adventureCompanion || liveSnap || null;
+        })(),
     };
 
     // Sync WAL before the async disk write — survives F5 if /api/settings/save is cancelled.

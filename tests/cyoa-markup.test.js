@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { restoreEscapedCyoaChoiceMarkup } from '../src/ui/panel/cyoa-markup.js';
 
 describe('restoreEscapedCyoaChoiceMarkup', () => {
@@ -20,5 +21,15 @@ describe('restoreEscapedCyoaChoiceMarkup', () => {
         const input = 'Try &lt;button&gt; in your own template; &lt;script&gt;never&lt;/script&gt;.';
 
         expect(restoreEscapedCyoaChoiceMarkup(input)).toBe(input);
+    });
+
+    it('allows long mechanics text to wrap inside CYOA buttons', () => {
+        const styles = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+        const dynamicStyles = readFileSync(new URL('../index.js', import.meta.url), 'utf8');
+
+        expect(styles).toMatch(/\.rt-cyoa-mech[\s\S]*?white-space:\s*normal;/);
+        expect(styles).toMatch(/\.rt-cyoa-mech[\s\S]*?overflow-wrap:\s*anywhere;/);
+        expect(dynamicStyles).toMatch(/\.rt-cyoa-mech[\s\S]*?white-space:\s*normal\s*!important;/);
+        expect(dynamicStyles).toMatch(/\.rt-cyoa-mech[\s\S]*?overflow-wrap:\s*anywhere\s*!important;/);
     });
 });

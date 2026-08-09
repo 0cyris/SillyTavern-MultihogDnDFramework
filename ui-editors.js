@@ -1,4 +1,4 @@
-import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, recordDeletedCustomTags, clearDeletedCustomTagTombstones } from './state-manager.js';
+import { getSettings, getNpcRelationshipMaxDefault, DEFAULT_NPC_SECTIONS, DEFAULT_PC_SECTIONS, recordDeletedCustomTags, clearDeletedCustomTagTombstones, removeChatSetupCatalogEntries, getChatSetupItemScope, setChatSetupItemScope, setChatSetupItemEnabled } from './state-manager.js';
 import { sendStateRequest } from './llm-client.js';
 import { BLOCK_ICONS, BLOCK_ORDER, DEFAULT_STOCK_PROMPTS, PAGE_SIZE, resolveTimePromptKey, resolveTimePromptDisplayTag } from './constants.js';
 import { escapeHtml } from './memo-processor.js';
@@ -17,7 +17,8 @@ import {
     syncMemoView,
     bindRenderedCardEvents,
     sectionPages as _sectionPages,
-    rebuildNpcInstructionIfNeeded
+    rebuildNpcInstructionIfNeeded,
+    autoApplySysprompt
 } from './src/app/runtime-bridge.js';
 import { renderMemoAsCards, MARKER_TYPE_MAP, getMarkerLibraryKeys } from './renderer.js';
 
@@ -424,10 +425,33 @@ function buildRowTypeSelect(selectedVal) {
         `</select>`;
 }
 
+/**
+ * Re-resolve a custom field after catalog sync may have recloned `customFields`.
+ * Alt-tab / saveSettings → syncChatSetupCatalogs replaces array identities; a
+ * closure-captured field object becomes an orphan. Mutating it + removing the
+ * old tag then deletes the live module.
+ * @param {string} openedTag
+ * @param {number} openedIndex
+ */
+function resolveLiveCustomField(openedTag, openedIndex) {
+    const live = getSettings();
+    const fields = Array.isArray(live.customFields) ? live.customFields : [];
+    const want = String(openedTag || '').toUpperCase();
+    let liveIndex = fields.findIndex(f => String(f?.tag || '').toUpperCase() === want);
+    if (liveIndex < 0 && openedIndex >= 0 && openedIndex < fields.length) {
+        liveIndex = openedIndex;
+    }
+    return { live, liveIndex, liveField: liveIndex >= 0 ? fields[liveIndex] : null };
+}
+
 export function openCustomFieldEditor(index) {
     const isSmallScreen = window.innerWidth <= 700;
     const s = getSettings();
     const field = s.customFields[index];
+    // Tag identity at open time. saveSettings → syncChatSetupCatalogs reclones
+    // customFields (e.g. alt-tab visibility flush), so the closed-over `field`
+    // object can become an orphan. Always re-resolve by this tag before mutate.
+    const openedTag = String(field?.tag || '').toUpperCase();
     const overlay = document.createElement('div');
     overlay.id = 'rt_cfe_overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);backdrop-filter:blur(2px);z-index:10000000;display:none;align-items:center;justify-content:center;overflow-y:auto;';
@@ -534,6 +558,7 @@ export function openCustomFieldEditor(index) {
         const renderView = targetEl || document.getElementById('rt_cfe_preview_view');
         if (!renderView) return;
 
+        const live = getSettings();
         const testContent = templateEl.value || 'Nothing in testing sandbox';
         const previewTag = '__PREVIEW__';
         const fakeMemo = `[${previewTag}]\n${testContent}\n[/${previewTag}]`;
@@ -546,22 +571,30 @@ export function openCustomFieldEditor(index) {
             prompt: '',
             enabled: true
         };
-        const savedCustomFields = s.customFields;
-        s.customFields = [...savedCustomFields, ghostField];
-        if (!s.modulePageSizes) s.modulePageSizes = {};
-        const savedPageSize = s.modulePageSizes[previewTag];
-        s.modulePageSizes[previewTag] = 99999;
+        const savedCustomFields = live.customFields;
+        live.customFields = [...savedCustomFields, ghostField];
+        if (!live.modulePageSizes) live.modulePageSizes = {};
+        const savedPageSize = live.modulePageSizes[previewTag];
+        live.modulePageSizes[previewTag] = 99999;
         try {
             renderView.innerHTML = renderMemoAsCards(fakeMemo, previewTag, _sectionPages);
             bindRenderedCardEvents(renderView, fakeMemo, true, () => renderPreviewInto(targetEl));
         } finally {
-            s.customFields = savedCustomFields;
+            live.customFields = savedCustomFields;
             if (savedPageSize === undefined) {
-                delete s.modulePageSizes[previewTag];
+                delete live.modulePageSizes[previewTag];
             } else {
-                s.modulePageSizes[previewTag] = savedPageSize;
+                live.modulePageSizes[previewTag] = savedPageSize;
             }
         }
+    };
+
+    /** Live customFields entry for this editor — never the possibly-orphaned open-time object. */
+    const resolveLiveField = () => {
+        const live = getSettings();
+        const fields = live.customFields || [];
+        const liveIndex = fields.findIndex(f => String(f?.tag || '').toUpperCase() === openedTag);
+        return { live, liveIndex, liveField: liveIndex >= 0 ? fields[liveIndex] : null };
     };
 
     const updatePreview = () => renderPreviewInto(null);
@@ -591,60 +624,91 @@ export function openCustomFieldEditor(index) {
         if (!rawTag) { toastr['warning']('Module Tag cannot be empty.'); return; }
         const rawLabel = labelEl.value.trim();
 
-        const duplicate = s.customFields.some((f, i) => i !== index && f.tag.toUpperCase() === rawTag);
+        const { live, liveIndex, liveField } = resolveLiveField();
+        if (!liveField || liveIndex < 0) {
+            toastr['warning']('This module is no longer in settings (another save may have removed it). Close and reopen the editor.');
+            return;
+        }
+
+        const duplicate = (live.customFields || []).some((f, i) => i !== liveIndex && String(f.tag || '').toUpperCase() === rawTag);
         if (duplicate) {
             toastr['warning'](`A module with tag [${rawTag}] already exists.`);
             return;
         }
 
-        const oldTag = field.tag.toUpperCase();
-        field.icon = iconEl.value.trim() || '📄';
-        field.tag = rawTag;
-        field.label = rawLabel || rawTag;
-        field.prompt = promptEl.value;
-        field.template = templateEl.value;
+        // Rename on the live object FIRST, then prune the old catalog key.
+        // removeChatSetupCatalogEntries filters by tag — after rename it won't
+        // delete the live entry (only the stale database/chat-state FOO key).
+        const oldTag = String(liveField.tag || '').toUpperCase();
+        liveField.icon = iconEl.value.trim() || '📄';
+        liveField.tag = rawTag;
+        liveField.label = rawLabel || rawTag;
+        liveField.prompt = promptEl.value;
+        liveField.template = templateEl.value;
 
-        if (!s.modulePageSizes) s.modulePageSizes = {};
+        if (!live.modulePageSizes) live.modulePageSizes = {};
         const ps = parseInt(pageSizeEl.value, 10);
         if (!isNaN(ps) && ps >= 1) {
-            s.modulePageSizes[rawTag] = ps;
+            live.modulePageSizes[rawTag] = ps;
         }
 
         if (oldTag !== rawTag) {
-            if (s.blockOrder) {
-                const idx = s.blockOrder.indexOf(oldTag);
-                if (idx !== -1) s.blockOrder[idx] = rawTag;
+            removeChatSetupCatalogEntries(live, { customFieldTags: [oldTag] });
+            for (const gameSystem of live.gameSystems || []) {
+                if (String(gameSystem.customFieldTag || '').toUpperCase() === oldTag) {
+                    gameSystem.customFieldTag = rawTag;
+                }
             }
-            if (s.modulePageSizes && s.modulePageSizes[oldTag]) {
-                s.modulePageSizes[rawTag] = s.modulePageSizes[oldTag];
-                delete s.modulePageSizes[oldTag];
+            recordDeletedCustomTags(oldTag);
+            clearDeletedCustomTagTombstones(rawTag);
+            if (live.blockOrder) {
+                const idx = live.blockOrder.indexOf(oldTag);
+                if (idx !== -1) live.blockOrder[idx] = rawTag;
+            }
+            // Display Groups are global render metadata keyed by module tag.
+            // Renaming a module updates references without touching group behavior.
+            for (const group of live.displayGroups || []) {
+                if (!Array.isArray(group.members)) continue;
+                group.members = group.members.map(tag => String(tag).toUpperCase() === oldTag ? rawTag : tag);
+            }
+            if (live.modulePageSizes && live.modulePageSizes[oldTag]) {
+                live.modulePageSizes[rawTag] = live.modulePageSizes[oldTag];
+                delete live.modulePageSizes[oldTag];
             }
             // Migrate any category render options
-            if (s.categoryRenderOptions && s.categoryRenderOptions[oldTag]) {
-                s.categoryRenderOptions[rawTag] = s.categoryRenderOptions[oldTag];
-                delete s.categoryRenderOptions[oldTag];
+            if (live.categoryRenderOptions && live.categoryRenderOptions[oldTag]) {
+                live.categoryRenderOptions[rawTag] = live.categoryRenderOptions[oldTag];
+                delete live.categoryRenderOptions[oldTag];
             }
         }
 
-        saveSettings();
+        saveSettings(true);
         refreshOrderList();
         refreshRenderedView();
-        toastr['success'](`Module "${field.label}" updated.`);
+        toastr['success'](`Module "${liveField.label}" updated.`);
         close();
     };
 
     document.getElementById('rt_cfe_delete').onclick = () => {
-        if (confirm(`Delete the custom module "${field.label || field.tag}"? This cannot be undone.`)) {
-            const deletedTag = field.tag;
-            s.customFields.splice(index, 1);
-            if (s.blockOrder) {
-                s.blockOrder = s.blockOrder.filter(t => t.toUpperCase() !== deletedTag.toUpperCase());
+        const { live, liveIndex, liveField } = resolveLiveField();
+        const label = liveField?.label || liveField?.tag || openedTag || 'module';
+        if (!liveField || liveIndex < 0) {
+            toastr['warning']('This module is no longer in settings. Close the editor.');
+            close();
+            return;
+        }
+        if (confirm(`Delete the custom module "${label}"? This cannot be undone.`)) {
+            const deletedTag = liveField.tag;
+            live.customFields.splice(liveIndex, 1);
+            if (live.blockOrder) {
+                live.blockOrder = live.blockOrder.filter(t => t.toUpperCase() !== String(deletedTag).toUpperCase());
             }
+            removeChatSetupCatalogEntries(live, { customFieldTags: [deletedTag] });
             recordDeletedCustomTags(deletedTag);
             saveSettings(true);
             refreshOrderList();
             refreshRenderedView();
-            toastr['info'](`Module "${field.label}" deleted.`);
+            toastr['info'](`Module "${label}" deleted.`);
             close();
         }
     };
@@ -652,12 +716,29 @@ export function openCustomFieldEditor(index) {
     document.getElementById('rt_cfe_cancel').onclick = close;
     document.getElementById('rt_cfe_close').onclick = close;
     document.getElementById('rpg-tracker-debug-btn').onclick = () => toggleDebugViewer();
-    document.getElementById('rt_cfe_export').onclick = () => exportModules([field]);
+    document.getElementById('rt_cfe_export').onclick = () => {
+        const { liveField } = resolveLiveField();
+        exportModules([liveField || {
+            tag: tagEl.value.trim().toUpperCase() || openedTag,
+            label: labelEl.value.trim(),
+            icon: iconEl.value.trim() || '📄',
+            prompt: promptEl.value,
+            template: templateEl.value,
+        }]);
+    };
     document.getElementById('rt_cfe_edit_ai').onclick = async () => {
-        const description = await promptForAiModuleEditDescription(`[${field.tag}] ${field.label || field.tag}`);
+        const { live, liveField } = resolveLiveField();
+        const contextField = liveField || {
+            tag: tagEl.value.trim().toUpperCase() || openedTag,
+            label: labelEl.value.trim(),
+            icon: iconEl.value.trim() || '📄',
+            prompt: promptEl.value,
+            template: templateEl.value,
+        };
+        const description = await promptForAiModuleEditDescription(`[${contextField.tag}] ${contextField.label || contextField.tag}`);
         if (!description) return;
         try {
-            const parsed = await runAiEditCustomModule(s, field, description);
+            const parsed = await runAiEditCustomModule(live, contextField, description);
             if (!parsed) return;
             iconEl.value = parsed.icon;
             tagEl.value = parsed.tag;
@@ -750,8 +831,7 @@ export function openPromptEditor(blockTag, title, currentText, defaultText, onSa
         if (!isNaN(ps) && ps >= 1) {
             s.modulePageSizes[blockTag.toUpperCase()] = ps;
         }
-        // Apply text first, then persist — never saveSettings() before onSave, or a
-        // raced ST disk write can capture the pre-edit stockPrompts and "undo" the save.
+        // Apply text first, then persist so the checkpoint captures the completed edit.
         onSave(textEl.value);
         close();
     };
@@ -947,6 +1027,9 @@ export async function importModulesFromJson(jsonString) {
     for (const m of incoming) {
         const isConflict = existingTags.has(m.tag);
         if (isConflict && !overwriteConflicts) continue;
+        const existingField = isConflict
+            ? s.customFields.find(f => f.tag.toUpperCase() === m.tag)
+            : null;
 
         const newField = {
             icon: m.icon || '📄',
@@ -955,6 +1038,7 @@ export async function importModulesFromJson(jsonString) {
             prompt: m.prompt || '',
             template: '',
             enabled: true,
+            scope: existingField?.scope || 'chat',
         };
 
         if (isConflict) {
@@ -1003,10 +1087,21 @@ export function syncSettingsAndUI(updateFn) {
     const showArchiveCb = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_quests_show_archive'));
     if (showArchiveCb) showArchiveCb.checked = fresh.syspromptModules?.questsShowArchive !== false;
 
-    const mods = { 'loot': '#rpg_sysprompt_mod_loot', 'random_events': '#rpg_sysprompt_mod_random_events', 'resting': '#rpg_sysprompt_mod_resting', 'party_bench': '#rpg_sysprompt_mod_party_bench', 'CYOA_mode': '#rpg_sysprompt_mod_cyoa_mode' };
+    const mods = {
+        loot: '#rpg_sysprompt_mod_loot',
+        random_events: '#rpg_sysprompt_mod_random_events',
+        resting: '#rpg_sysprompt_mod_resting',
+        party_bench: '#rpg_sysprompt_mod_party_bench',
+        dungeon_reality_and_hidden_mapping: '#rpg_sysprompt_mod_dungeon_reality_and_hidden_mapping',
+        CYOA_mode: '#rpg_sysprompt_mod_cyoa_mode',
+    };
     for (const [key, id] of Object.entries(mods)) {
         const cb = /** @type {HTMLInputElement|null} */ (document.getElementById(id.replace('#', '')));
-        if (cb) cb.checked = key === 'CYOA_mode' ? fresh.syspromptModules?.CYOA_mode === true : !!fresh.syspromptModules?.[key];
+        if (cb) {
+            cb.checked = key === 'CYOA_mode'
+                ? fresh.syspromptModules?.CYOA_mode === true
+                : (fresh.syspromptModules?.[key] ?? true);
+        }
     }
 
     const relBarsCb = /** @type {HTMLInputElement|null} */ (document.getElementById('rpg_tracker_npc_rel_bars'));
@@ -1089,7 +1184,27 @@ export function refreshOrderList() {
     });
     s.blockOrder = order;
 
-    order.forEach((tag, index) => {
+    const isTagEnabled = (tag) => {
+        const isStock = BLOCK_ORDER.includes(tag);
+        if (isStock) return s.modules[tag.toLowerCase()] ?? false;
+        const field = s.customFields.find(f => f.tag.toUpperCase() === tag);
+        return field?.enabled ?? false;
+    };
+    const groups = [
+        { label: 'Active modules', tags: order.filter(isTagEnabled), active: true },
+        { label: 'Inactive module pool', tags: order.filter(tag => !isTagEnabled(tag)), active: false },
+    ];
+
+    groups.forEach(group => {
+        if (!group.tags.length) return;
+        const heading = document.createElement('div');
+        heading.className = 'rt-module-pool-heading';
+        heading.textContent = group.label;
+        heading.style.cssText = `font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.55px;margin:${group.active ? '3px' : '12px'} 2px 4px;opacity:${group.active ? '.8' : '.55'};`;
+        list.appendChild(heading);
+
+        group.tags.forEach((tag, groupIndex) => {
+        const index = order.indexOf(tag);
         const isStock = BLOCK_ORDER.includes(tag);
         const customIndex = s.customFields.findIndex(f => f.tag.toUpperCase() === tag);
         const field = isStock ? null : s.customFields[customIndex];
@@ -1108,7 +1223,7 @@ export function refreshOrderList() {
         cb.type = 'checkbox';
         cb.checked = isEnabled;
         cb.style.margin = '0 5px';
-        cb.onchange = () => {
+        cb.onchange = async () => {
             if (isStock) {
                 s.modules[tag.toLowerCase()] = cb.checked;
                 // Benched Party is a sub-module of PARTY — the two toggles stay coupled.
@@ -1118,11 +1233,12 @@ export function refreshOrderList() {
                     s.syspromptModules.party_bench = false;
                 }
             } else {
-                field.enabled = cb.checked;
+                setChatSetupItemEnabled(s, 'customField', field, cb.checked);
             }
             saveSettings();
             refreshOrderList();
             refreshRenderedView();
+            if (linkedGameSystem) await autoApplySysprompt(true);
         };
 
         const label = document.createElement('span');
@@ -1130,6 +1246,60 @@ export function refreshOrderList() {
         label.style.fontSize = '12px';
         label.style.cursor = 'default';
         label.textContent = `${getIcon(tag)} ${tag}`;
+        const linkedGameSystem = !isStock
+            ? (s.gameSystems || []).find(gs => String(gs.customFieldTag || '').toUpperCase() === tag)
+            : null;
+        const isWizardField = !isStock && (field?.origin === 'wizard' || !!linkedGameSystem);
+        if (isWizardField) {
+            const wizardBadge = document.createElement('span');
+            wizardBadge.className = 'rt-module-wizard-badge';
+            wizardBadge.textContent = 'WIZARD';
+            wizardBadge.title = linkedGameSystem?.name
+                ? `Created via Game System Wizard: ${linkedGameSystem.name}`
+                : 'Created via Game System Wizard';
+            wizardBadge.style.cssText = 'font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;background:rgba(180,100,255,0.2);color:#c9a0ff;';
+            label.appendChild(wizardBadge);
+        }
+
+        let scopeControl = null;
+        if (!isStock && field) {
+            const scope = getChatSetupItemScope(s, 'customField', field);
+            const bypassed = !s.chatLinkEnabled || !s.chatSetupLinkEnabled;
+            if (isWizardField) {
+                scopeControl = document.createElement('span');
+                scopeControl.className = 'rt-module-wizard-scope';
+                scopeControl.textContent = scope === 'global' ? 'GLOBAL' : 'CHAT-BOUND';
+                scopeControl.title = `${scope === 'global' ? 'Global' : 'Chat-bound'} scope inherited from Game System "${linkedGameSystem?.name || 'Unnamed'}". Click for instructions.${bypassed ? ' The master setup link is currently bypassing per-item scopes.' : ''}`;
+                scopeControl.setAttribute('role', 'button');
+                scopeControl.setAttribute('tabindex', '0');
+                scopeControl.style.cssText = 'font-size:9px;padding:2px 5px;border-radius:3px;white-space:nowrap;background:rgba(180,100,255,0.13);color:#c9a0ff;border:1px solid rgba(180,100,255,0.25);cursor:pointer;';
+                const showWizardScopeRedirect = () => {
+                    toastr['info'](
+                        'This module belongs to a Wizard-created Game System bundle. Open Manage Game Systems to make the bundle GLOBAL or CHAT-BOUND.',
+                        'RPG Tracker',
+                        { timeOut: 6000 },
+                    );
+                };
+                scopeControl.onclick = showWizardScopeRedirect;
+                scopeControl.onkeydown = (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    showWizardScopeRedirect();
+                };
+            } else {
+                scopeControl = document.createElement('select');
+                scopeControl.className = 'text_pole rt-module-scope';
+                scopeControl.title = `Choose whether this module shares one enabled state across every chat or remembers activation separately per chat.${bypassed ? ' The master setup link is currently bypassing per-item scopes.' : ''}`;
+                scopeControl.style.cssText = 'width:auto;max-width:105px;height:24px;font-size:9px;padding:1px 4px;';
+                scopeControl.innerHTML = '<option value="chat">CHAT-BOUND</option><option value="global">GLOBAL</option>';
+                scopeControl.value = scope;
+                scopeControl.onchange = () => {
+                    setChatSetupItemScope(s, 'customField', field, scopeControl.value);
+                    saveSettings();
+                    refreshOrderList();
+                };
+            }
+        }
 
         const btnGroup = document.createElement('div');
         btnGroup.className = 'flex-container gap-1';
@@ -1190,10 +1360,11 @@ export function refreshOrderList() {
         upBtn.className = 'menu_button interactable rt-order-btn';
         upBtn.style.padding = '2px 6px';
         upBtn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
-        upBtn.disabled = index === 0;
+        upBtn.disabled = groupIndex === 0;
         upBtn.onclick = () => {
             const newOrder = [...order];
-            [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+            const previousIndex = order.indexOf(group.tags[groupIndex - 1]);
+            [newOrder[previousIndex], newOrder[index]] = [newOrder[index], newOrder[previousIndex]];
             s.blockOrder = newOrder;
             saveSettings();
             refreshOrderList();
@@ -1204,10 +1375,11 @@ export function refreshOrderList() {
         downBtn.className = 'menu_button interactable rt-order-btn';
         downBtn.style.padding = '2px 6px';
         downBtn.innerHTML = '<i class="fa-solid fa-arrow-down"></i>';
-        downBtn.disabled = index === order.length - 1;
+        downBtn.disabled = groupIndex === group.tags.length - 1;
         downBtn.onclick = () => {
             const newOrder = [...order];
-            [newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
+            const nextIndex = order.indexOf(group.tags[groupIndex + 1]);
+            [newOrder[nextIndex], newOrder[index]] = [newOrder[index], newOrder[nextIndex]];
             s.blockOrder = newOrder;
             saveSettings();
             refreshOrderList();
@@ -1216,6 +1388,7 @@ export function refreshOrderList() {
 
         item.appendChild(cb);
         item.appendChild(label);
+        if (scopeControl) item.appendChild(scopeControl);
 
         if (tag === 'TIME' && isStock) {
             const pill = document.createElement('label');
@@ -1269,10 +1442,11 @@ export function refreshOrderList() {
         if (tag === 'PARTY') {
             list.appendChild(buildBenchedPartySubRow(s));
         }
+        });
     });
 }
 
-/** Builds the nested "🏕️ Benched Party" sub-row shown directly under PARTY in the module list. */
+/** Builds the nested "⛺ Benched Party" sub-row shown directly under PARTY in the module list. */
 function buildBenchedPartySubRow(s) {
     const modKey = 'benched party';
     if (!s.modules) s.modules = {};
@@ -1318,7 +1492,7 @@ function buildBenchedPartySubRow(s) {
     label.style.flex = '1';
     label.style.fontSize = '11px';
     label.style.cursor = 'default';
-    label.textContent = `${BLOCK_ICONS['BENCHED PARTY'] || '🏕️'} BENCHED PARTY`;
+    label.textContent = `${BLOCK_ICONS['BENCHED PARTY'] || '⛺'} BENCHED PARTY`;
     label.title = 'Sub-module of PARTY — renders as a compact camp roster folded into the PARTY card, not its own tab.';
 
     const editBtn = document.createElement('button');

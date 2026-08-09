@@ -674,6 +674,13 @@ export async function sendStateRequest(settings, systemPrompt, userPrompt, signa
             prompt: userPrompt,
             systemPrompt: systemPrompt,
             bypassAll: true,
+            // We parse this output ourselves (memo/character-sheet extraction), not display it as
+            // chat dialogue. ST's default cleanUpMessage(trimNames: true) silently DELETES THE
+            // ENTIRE RESPONSE if it happens to start with "{{user}}:" or "{{char}}:" (e.g. a
+            // structured character sheet that opens with the generated name, which is common when
+            // Character Creator's "Create SillyTavern Persona" option sets {{user}} to that same
+            // name) — surfacing as an opaque "No message generated" error. Disable it here.
+            trimNames: false,
             signal,
         };
 

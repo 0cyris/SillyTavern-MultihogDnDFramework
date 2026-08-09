@@ -6,6 +6,22 @@
 
 import { buildNpcInstruction, buildLocInstruction, buildFacInstruction } from './module-instructions.js';
 
+/**
+ * Maps each stock module's prompt tag (used in [[TAG: ...]] agent output) to the
+ * human-readable lorebook name suffix it actually gets recorded into, e.g. a
+ * campaign prefix of "Simulator" + LOC → "Simulator_Locations". Kept alongside
+ * DEFAULT_MODULES so the Modular Repertoire UI can show both side by side and
+ * never mislead users about what their own lorebooks are actually named.
+ */
+export const MODULE_BOOK_CATEGORY = {
+    npc: 'NPCs',
+    loc: 'Locations',
+    fac: 'Factions',
+    quest: 'Quests',
+    event: 'Events',
+    world: 'World',
+};
+
 export const DEFAULT_MODULES = {
     npc: {
         enabled: true,

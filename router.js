@@ -1,8 +1,11 @@
-import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState } from './state-manager.js';
+import { getSettings, getEffectiveRouterCampaignPrefix, persistWorldProgressionTimer, persistRouterLastRunWatermark, persistRouterLastRunTimestamp, getNpcRelationshipMax, clampRelationshipValue, buildRouterRelationshipInstruction, sanitizeRouterState, adjustPromptTimestamps, DEFAULT_NPC_SECTIONS, saveChatState, computeUnpinnedActiveCount, extractCharacterBlock, isPcCoreTarget, isAppearanceField, isEquipmentField, isCombatProfileField, getEligibleCoreFieldNames, patchLabeledSection, expandLorebookPromptTemplate } from './state-manager.js';
 import { sendStateRequest, sendAgentTurn } from './llm-client.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { extractCurrentTimeStr, cleanMessageContent, parseInWorldTime, formatInWorldTime, findNthUserMessageStartIdx, formatAgentChatLogFromIndex, sanitizeLorebookRecordContent } from './memo-processor.js';
 import { recordSchedulerEvent } from './swipe-scheduler-debug.js';
+import { saveSettings } from './src/app/runtime-bridge.js';
+import { buildSkeletonLorebookSourceContext } from './src/features/world-progression/skeleton-lorebooks.js';
+import { buildNpcRelationshipInstruction } from './src/state/relationship-prompts.js';
 
 let _routerRunning = false;
 let _routerNormalRunCount = 0; // tracks completed normal (non-cleanup) passes for auto-cleanup interval
@@ -47,22 +50,71 @@ function extractActiveCombatBlock(memo) {
     return match ? `[COMBAT]${match[1].trim()}[/COMBAT]` : null;
 }
 
+/** Resolve the linked Player Character card for the active chat, if any. */
+function getLinkedPlayerCharacter() {
+    try {
+        const settings = getSettings();
+        const chatId = SillyTavern.getContext()?.chatId;
+        if (!chatId || !settings.chatStates?.[chatId]?.playerCharacter) return null;
+        return settings.chatStates[chatId].playerCharacter;
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Apply a Body or Worn Equipment (only) patch to the linked PC card's flat bio string.
+ * Species/Personality/Background/etc. are never mutable by the Lorebook Agent for
+ * the PC — those are the player's own, set at character creation.
+ * @returns {{ ok: boolean, error?: string }}
+ */
+function applyPcCoreUpdate(pc, field, content) {
+    if (!pc) return { ok: false, error: 'No Player Character card linked' };
+    if (!isAppearanceField(field) && !isEquipmentField(field)) {
+        return { ok: false, error: 'PC updates are limited to Body and Worn Equipment' };
+    }
+    const targetField = isEquipmentField(field) ? 'Worn Equipment' : 'Body';
+    const result = patchLabeledSection(pc.bio || '', targetField, content, { isPc: true });
+    if (!result.ok) return { ok: false, error: result.error || 'Failed to patch PC bio' };
+    pc.bio = result.text;
+    pc.timestamp = Date.now();
+    try {
+        const chatId = SillyTavern.getContext()?.chatId;
+        if (chatId) saveChatState(chatId);
+        else void saveSettings();
+    } catch (_) {
+        void saveSettings();
+    }
+    try {
+        if (typeof globalThis._rpgRefreshLorebookAgentViews === 'function') {
+            void globalThis._rpgRefreshLorebookAgentViews();
+        } else if (typeof globalThis._rpgRenderRouterUI === 'function') {
+            globalThis._rpgRenderRouterUI();
+        }
+    } catch (_) {}
+    return { ok: true };
+}
+
 /** Router guidance when ACTIVE COMBAT STATE is injected this turn. */
 function buildCombatProfileRouterGuidance(hasCombat, mode = 'basic') {
     if (!hasCombat) return '';
+    const scopeRule = `- CRITICAL — ONE COMBATANT PER PROFILE: a Combat Profile is ONLY that single combatant's own stat block — their "Name: HP" line through their "Status:" line, nothing more. NEVER copy the "COMBAT ROUND N" header, the ENEMIES:/NON-PARTY ALLIES: section headers, or any *other* combatant's block into it. If you are updating Schwarzenegev, the Combat Profile content contains Schwarzenegev's block alone — Schwarzenegger's stats (or anyone else's) do NOT belong in it, even though they appear in the same [COMBAT] section.`;
     if (mode === 'agent') {
         return `
 ## COMBAT PROFILE (ACTIVE COMBAT STATE provided this turn)
 - **Existing NPCs** (listed in ACTIVE MEMORY with an ID): use \`commit({"core": [{"id": "Book::UID or NPC Name", "field": "Combat Profile", "content": "verbatim stats from [COMBAT]"}]})\`. Do NOT re-record the full NPC via \`record\` or embed a new \`[CORE]\` block in \`update\`.
 - **Brand-new combatants** with no lorebook entry yet: include \`Combat Profile:\` inside \`[CORE]\` in a \`record\` item.
-- Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.`;
+- Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.
+${scopeRule}
+- Example (updating only "Schwarzenegev", ignoring every other combatant listed alongside it): \`commit({"core": [{"id": "Schwarzenegev", "field": "Combat Profile", "content": "Schwarzenegev: 40/45 HP\\nAtt/def: Argument Ender (1 attack, +8 / 2d10+4 Piercing) | Armor (AC: 16)\\nSaves: Fort unknown, Ref unknown, Will unknown\\nAbilities: None declared\\nOther: Temporary allied combatant\\nStatus: (-) Wounded (until healed), Active (this combat)"}]})\``;
     }
     return `
 ## COMBAT PROFILE (ACTIVE COMBAT STATE provided this turn)
 - **Existing NPCs** (in ACTIVE MEMORY or ARCHIVE): output \`[[UPDATE_CORE: NPC Name | Combat Profile | verbatim stats from [COMBAT]]]\` — NOT a full \`[[NPC:...]]\` re-record.
 - **Brand-new combatants** with no existing entry: include \`Combat Profile:\` inside \`[CORE]\` in a new \`[[NPC:...]]\` record.
 - Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.
-- Example: \`[[UPDATE_CORE: Marcus Thorne | Combat Profile | HP: 12, AC: 11, Fort +1, Ref +0, Will +4, weapons: ...]]\``;
+${scopeRule}
+- Example: \`[[UPDATE_CORE: Marcus Thorne | Combat Profile | Marcus Thorne: 12/12 HP\\nAtt/def: Longsword (1 attack, +5 / 1d8+2 Slashing) | Chainmail (AC: 15)\\nSaves: Fort +4, Ref +2, Will +1\\nAbilities: None declared\\nStatus: Healthy]]\``;
 }
 
 /**
@@ -107,10 +159,13 @@ function stripSkeletonFromRouterPools() {
     const strip = (arr) => (arr || []).filter(id => !isSkeletonEntryId(id));
     const beforeRouter = JSON.stringify(settings.activeRouterKeys || []);
     const beforeKw = JSON.stringify(settings.keywordActivatedKeys || []);
+    const beforePinned = JSON.stringify(settings.pinnedRouterKeys || []);
     settings.activeRouterKeys = strip(settings.activeRouterKeys);
     settings.keywordActivatedKeys = strip(settings.keywordActivatedKeys);
+    settings.pinnedRouterKeys = strip(settings.pinnedRouterKeys);
     return beforeRouter !== JSON.stringify(settings.activeRouterKeys)
-        || beforeKw !== JSON.stringify(settings.keywordActivatedKeys);
+        || beforeKw !== JSON.stringify(settings.keywordActivatedKeys)
+        || beforePinned !== JSON.stringify(settings.pinnedRouterKeys);
 }
 
 /**
@@ -347,7 +402,7 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
         let basicSummary = '';
 
         if (stripSkeletonFromRouterPools()) {
-            ctx.saveSettingsDebounced();
+            void saveSettings();
         }
 
         async function fetchArchiveBooks() {
@@ -384,7 +439,7 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
                 historyLen: settings.routerHistory.length,
                 isManual,
             });
-            ctx.saveSettingsDebounced();
+            void saveSettings();
         }
         let activeEntriesFull = [];
         let newlyTriggeredFull = [];
@@ -505,8 +560,10 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
             maxTokens: (settings.routerMaxTokens !== undefined && settings.routerMaxTokens !== null && settings.routerMaxTokens !== '') ? Number(settings.routerMaxTokens) : 1000,
         };
 
-        // Budget status — computed once and reused in both basic and agent context
-        const activeCount = settings.activeRouterKeys?.length || 0;
+        // Budget status — computed once and reused in both basic and agent context.
+        // Pinned entries are excluded so user pins never trigger BUDGET VIOLATION
+        // or consume the agent's activation slots.
+        const activeCount = computeUnpinnedActiveCount(settings.activeRouterKeys, settings.pinnedRouterKeys);
         const maxActive = settings.routerMaxActivations || 8;
         const overflow = activeCount - maxActive;
         const budgetLine = `Active entries: ${activeCount} / ${maxActive}`;
@@ -523,6 +580,30 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
             : '';
         const combatProfileGuidanceBasic = buildCombatProfileRouterGuidance(!!activeCombatBlock, 'basic');
         const combatProfileGuidanceAgent = buildCombatProfileRouterGuidance(!!activeCombatBlock, 'agent');
+
+        // Cold-start: once per chat, seed the LA prompt with the PC [CHARACTER] block so
+        // Equipment updates can be grounded in actual equipped gear/mechanics. Later passes
+        // rely on narrative cues only — no repeated CHARACTER/INVENTORY injection.
+        let pcCharacterSeedSection = '';
+        if (!settings.pcCharacterBlockSeeded) {
+            const characterBlock = extractCharacterBlock(settings.currentMemo);
+            if (characterBlock) {
+                pcCharacterSeedSection =
+                    `## PLAYER CHARACTER SHEET (initial reference — one-time)\n` +
+                    `This is the Player Character's mechanical sheet from chargen / the CHARACTER module. ` +
+                    `Use it as ground truth for what is currently equipped when judging Equipment updates. ` +
+                    `It will NOT be re-injected on later passes — after this, infer gear/look changes from the narrative only.\n` +
+                    `${characterBlock}\n\n`;
+            }
+            settings.pcCharacterBlockSeeded = true;
+            try {
+                const seedChatId = ctx.chatId || SillyTavern.getContext()?.chatId;
+                if (seedChatId) saveChatState(seedChatId);
+                else void saveSettings();
+            } catch (_) {
+                void saveSettings();
+            }
+        }
 
         const sysTemplate = adjustPromptTimestamps(settings.routerSystemPromptTemplate || 'You are the Lorebook Agent. Maintain narrative consistency and manage lorebooks.', settings);
         const basePrompt = sysTemplate
@@ -637,7 +718,7 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
 8. Do NOT consolidate entries of different categories (e.g., do NOT merge an NPC or Location into a Quest or Event). Consolidation is strictly for true duplicates representing the exact same entity or concept (e.g., two entries for the same NPC).
 9. Do NOT merge multiple distinct chronological events into a single entry to "reduce fragmentation". Each distinct event must remain as a separate entry so it triggers on its own keywords.
 10. NEVER modify, shorten, or delete content within \`[CORE] ... [/CORE]\` blocks under any circumstances. Keep the tags and their inner content completely unchanged. The system programmatically overwrites any modifications to the CORE block with the original, so editing it is useless.
-11. For legacy NPC entries lacking these tags, identify their persistent sections (Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
+11. For legacy NPC entries lacking these tags, identify their persistent sections (Species, Body, Equipment, Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
 12. Compress turn-by-turn or granular combat status logs (e.g., creature HP changes, turn-by-turn action lists, temporary conditions mid-fight) into high-level updates: for long combats, preserve the initiation (who/what attacked {{user}}), a progress summary every ~5 rounds (capturing major shifts or stalemates), and the final outcome.
 13. Output your reasoning first, then the tags.`;
 
@@ -659,7 +740,7 @@ For each flagged entry:
 7. Do NOT consolidate entries of different categories (e.g., do NOT merge an NPC or Location into a Quest or Event). Consolidation is strictly for true duplicates representing the exact same entity (e.g., two entries for the same NPC).
 8. Do NOT merge multiple distinct chronological events into a single entry to "reduce fragmentation". Each distinct historical event must remain as its own entry so it triggers on its specific keywords.
 9. NEVER modify, shorten, or delete content within \`[CORE] ... [/CORE]\` blocks under any circumstances. Keep the tags and their inner content completely unchanged. The system programmatically overwrites any modifications to the CORE block with the original, so editing it is useless.
-10. For legacy NPC entries lacking these tags, identify their persistent sections (Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
+10. For legacy NPC entries lacking these tags, identify their persistent sections (Species, Body, Equipment, Appearance/Species, Appearance, Personality, Brief Background, Habits/Behaviors) and wrap them inside a \`[CORE] ... [/CORE]\` block to protect them from future passes. Do not include Relationship, Friendship/Rapport, or Affection/Interest lines inside the block.
 11. Compress turn-by-turn or granular combat status logs (e.g., creature HP changes, turn-by-turn action lists, temporary conditions mid-fight) into high-level updates: for long combats, preserve the initiation (who/what attacked {{user}}), a progress summary every ~5 rounds (capturing major shifts or stalemates), and the final outcome.
 12. Call commit exactly once at the end. Do not call it per-entry.`;
 
@@ -707,7 +788,7 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
                 const cleanupAction = parseBasicTags(basicResp, archiveBooks);
                 cleanupAction.reason = targetEntryId ? `Targeted cleanup: ${targetEntryId}.` : 'Cleanup pass (basic mode).';
                 if (cleanupAction.rewrite.length > 0 || cleanupAction.consolidate.length > 0) {
-                    await applyAction(cleanupAction, archiveBooks, currentTime, breadcrumb);
+                    await applyAction(cleanupAction, archiveBooks, currentTime, breadcrumb, isManual);
                     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
                     broadcastStep('finish', `Cleanup done in ${totalTime}s — ${cleanupAction.rewrite.length} rewritten, ${cleanupAction.consolidate.length} consolidated.`);
                 } else {
@@ -866,7 +947,7 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
                 let observation = '';
                 if (toolName === 'commit') {
                     args.reason = targetEntryId ? `Targeted cleanup: ${targetEntryId}.` : 'Cleanup pass (agent mode).';
-                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb);
+                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb, isManual);
                     archiveBooks = await fetchArchiveBooks();
                     if (commitResult.errors.length > 0) {
                         observation = `Committed with warnings: ${commitResult.errors.join(', ')}`;
@@ -926,6 +1007,22 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
             coreSections = DEFAULT_NPC_SECTIONS;
         }
         const sectionNamesList = coreSections.map(s => s.name).join(', ');
+        // Body and Worn Equipment are exclusive to their dedicated tools; automatic passes may
+        // only additionally touch Combat Profile via commit.core / UPDATE_CORE. Species and
+        // the other identity fields (Personality, Background, Habits, Strengths, Flaws) only
+        // unlock on a manual/Direct Prompt pass.
+        const eligibleCoreFields = getEligibleCoreFieldNames(coreSections, isManual);
+        const eligibleCoreFieldsList = eligibleCoreFields.join(', ');
+        const autoPassCoreRestriction = !isManual
+            ? `\n- AUTOMATIC PASS RESTRICTION: Combat Profile is the only [CORE] field you may update this pass via UPDATE_CORE / commit.core. Do not modify Species, Personality, Background, Habits, Strengths, or Flaws unless the user gave an explicit instruction this turn (Direct Prompt). Body/Worn Equipment changes use UPDATE_APPEARANCE / UPDATE_EQUIPMENT instead.`
+            : `\n- DIRECT PROMPT PASS: you may update any eligible [CORE] identity field (${eligibleCoreFieldsList}) when the user's instruction warrants it. Body/Worn Equipment still use UPDATE_APPEARANCE / UPDATE_EQUIPMENT.`;
+        const pcAppearanceGuidance = `
+- You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
+- You may update the Player Character's own Worn Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new worn gear text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
+- Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
+- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Worn Equipment means currently worn/carried gear only — not Body, coins, loot piles, or inventory lists.`;
+        const existingNpcChronicleNudge = `
+- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
 
         // -- Basic Mode (tag-based, one-shot, no tool calling) -----------------
         if (settings.routerBasicMode) {
@@ -952,64 +1049,29 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
             modularPrompt = modularPrompt.replace(/\{\{#if_world\}\}[\s\S]*?\{\{\/if_world\}\}/g, '');
             modularPrompt = modularPrompt.replace(/\{\{#if_world\}\}|\{\{\/if_world\}\}|\{\{dayStr\}\}|\{\{prevDay\}\}/g, '');
 
-            const relSection = settings.npcRelationshipBars ? `
-${buildRouterRelationshipInstruction(getNpcRelationshipMax(settings))}
-` : '';
+            const relSection = settings.npcRelationshipBars
+                ? buildRouterRelationshipInstruction(getNpcRelationshipMax(settings)).trim()
+                : '';
 
             // coreSections and sectionNamesList are defined above
-            let exampleCoreLines = '';
-            if (coreSections[0]) exampleCoreLines += `${coreSections[0].name}: A burly human blacksmith with a scar on his cheek.\n`;
-            if (coreSections[1]) exampleCoreLines += `${coreSections[1].name}: Gruff but reliable.\n`;
-            if (coreSections[2]) exampleCoreLines += `${coreSections[2].name}: Retired from the militia to open his own forge.\n`;
-            if (coreSections[3]) exampleCoreLines += `${coreSections[3].name}: Wipes his brow with a greasy rag.\n`;
-            exampleCoreLines = exampleCoreLines.trim();
-
-            const basicSystemPrompt = `You are the Research Assistant. Your task is to identify and record important narrative entities and events.
-
-${modularPrompt}
-
-## ATTENTION & MEMORY
-1. **NEWLY ACTIVATED THIS TURN**: Entries whose keywords appeared in the latest narrator output are pre-loaded here with full content. You do not need to activate them again — they are already active.
-2. **ACTIVE MEMORY**: Full details of all other currently active entities. You can update them at any time.
-3. **ARCHIVE INDEX**: Inactive entries — labels and keywords only. You CANNOT see their full biography.
-4. **RECALL**: To read or update an archive entry, use [[ACTIVATE: Name]]. Its full content becomes visible next turn.
-5. **LIMIT**: You are limited to **${settings.routerMaxActivations || 8} active entries**. Nothing is archived automatically. If you exceed this limit you will see a **BUDGET VIOLATION** line and you MUST use [[DEACTIVATE: Name]] on the least relevant active entries to return within budget before this pass ends.
-${relSection}
-## [CORE] BY CATEGORY
-- **NPC**: structured \`[CORE]\` with ${sectionNamesList} (see NPC field instructions below).
-- **LOC**: plain \`[CORE]\` with 1–2 sentences describing the place. No field headers.
-- **FAC**: plain \`[CORE]\` wrapping permanent history, ideology, schemes, and members. No field headers.
-- **QUEST, EVENT**: do NOT use \`[CORE]\`. Use timestamped chronicle lines only.
-
-## PLAYER CHARACTER SAFEGUARD
-- Do NOT create a lorebook entry (NPC, Location, Faction, etc.) for the player character under any circumstances.
-- The player character is the speaker labeled "Player" (and prompt replacement "{{user}}"). In the chat logs, pay close attention to what name(s) or alias(es) the other characters use when addressing or referring to the "Player" (e.g., if they call the Player "Dave Davidson" or "Dave", then "Dave Davidson" is the player character).
-- Under no circumstances should you create an NPC entry for these names/aliases, because they refer to the player.
-- Always use the exact macro string \`{{user}}\` when referring to the player. Do NOT write the plain word "user", "player", "Player", or the player's roleplay character name (like "Dave Davidson") in plain text in any entry updates or descriptions.
-
-## NPC CORE UPDATES (NPC only)
-If any field inside the permanent [CORE] block changes, is updated, or new information is revealed (${sectionNamesList}), output:
-  [[UPDATE_CORE: Book::UID or NPC Name | FieldName | New field text]]
-Use the exact FieldName (e.g. ${sectionNamesList}). Do NOT log core updates as normal event/update entries.
-
-## DO NOT RE-RECORD EXISTING ENTITIES
-Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anything, check ACTIVE MEMORY and ARCHIVE INDEX for a matching name (they may be listed under a different label — check keywords too).
-- If the entity ALREADY EXISTS (in ACTIVE MEMORY, in NEWLY ACTIVATED, or in the ARCHIVE INDEX): do NOT output a new [[NPC:...]]/[[LOC:...]]/[[FAC:...]] tag with a fresh [CORE] block for them, even if you don't currently see their full content. Instead:
-  - To change/add a [CORE] field: use [[UPDATE_CORE: Name | FieldName | new text]].
-  - To append a chronicle/timeline note: use the module's normal update format (e.g. re-use the [[EVENT:...]] name to accumulate, or update the existing entry) — never a second [CORE] block.
-  - To bring an archived entry into full view first: use [[ACTIVATE: Name]].
-- Only use a fresh [[NPC:...]]/[[LOC:...]]/[[FAC:...]] record for entities that are BRAND NEW and have never appeared in ACTIVE MEMORY or ARCHIVE INDEX before.
-${combatProfileGuidanceBasic}
-## RULES
-1. Only record persistent or significant entities/events.
-2. Use ACTIVATE to bring an existing entry into the current scene context.
-3. Use DEACTIVATE to remove an entry that is no longer relevant to the scene.
-4. Use DELETE to permanently remove duplicate or redundant entries.
-5. Do NOT create any entry for the player character (e.g. "Player" or "Dave Davidson").
-6. CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below (${sectionNamesList}) for NPCs and ignore any other sections.
-7. Output your thoughts first, then the tags.
-
-Example:
+            // Build the example [CORE] lines dynamically from configured sections
+            const exampleLineByName = {
+                'species': 'Human.',
+                'body': 'A burly man with a scar on his cheek.',
+                'equipment': 'Leather apron, heavy gloves, a hammer at his belt.',
+                'appearance/species': 'A burly human blacksmith with a scar on his cheek.',
+                'appearance': 'A burly human blacksmith with a scar on his cheek.',
+                'personality': 'Gruff but reliable.',
+                'brief background': 'Retired from the militia to open his own forge.',
+                'background': 'Retired from the militia to open his own forge.',
+                'habits/behaviors': 'Wipes his brow with a greasy rag.',
+                'habits & behaviors': 'Wipes his brow with a greasy rag.',
+            };
+            let exampleCoreLines = coreSections.slice(0, 6)
+                .map(sec => `${sec.name}: ${exampleLineByName[sec.name.trim().toLowerCase()] || 'Notable detail here.'}`)
+                .join('\n')
+                .trim();
+            const exampleBlock = `Example:
 Thought: I see a new NPC named Barnaby in Khelt's Rust-Lantern District. I will record him and the tavern.
 [[NPC: Barnaby | [CORE]
 ${exampleCoreLines}
@@ -1017,13 +1079,42 @@ ${exampleCoreLines}
 [[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]
 A squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.
 [/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]
-[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]`;
+[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]
+
+(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`;
+
+            // Resolve the Basic Mode system prompt from the editable template.
+            // All previously-hardcoded sections now live in routerBasicSystemPromptTemplate
+            // (see defaults.js). Users can edit/remove any section including {{example}}.
+            const basicRawTemplate = settings.routerBasicSystemPromptTemplate || '';
+            const maxActNum = settings.routerMaxActivations || 8;
+            const basicSystemPrompt = adjustPromptTimestamps(
+                expandLorebookPromptTemplate(
+                    basicRawTemplate
+                    .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNum} active entries**`)
+                    .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNum}**`),
+                    {
+                        modularPrompt,
+                        formatLines: formatLinesStr,
+                        maxActivations: maxActNum,
+                        sectionNames: sectionNamesList,
+                        relSection,
+                        pcAppearanceGuidance,
+                        eligibleCoreFields: eligibleCoreFieldsList,
+                        autoPassRestriction: autoPassCoreRestriction,
+                        existingNpcNudge: existingNpcChronicleNudge,
+                        combatProfileGuidance: combatProfileGuidanceBasic.trim(),
+                        example: exampleBlock,
+                    },
+                ),
+                settings
+            );
 
             const finalBasicSystemPrompt = basicSystemPrompt;
 
             const questMatchB = settings.currentMemo?.match(/\[QUESTS\]([\s\S]*?)\[\/QUESTS\]/i);
             const questBlockB = questMatchB ? `[QUESTS]${questMatchB[1].trim()}[/QUESTS]` : 'None';
-            const basicUserPrompt = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockB}\n\n${activeCombatSection}## NARRATIVE\n${recentChatString}\n\n${manualPrompt ? `## INSTRUCTION\n${manualPrompt}\n\n` : ''}`;
+            const basicUserPrompt = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockB}\n\n${pcCharacterSeedSection}${activeCombatSection}## NARRATIVE\n${recentChatString}\n\n${manualPrompt ? `## INSTRUCTION\n${manualPrompt}\n\n` : ''}`;
 
             broadcastStep('thought', 'Thinking...');
             const basicResp = await sendStateRequest(routerSettings, finalBasicSystemPrompt, basicUserPrompt, _routerSignal);
@@ -1033,14 +1124,14 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             broadcastStep('thought', 'Parsing tags...');
             const basicAction = parseBasicTags(basicResp, archiveBooks);
 
-            if (basicAction.record.length > 0 || basicAction.update.length > 0 || basicAction.activate.length > 0 || basicAction.delete_ids?.length > 0 || basicAction.rel?.length > 0 || basicAction.appearance?.length > 0 || basicAction.core?.length > 0) {
+            if (basicAction.record.length > 0 || basicAction.update.length > 0 || basicAction.activate.length > 0 || basicAction.delete_ids?.length > 0 || basicAction.rel?.length > 0 || basicAction.appearance?.length > 0 || basicAction.equipment?.length > 0 || basicAction.core?.length > 0) {
                 const summaries = [];
                 if (basicAction.record.length) summaries.push(`New: ${basicAction.record.length}`);
                 if (basicAction.update.length) summaries.push(`Updates: ${basicAction.update.length}`);
                 if (basicAction.activate.length) summaries.push(`Activations: ${basicAction.activate.length}`);
-                if (basicAction.core?.length || basicAction.appearance?.length) summaries.push(`Core: ${(basicAction.core?.length || 0) + (basicAction.appearance?.length || 0)}`);
+                if (basicAction.core?.length || basicAction.appearance?.length || basicAction.equipment?.length) summaries.push(`Core: ${(basicAction.core?.length || 0) + (basicAction.appearance?.length || 0) + (basicAction.equipment?.length || 0)}`);
                 basicAction.reason = (thoughtMatchB ? thoughtMatchB[1].trim() : 'Tag-based update.') + ` (${summaries.join(', ')})`;
-                await applyAction(basicAction, archiveBooks, currentTime, breadcrumb);
+                await applyAction(basicAction, archiveBooks, currentTime, breadcrumb, isManual);
                 basicSummaryText = summaries.join(', ');
             } else {
                 broadcastStep('finish', 'Basic Mode: No tags found.');
@@ -1150,12 +1241,25 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
 
             commitProperties.appearance = {
                 type: 'array',
-                description: 'Surgically update the Appearance field inside an NPC\'s [CORE] block. Only use when the NPC\'s physical appearance changes significantly.',
+                description: 'Surgically update Body (signature/default physical look) for an NPC [CORE] or the linked Player Character card. Not for worn gear — use commit.equipment for that. For the PC, set id to "{{user}}", "player", "pc", or the PC\'s name.',
                 items: {
                     type: 'object',
                     properties: {
-                        id:      { type: 'string', description: 'Book::UID of the NPC entry.' },
-                        content: { type: 'string', description: 'New appearance text. Replaces only the Appearance field inside [CORE].' }
+                        id:      { type: 'string', description: 'Book::UID / NPC name, or "{{user}}" / "player" / "pc" / PC name for the Player Character card.' },
+                        content: { type: 'string', description: 'New Body text. Replaces only the Body field.' }
+                    },
+                    required: ['id', 'content']
+                }
+            };
+
+            commitProperties.equipment = {
+                type: 'array',
+                description: 'Surgically update Equipment (currently worn/carried gear) for an NPC [CORE] or the linked Player Character card. Use whenever the narrative explicitly shows their equipped weapons/armor/clothing changing. For the PC, set id to "{{user}}", "player", "pc", or the PC\'s name.',
+                items: {
+                    type: 'object',
+                    properties: {
+                        id:      { type: 'string', description: 'Book::UID / NPC name, or "{{user}}" / "player" / "pc" / PC name for the Player Character card.' },
+                        content: { type: 'string', description: 'New Equipment text. Replaces only the Equipment field.' }
                     },
                     required: ['id', 'content']
                 }
@@ -1163,12 +1267,12 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
 
             commitProperties.core = {
                 type: 'array',
-                description: `Surgically update one of the fields inside an NPC's [CORE] block (${sectionNamesList}). Only use when new information is revealed or permanent changes occur.`,
+                description: `Surgically update an eligible [CORE] field on an NPC (${eligibleCoreFieldsList}). Body/Equipment use commit.appearance/commit.equipment instead. ${!isManual ? 'AUTOMATIC PASS: Combat Profile only.' : 'DIRECT PROMPT PASS: identity fields (including Species) unlocked when the user instruction warrants it.'}`,
                 items: {
                     type: 'object',
                     properties: {
-                        id:      { type: 'string', description: 'Book::UID or plain NPC name (from ACTIVE MEMORY).' },
-                        field:   { type: 'string', enum: coreSections.map(s => s.name), description: 'The exact field inside [CORE] to update.' },
+                        id:      { type: 'string', description: 'Book::UID or plain NPC name (from ACTIVE MEMORY). Not used for the Player Character — PC Body/Equipment use commit.appearance/commit.equipment.' },
+                        field:   { type: 'string', enum: eligibleCoreFields, description: 'The exact eligible [CORE] field to update this pass.' },
                         content: { type: 'string', description: 'New field content text.' }
                     },
                     required: ['id', 'field', 'content']
@@ -1232,52 +1336,53 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             // text-format (Action:/Observation:) system prompt and text-based parsing instead.
             const usesNativeTools = ['openai', 'ollama'].includes(routerSettings.connectionSource);
 
-            const sharedContext = `
-## MEMORY LIMIT
-Maximum Active Entities: **${settings.routerMaxActivations || 8}**.
-- Entries you record are ACTIVATED AUTOMATICALLY. Do NOT also include them in activate.
-- Nothing is archived automatically. If you exceed the limit you will receive a **BUDGET VIOLATION** in the context and you MUST deactivate enough entries in that same commit call to return within budget. Choose the narratively least relevant entries.
-- Entries whose keywords appeared in the latest narrator output may already appear under **NEWLY ACTIVATED THIS TURN** with full content — you do not need to activate those again.
-- Always use exact Book::UID format (e.g. "Eldoria_NPCs::0") for activate/update/deactivate/delete_ids.
+            // Build field instructions for the {{fieldInstructions}} token
+            const fieldInstructionLines = [
+                ...Object.values(settings.routerModules || {}).filter(m => m.enabled).map(m => `- ${m.tag}: ${m.instruction}`),
+                ...((settings.routerCustomTags || []).length
+                    ? ['', '### CUSTOM CATEGORIES', ...(settings.routerCustomTags || []).map(m => `- ${m.tag.toUpperCase()}: ${m.instruction}`)]
+                    : []),
+            ].join('\n');
 
-## DO NOT RE-RECORD EXISTING ENTITIES
-Before using \`record\` for anyone or anything, check ACTIVE MEMORY, NEWLY ACTIVATED THIS TURN, and the ARCHIVE INDEX for a matching name (check keywords too, they may be listed under a different label).
-- If the entity ALREADY EXISTS anywhere in that context — even if you only see its label in the ARCHIVE INDEX with no full content — do NOT call \`record\` for it. Instead:
-  - To change/add a [CORE] field (identity, appearance, or Combat Profile): use \`commit({"core": [{"id": "Book::UID or Name", "field": "...", "content": "..."}]})\`.
-  - To append new chronicle text: use \`commit({"update": [{"id": "Book::UID or Name", "content": "..."}]})\`.
-  - To see its full content first: use \`read_entry\` or \`grep_lore\`, or \`activate\` it.
-- Only use \`record\` for entities that are BRAND NEW and have never appeared in ACTIVE MEMORY, NEWLY ACTIVATED, or the ARCHIVE INDEX before.
-
-## WORLD SKELETON (OFF-LIMITS)
-World Skeleton lorebooks (names ending in _Skeleton) are hidden seed data for World Progression only. They are NOT in your archive, tools cannot access them, and you must NEVER activate, read, update, or commit changes to Skeleton entries.
-
-## CAMPAIGN CONTEXT
-Campaign Root: "${prefix || 'World Archive'}"
-  NPCs -> "${prefix ? prefix + '_NPCs' : 'NPCs'}"
-  Locations -> "${prefix ? prefix + '_Locations' : 'Locations'}" (etc.)
-Location hierarchy: use " :: " separator in labels (e.g. "Khelt :: Rust-Lantern District :: The Guilded Anvil").
-Include the entity name/title itself (without timestamps like "[Day 1]") as a keyword, plus any ancestor location names (e.g. keys: ["The Guilded Anvil", "Khelt", "Rust-Lantern District", "tavern"]).
-**Keyword cap: maximum 6 per entry.** Keep only the most essential trigger words.
-
-## CONTENT FORMAT
-- Each time-stamped event must start on its own line. Do NOT chain multiple '[Day X, ...]' entries on the same line.
-- Correct: '[Day 2, 10:42] Corruption manifests.\n[Day 2, 10:44] Sentry targets Rozach.'
-- Wrong:   '[Day 2, 10:42] Corruption manifests. [Day 2, 10:44] Sentry targets Rozach.'
-- **[CORE] by category:** NPC = structured fields inside [CORE] (see NPC instructions). LOC = plain [CORE], 1–2 sentences, no field headers. FAC = plain [CORE] wrapping permanent history/ideology, no field headers. QUEST/EVENT = no [CORE].
-- CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below for NPCs and ignore any other sections.
-
-## FIELD INSTRUCTIONS
-${Object.values(settings.routerModules || {}).filter(m => m.enabled).map(m => `- ${m.tag}: ${m.instruction}`).join('\n')}${(settings.routerCustomTags || []).length ? '\n\n### CUSTOM CATEGORIES\n' + (settings.routerCustomTags || []).map(m => `- ${m.tag.toUpperCase()}: ${m.instruction}`).join('\n') : ''}${combatProfileGuidanceAgent}`;
+            // Resolve the Agent Mode shared context from the editable template.
+            // All previously-hardcoded sharedContext sections now live in
+            // routerAgentSharedContextTemplate (see defaults.js).
+            const agentRawTemplate = settings.routerAgentSharedContextTemplate || '';
+            const agentRelSection = settings.npcRelationshipBars
+                ? buildNpcRelationshipInstruction(getNpcRelationshipMax(settings)).trim()
+                : '';
+            const maxActNumAgent = settings.routerMaxActivations || 8;
+            const sharedContext = adjustPromptTimestamps(
+                expandLorebookPromptTemplate(
+                    agentRawTemplate
+                    .replace(/Maximum Active Entities:\s*\*\*\d+\*\*/gi, `Maximum Active Entities: **${maxActNumAgent}**`)
+                    .replace(/You are limited to \*\*\d+ active entries\*\*/gi, `You are limited to **${maxActNumAgent} active entries**`),
+                    {
+                        maxActivations: maxActNumAgent,
+                        pcAppearanceGuidance,
+                        eligibleCoreFields: eligibleCoreFieldsList,
+                        autoPassRestriction: autoPassCoreRestriction,
+                        existingNpcNudge: existingNpcChronicleNudge,
+                        campaignRoot: prefix || 'World Archive',
+                        campaignNpcBook: prefix ? `${prefix}_NPCs` : 'NPCs',
+                        campaignLocBook: prefix ? `${prefix}_Locations` : 'Locations',
+                        fieldInstructions: fieldInstructionLines,
+                        combatProfileGuidance: combatProfileGuidanceAgent.trim(),
+                        relSection: agentRelSection,
+                    },
+                ),
+                settings
+            );
 
             const commitActionSchema = settings.npcRelationshipBars
-                ? `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "core": [...]}) — write all changes and finish`
-                : `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "core": [...]}) — write all changes and finish`;
+                ? `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "appearance": [...], "equipment": [...], "core": [...]}) — write all changes and finish`
+                : `commit({"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "appearance": [...], "equipment": [...], "core": [...]}) — write all changes and finish`;
 
             const commitRelDescription = settings.npcRelationshipBars
                 ? `\ncommit rel items: {"id": "Book::UID or NPC Name", "field": "friendship"|"affection", "delta": ±N} — set INITIAL relationship values for newly recorded NPCs only (signed integer delta)`
                 : ``;
 
-            const adjustedSharedContext = adjustPromptTimestamps(sharedContext, settings);
+            const adjustedSharedContext = sharedContext;
 
             const agentSystemPrompt = usesNativeTools
                 // Clean prompt for native tool calling ? model gets schemas via the API
@@ -1304,12 +1409,14 @@ Available actions:
 - grep_lore({"query": "..."}) ? search lorebooks for entries matching a keyword
 - inspect_book({"book_name": "..."}) ? list UIDs in a lorebook
 - read_entry({"uid": "Book::0"}) ? read full content of an entry
-- commit({${settings.npcRelationshipBars ? '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "core": [...]' : '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "core": [...]'}}) ? write all changes and finish
+- commit({${settings.npcRelationshipBars ? '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "rel": [...], "appearance": [...], "equipment": [...], "core": [...]' : '"record": [...], "update": [...], "rename": [...], "activate": [...], "deactivate": [...], "delete_ids": [...], "appearance": [...], "equipment": [...], "core": [...]'}}) ? write all changes and finish
 
 commit record items: {"label": "Name only (NO tag prefix)", "keys": ["kw1","kw2"], "content": "...", "category": "NPC|LOC|FAC|QUEST|EVENT"}
 commit update items: {"id": "Book::UID", "content": "new text to append"}
 commit rename items: {"id": "Book::UID", "label": "New Name (optional)", "keys": ["kw1","kw2"] (optional, max 6)}${commitRelDescription}
-commit core items: {"id": "Book::UID or NPC Name", "field": "${coreSections.map(s => s.name).join('|')}", "content": "new field content"} — surgically updates a field inside [CORE] on NPC entries only (prefer over re-recording the full NPC)
+commit appearance items: {"id": "Book::UID or NPC Name or {{user}}", "content": "new body text"} — surgically updates Body (NPC [CORE] or linked PC card)
+commit equipment items: {"id": "Book::UID or NPC Name or {{user}}", "content": "new equipment text"} — surgically updates Equipment (NPC [CORE] or linked PC card)
+commit core items: {"id": "Book::UID or NPC Name", "field": "${eligibleCoreFields.join('|')}", "content": "new field content"} — surgically updates an eligible [CORE] field on NPC entries only (Body/Equipment use commit.appearance/commit.equipment; automatic passes = Combat Profile only)
 
 ## EXAMPLE
 Thought: I see a new faction called Iron Syndicate. I will record it.
@@ -1318,7 +1425,7 @@ ${adjustedSharedContext}`;
 
             const questMatchA = settings.currentMemo?.match(/\[QUESTS\]([\s\S]*?)\[\/QUESTS\]/i);
             const questBlockA = questMatchA ? `[QUESTS]${questMatchA[1].trim()}[/QUESTS]` : 'None';
-            const contextMessage = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None yet.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockA}\n\n${activeCombatSection}## NARRATIVE\n${recentChatString}${manualPrompt ? `\n\n## INSTRUCTION\n${manualPrompt}` : ''}`;
+            const contextMessage = `## BUDGET STATUS\n${budgetLine}${overflowInstruction}\n\n## NEWLY ACTIVATED THIS TURN\n${newlyTriggeredFull.join('\n\n') || 'None.'}\n\n## ACTIVE MEMORY (Lore)\n${activeEntriesFull.join('\n\n') || 'None yet.'}\n\n## ARCHIVE INDEX\n${keyringText || 'Empty.'}\n\n## CURRENT LOCATION\n${currentHierarchy || 'Unknown'}\n\n## ACTIVE QUESTS\n${questBlockA}\n\n${pcCharacterSeedSection}${activeCombatSection}## NARRATIVE\n${recentChatString}${manualPrompt ? `\n\n## INSTRUCTION\n${manualPrompt}` : ''}`;
 
             /** @type {Array<{role:string, content:string|null, tool_calls?:any[], tool_call_id?:string}>} */
             const messages = [
@@ -1393,7 +1500,7 @@ ${adjustedSharedContext}`;
                 let observation = '';
 
                 if (toolName === 'commit') {
-                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb);
+                    const commitResult = await applyAction(args, archiveBooks, currentTime, breadcrumb, isManual);
                     archiveBooks = await fetchArchiveBooks();
                     keyringText = buildKeyringText(archiveBooks, settings.activeRouterKeys);
                     updateActiveEntries();
@@ -1538,13 +1645,15 @@ ${adjustedSharedContext}`;
  * @param {string} [breadcrumb=''] - The current location hierarchy string (Main :: Sub).
  * @returns {Promise<{success: boolean, errors: string[], recordedIds: string[]}>}
  */
-async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb = '') {
+async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb = '', isManual = false) {
     const settings = getSettings();
     const ctx = SillyTavern.getContext();
     let changed = false;
     const errors = [];
     const allBookNames = Object.keys(allBooks);
     const TIMESTAMP_REGEX = /(?:\[Day\s+\d+|\[\d{1,2}\/\d{1,2}\/\d+)\b/i;
+    const linkedPc = getLinkedPlayerCharacter();
+    const linkedPcName = linkedPc?.name || '';
 
     const timePrefix = currentTime ? `[${currentTime}] ` : '';
 
@@ -1553,10 +1662,11 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
     const deactivate = action.deactivate || [];
     let newActive = [...(settings.activeRouterKeys || [])];
     let newWorldActive = [...(settings.activeWorldKeys || [])];
+    const pinnedSet = new Set(settings.pinnedRouterKeys || []);
     
-    // Remove deactivations
-    newActive = newActive.filter(k => !deactivate.includes(k));
-    newWorldActive = newWorldActive.filter(k => !deactivate.includes(k));
+    // Remove deactivations — pinned entries are immune (silent no-op)
+    newActive = newActive.filter(k => !deactivate.includes(k) || pinnedSet.has(k));
+    newWorldActive = newWorldActive.filter(k => !deactivate.includes(k) || pinnedSet.has(k));
     
     // Add activations
     for (const k of activate) {
@@ -1731,6 +1841,8 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             settings.activeRouterKeys = (settings.activeRouterKeys || [])
                 .filter(k => k !== targetId);
             settings.activeWorldKeys = (settings.activeWorldKeys || [])
+                .filter(k => k !== targetId);
+            settings.pinnedRouterKeys = (settings.pinnedRouterKeys || [])
                 .filter(k => k !== targetId);
             newActive = newActive.filter(k => k !== targetId);
             newWorldActive = newWorldActive.filter(k => k !== targetId);
@@ -2005,6 +2117,7 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             // Also remove from active keys if present
             settings.activeRouterKeys = settings.activeRouterKeys.filter(k => k !== id);
             settings.activeWorldKeys = (settings.activeWorldKeys || []).filter(k => k !== id);
+            settings.pinnedRouterKeys = (settings.pinnedRouterKeys || []).filter(k => k !== id);
             changed = true;
         }
     }
@@ -2038,7 +2151,7 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             }
         }
 
-        ctx.saveSettingsDebounced();
+        void saveSettings();
         document.dispatchEvent(new CustomEvent('rt_lore_agent_updated'));
     }
 
@@ -2147,8 +2260,10 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
     }
 
     // 6. Core identity updates — surgical replacement of specified fields inside [CORE]
+    //    (or the linked Player Character card for Body/Equipment only).
     const coreUpdates = [
-        ...(action.appearance || []).map(item => ({ id: item.id, field: 'Appearance/Species', content: item.content })),
+        ...(action.appearance || []).map(item => ({ id: item.id, field: 'Body', content: item.content })),
+        ...(action.equipment || []).map(item => ({ id: item.id, field: 'Worn Equipment', content: item.content })),
         ...(action.core || [])
     ];
 
@@ -2158,6 +2273,25 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             errors.push(`Invalid core update item: ${JSON.stringify(item)}`);
             continue;
         }
+
+        // PC sentinel — Body/Equipment only, patches chatStates[chatId].playerCharacter.bio
+        if (isPcCoreTarget(id, linkedPcName)) {
+            const pcResult = applyPcCoreUpdate(linkedPc, field, newContent);
+            if (!pcResult.ok) {
+                errors.push(`PC core update failed for "${id}": ${pcResult.error}`);
+            } else {
+                changed = true;
+            }
+            continue;
+        }
+
+        // Automatic passes may only mutate Combat Profile via commit.core / UPDATE_CORE.
+        // Body/Equipment arrive via action.appearance/action.equipment (mapped above) and are always allowed.
+        if (!isManual && !isAppearanceField(field) && !isEquipmentField(field) && !isCombatProfileField(field)) {
+            errors.push(`Automatic pass rejected core update of "${field}" on "${id}" — only Combat Profile (and Body/Equipment via their dedicated tools) are allowed without a Direct Prompt.`);
+            continue;
+        }
+
         const resolvedId = await resolveLoreEntryId(id, allBooks, newlyCreatedMap);
         if (!resolvedId) {
             errors.push(`Could not resolve core update target "${id}" to a Book::UID`);
@@ -2174,86 +2308,29 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
             continue;
         }
         const entryContent = book.entries[uid].content || '';
-        
+
         // Match the [CORE]...[/CORE] block
         const coreMatch = entryContent.match(/\[CORE\]([\s\S]*?)\[\/CORE\]/i);
         if (!coreMatch) {
             errors.push(`[CORE] block not found for ${id} — no update made.`);
             continue;
         }
-        
-        const coreBody = coreMatch[1];
-        
-        // Define field aliases for matching
-        let fieldPatterns = [];
-        const normField = field.trim().toLowerCase();
-        if (normField.includes('appearance') || normField.includes('species')) {
-            fieldPatterns = ['Appearance/Species', 'Appearance'];
-        } else if (normField.includes('personality')) {
-            fieldPatterns = ['Personality'];
-        } else if (normField.includes('background')) {
-            fieldPatterns = ['Brief Background', 'Background'];
-        } else if (normField.includes('habit') || normField.includes('behavior')) {
-            fieldPatterns = ['Habits/Behaviors', 'Habits', 'Behaviors'];
-        } else if (normField.includes('combat')) {
-            fieldPatterns = ['Combat Profile'];
-        } else {
-            fieldPatterns = [field];
-        }
 
-        const escapedPatterns = fieldPatterns.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-        const otherHeaders = ['Appearance/Species', 'Appearance', 'Personality', 'Brief Background', 'Background', 'Habits/Behaviors', 'Habits', 'Behaviors', 'Relationship'];
+        const coreBody = coreMatch[1];
+        let extraHeaders = [];
         try {
             const s = getSettings();
             const coreSecs = (s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0) ? s.npcCoreSections : DEFAULT_NPC_SECTIONS;
-            coreSecs.forEach(sec => {
-                if (!otherHeaders.includes(sec.name)) otherHeaders.push(sec.name);
-            });
+            extraHeaders = coreSecs.map(sec => sec.name).filter(Boolean);
         } catch (_) {}
-        // Also discover any lazily-appended fields present in the actual coreBody (e.g. "Combat Profile")
-        for (const rawLine of coreBody.split('\n')) {
-            const hm = rawLine.trim().match(/^([A-Z][A-Za-z0-9 \/&]+?)\s*:/);
-            if (hm) {
-                const nm = hm[1].trim();
-                if (!otherHeaders.includes(nm)) otherHeaders.push(nm);
-            }
-        }
-        // Escape headers; prevent short aliases from matching inside longer ones
-        // (e.g. "Background" inside "Brief Background", "Behaviors" inside "Habits/Behaviors").
-        const otherHeadersRegexStr = otherHeaders.map(h => {
-            const esc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            if (h === 'Background') return '(?<!Brief\\s)Background';
-            if (h === 'Behaviors') return '(?<!Habits\\/)(?<!Habits & )(?<!Habits and )Behaviors';
-            if (h === 'Appearance') return '(?<!/)Appearance(?!\\/Species)';
-            return esc;
-        }).join('|');
 
-        // Match from the target field's colon to the next core field header or the end of the string
-        const targetFieldRegex = new RegExp(`(?:(${escapedPatterns.join('|')})\\s*:)([\\s\\S]*?)(?=(?:${otherHeadersRegexStr})\\s*:|$)`, 'i');
-        const fieldMatch = coreBody.match(targetFieldRegex);
-        
-        if (!fieldMatch) {
-            // Lazily append the field to the end of the [CORE] block (e.g. first-time Combat Profile)
-            const fieldName = fieldPatterns[0] || field.trim();
-            const replacement = `${fieldName}: ${newContent.trim()}\n`;
-            let newCoreBody = coreBody.trimEnd();
-            newCoreBody = newCoreBody ? `${newCoreBody}\n${replacement}` : replacement;
-
-            book.entries[uid].content = entryContent.replace(coreMatch[0], `[CORE]\n${newCoreBody}[/CORE]`);
-            await ctx.saveWorldInfo(bookName, book);
-            changed = true;
+        const patched = patchLabeledSection(coreBody, field, newContent, { extraHeaders });
+        if (!patched.ok) {
+            errors.push(`Core field patch failed for ${id}: ${patched.error || 'unknown error'}`);
             continue;
         }
 
-        const matchedFieldName = fieldMatch[1];
-        const targetSubstring = `${matchedFieldName}:${fieldMatch[2]}`;
-        
-        // Perform replacement
-        const replacement = `${matchedFieldName}: ${newContent.trim()}\n`;
-        const newCoreBody = coreBody.replace(targetSubstring, replacement);
-        
-        // Update entry content
-        book.entries[uid].content = entryContent.replace(coreMatch[0], `[CORE]${newCoreBody}[/CORE]`);
+        book.entries[uid].content = entryContent.replace(coreMatch[0], `[CORE]${patched.text}[/CORE]`);
         await ctx.saveWorldInfo(bookName, book);
         changed = true;
     }
@@ -2355,7 +2432,7 @@ export async function rollbackRouterPass(index = 0) {
         if (snapshot.routerLastRunChatLength !== undefined) {
             persistRouterLastRunWatermark(snapshot.routerLastRunChatLength);
         } else {
-            ctx.saveSettingsDebounced();
+            void saveSettings();
         }
 
         document.dispatchEvent(new CustomEvent('rt_lore_agent_updated'));
@@ -2410,7 +2487,7 @@ export async function reapplyRouterPass(prePassSnapshot, postPassState) {
         if (postPassState.routerLastRunChatLength !== undefined) {
             persistRouterLastRunWatermark(postPassState.routerLastRunChatLength);
         } else {
-            SillyTavern.getContext().saveSettingsDebounced();
+            void saveSettings();
         }
 
         document.dispatchEvent(new CustomEvent('rt_lore_agent_updated'));
@@ -2426,7 +2503,7 @@ export async function reapplyRouterPass(prePassSnapshot, postPassState) {
  * Parses basic narrative tags [[TAG: ...]]
  */
 function parseBasicTags(text, archiveBooks) {
-    const action = { record: [], update: [], activate: [], deactivate: [], delete_ids: [], rewrite: [], consolidate: [], rel: [], appearance: [], core: [] };
+    const action = { record: [], update: [], activate: [], deactivate: [], delete_ids: [], rewrite: [], consolidate: [], rel: [], appearance: [], equipment: [], core: [] };
     const settings = getSettings();
 
     // REWRITE tag parser
@@ -2460,7 +2537,7 @@ function parseBasicTags(text, archiveBooks) {
         }
     }
 
-    // UPDATE_APPEARANCE tag parser: [[UPDATE_APPEARANCE: Book::UID | new appearance text]]
+    // UPDATE_APPEARANCE tag parser: [[UPDATE_APPEARANCE: Book::UID | new appearance text]] (patches Body)
     const appearRegex = /\[\[UPDATE_APPEARANCE:\s*([^|]+)\|([\s\S]*?)\]\]/gi;
     let am;
     while ((am = appearRegex.exec(text)) !== null) {
@@ -2468,6 +2545,17 @@ function parseBasicTags(text, archiveBooks) {
         const content = am[2].trim();
         if (id && content) {
             action.appearance.push({ id, content });
+        }
+    }
+
+    // UPDATE_EQUIPMENT tag parser: [[UPDATE_EQUIPMENT: Book::UID | new worn gear text]] (patches Worn Equipment)
+    const equipRegex = /\[\[UPDATE_EQUIPMENT:\s*([^|]+)\|([\s\S]*?)\]\]/gi;
+    let eqm;
+    while ((eqm = equipRegex.exec(text)) !== null) {
+        const id      = eqm[1].trim();
+        const content = eqm[2].trim();
+        if (id && content) {
+            action.equipment.push({ id, content });
         }
     }
 
@@ -2515,7 +2603,7 @@ function parseBasicTags(text, archiveBooks) {
 
     while ((match = tagRegex.exec(text)) !== null) {
         const tagName = match[1].toUpperCase();
-        if (tagName === 'REWRITE' || tagName === 'CONSOLIDATE' || tagName === 'REL' || tagName === 'UPDATE_APPEARANCE' || tagName === 'UPDATE_CORE') continue; // Collision protection
+        if (tagName === 'REWRITE' || tagName === 'CONSOLIDATE' || tagName === 'REL' || tagName === 'UPDATE_APPEARANCE' || tagName === 'UPDATE_EQUIPMENT' || tagName === 'UPDATE_CORE') continue; // Collision protection
 
         const inner = match[2];
         const parts = inner.split('|').map(p => p.trim());
@@ -2683,7 +2771,7 @@ Output a JSON object:
                 reason: `Saved scene: ${data.desc} -> ${lorebookName} (${data.id})`
             });
             settings.activeRouterKeys.push(newId);
-            ctx.saveSettingsDebounced();
+            void saveSettings();
             document.dispatchEvent(new CustomEvent('rt_lore_agent_updated'));
             
             (/** @type {any} */ (toastr)).success(`Saved scene: ${data.desc}`, 'Lorebook Agent');
@@ -2740,6 +2828,32 @@ export async function getLorebookManifest(skipUpdate = false) {
 
     const activeRouterSet = new Set(settings.activeRouterKeys || []);
     const activeWorldSet = new Set(settings.activeWorldKeys || []);
+    const pinnedSet = new Set(settings.pinnedRouterKeys || []);
+
+    // Reconcile pinned entries into the active pools so pins survive manual pill
+    // removal, rollbacks, or any other path that drops them from activeRouterKeys.
+    let pinReconciled = false;
+    for (const id of pinnedSet) {
+        if (isSkeletonEntryId(id)) continue;
+        const [bookName] = id.split('::');
+        if (!bookName) continue;
+        const isWorld = bookName.toLowerCase().endsWith('_world') || bookName.toLowerCase() === 'world';
+        if (isWorld) {
+            if (!activeWorldSet.has(id)) {
+                activeWorldSet.add(id);
+                if (!settings.activeWorldKeys) settings.activeWorldKeys = [];
+                if (!settings.activeWorldKeys.includes(id)) settings.activeWorldKeys.push(id);
+                pinReconciled = true;
+            }
+        } else if (!activeRouterSet.has(id)) {
+            activeRouterSet.add(id);
+            if (!settings.activeRouterKeys) settings.activeRouterKeys = [];
+            if (!settings.activeRouterKeys.includes(id)) settings.activeRouterKeys.push(id);
+            pinReconciled = true;
+        }
+    }
+    if (pinReconciled) void saveSettings();
+
     const booksToLoad = [...scopedSet].filter(n => !isSkeletonBookName(n));
     const loadedBooks = await Promise.all(booksToLoad.map(async (n) => {
         try {
@@ -2763,7 +2877,8 @@ export async function getLorebookManifest(skipUpdate = false) {
                 label: entry.comment || (entry.key?.[0]) || uid,
                 keys: entry.key || [],
                 content: entry.content,
-                is_active: activeRouterSet.has(id) || activeWorldSet.has(id)
+                is_active: activeRouterSet.has(id) || activeWorldSet.has(id),
+                is_pinned: pinnedSet.has(id),
             });
         }
     }
@@ -2784,7 +2899,7 @@ export async function deleteLorebookEntry(id) {
     delete book.entries[uid];
     await ctx.saveWorldInfo(bookName, book);
     
-    // Also remove from active list if it was there
+    // Also remove from active/pinned lists if it was there
     const settings = getSettings();
     if (settings.activeRouterKeys?.includes(id)) {
         settings.activeRouterKeys = settings.activeRouterKeys.filter(k => k !== id);
@@ -2792,7 +2907,50 @@ export async function deleteLorebookEntry(id) {
     if (settings.activeWorldKeys?.includes(id)) {
         settings.activeWorldKeys = settings.activeWorldKeys.filter(k => k !== id);
     }
+    if (settings.pinnedRouterKeys?.includes(id)) {
+        settings.pinnedRouterKeys = settings.pinnedRouterKeys.filter(k => k !== id);
+    }
     
+    return true;
+}
+
+/**
+ * Pin or unpin a lorebook entry so it stays permanently active for the Lorebook Agent.
+ * Pinning always activates the entry immediately. Unpinning only removes the pin —
+ * it does not force-deactivate the entry.
+ * @param {string} id Book::uid
+ * @param {boolean} pinned
+ * @returns {boolean}
+ */
+export function setLorebookEntryPinned(id, pinned) {
+    if (typeof id !== 'string' || !id.includes('::') || isSkeletonEntryId(id)) return false;
+    const settings = getSettings();
+    if (!Array.isArray(settings.pinnedRouterKeys)) settings.pinnedRouterKeys = [];
+
+    const [bookName] = id.split('::');
+    const isWorld = bookName.toLowerCase().endsWith('_world') || bookName.toLowerCase() === 'world';
+
+    if (pinned) {
+        if (!settings.pinnedRouterKeys.includes(id)) {
+            settings.pinnedRouterKeys.push(id);
+        }
+        // Pin implies active
+        if (isWorld) {
+            if (!Array.isArray(settings.activeWorldKeys)) settings.activeWorldKeys = [];
+            if (!settings.activeWorldKeys.includes(id)) settings.activeWorldKeys.push(id);
+        } else {
+            if (!Array.isArray(settings.activeRouterKeys)) settings.activeRouterKeys = [];
+            if (!settings.activeRouterKeys.includes(id)) settings.activeRouterKeys.push(id);
+        }
+        // Agent/user ownership — remove from keyword auto-expire pool
+        if (Array.isArray(settings.keywordActivatedKeys)) {
+            settings.keywordActivatedKeys = settings.keywordActivatedKeys.filter(k => k !== id);
+        }
+    } else {
+        settings.pinnedRouterKeys = settings.pinnedRouterKeys.filter(k => k !== id);
+    }
+
+    void saveSettings();
     return true;
 }
 
@@ -2887,6 +3045,9 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
 
     const currentActive = new Set((settings.activeRouterKeys || []).filter(id => !isSkeletonEntryId(id)));
     const currentKeyword = new Set(settings.keywordActivatedKeys || []);
+    const pinnedSet = new Set((settings.pinnedRouterKeys || []).filter(id => !isSkeletonEntryId(id)));
+    // Ensure pinned entries stay in the active pool for the duration of this scan
+    for (const id of pinnedSet) currentActive.add(id);
     const newlyTriggered = [];
 
     const directMatches = [];
@@ -2972,6 +3133,7 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
                 let evicted = 0;
                 for (const id of currentKeyword) {
                     if (evicted >= toEvict) break;
+                    if (pinnedSet.has(id)) continue; // never evict user-pinned entries
                     currentActive.delete(id);
                     currentKeyword.delete(id);
                     evicted++;
@@ -2994,6 +3156,7 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
 
         for (const id of currentKeyword) {
             if (newlyTriggered.includes(id)) continue;
+            if (pinnedSet.has(id)) continue; // user-pinned entries never auto-expire
 
             const [bookName, uid] = id.split('::');
             if (!bookName || uid === undefined) { autoExpired.push(id); continue; }
@@ -3032,10 +3195,12 @@ export async function scanAssistantOutputForKeywords(narrativeText, opts = {}) {
     }
 
     // ── Persist ───────────────────────────────────────────────────────────────
+    // Re-assert pins in case any earlier path dropped them
+    for (const id of pinnedSet) currentActive.add(id);
     settings.activeRouterKeys = [...currentActive];
-    settings.keywordActivatedKeys = [...currentKeyword];
+    settings.keywordActivatedKeys = [...currentKeyword].filter(id => !pinnedSet.has(id));
     settings.lastKeywordTriggeredKeys = newlyTriggered;
-    ctx.saveSettingsDebounced();
+    void saveSettings();
 
     if (settings.debugMode && newlyTriggered.length > 0) {
         console.log('[RPG Tracker] Keyword scanner activated:', newlyTriggered);
@@ -3447,7 +3612,7 @@ export async function purgeWorldHistoryForChat(opts = {}) {
     }
 
     persistWorldProgressionTimer();
-    SillyTavern.getContext().saveSettingsDebounced();
+    void saveSettings();
     if (settings.chatLinkEnabled && chatId) {
         saveChatState(chatId);
     }
@@ -4107,7 +4272,7 @@ ${historicalDump}`;
 
         if (anyBreadcrumbWritten) {
             settings.currentMemo = memoForBreadcrumbs;
-            ctx.saveSettingsDebounced();
+            void saveSettings();
         }
     }
 
@@ -4220,9 +4385,11 @@ function parseSkeletonOutput(rawText) {
             continue;
         }
 
-        // 3. Check for list items like * **Name**: description
+        // 3. Bold names are explicit entry titles. A plain `Name: description`
+        // line is only a title when no entry is open; otherwise it is ordinary
+        // content such as `Parties involved:` or a hyphenated description.
         let listMatch = line.match(listRegexBold);
-        if (!listMatch) {
+        if (!listMatch && !currentItem) {
             listMatch = line.match(listRegexPlain);
         }
         if (listMatch) {
@@ -4274,7 +4441,7 @@ function parseSkeletonOutput(rawText) {
  * Never sees narrative content, active NPC stats, quest details, or player logs.
  *
  * @param {number} missingCount  Number of NPCs to generate
- * @param {string} atmosphere    Atmosphere summary (single paragraph, required foundation for skeleton generation)
+ * @param {string} atmosphere    Skeleton Source material used as the generation foundation
  * @param {Array}  factionDescs  Array of {name, desc} from skeleton factions
  * @param {Array}  conflictNames Skeleton conflict/event names (names only)
  * @param {Array}  locationDescs Array of {name, desc} from skeleton locations
@@ -4306,7 +4473,7 @@ Output ONLY structured content:
 ### [Name]
 [Role in the world. Current situation or agenda in 1-2 sentences.]`;
 
-    let userPrompt = `## ATMOSPHERE / DESCRIPTION\n${atmosphere || '(No atmosphere description provided)'}\n\n`;
+    let userPrompt = `## SKELETON SOURCE\n${atmosphere || '(No written Skeleton Source provided)'}\n\n`;
     userPrompt +=
 `## EXISTING SKELETON CONTEXT (for thematic consistency — do not replicate)
 ### Factions
@@ -4387,10 +4554,10 @@ Generate exactly ${missingCount} new skeleton NPC(s). Each must be unique, thema
 
 /**
  * Generates the World Skeleton: a hidden lorebook of foundational undiscovered
- * entities (factions, locations, NPCs, conflicts) seeded from the user's atmosphere summary.
+ * entities (factions, locations, NPCs, conflicts) seeded from the user's Skeleton Source.
  * Saves all entries to [CampaignPrefix]_Skeleton. Overwrites any existing skeleton.
  *
- * @param {string} atmosphereSummary - User-provided setting/atmosphere summary for the world
+ * @param {string} atmosphereSummary - User-provided Skeleton Source material (legacy setting name retained)
  * @returns {Promise<number>} Number of skeleton entries created
  */
 export async function runSkeletonGenerationPass(atmosphereSummary, append = false, useExisting = true) {
@@ -4417,11 +4584,33 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
     const conflictCount = settings.worldProgressionSkeletonConflicts ?? 3;
     const atmosphere = (atmosphereSummary || settings.worldProgressionSkeletonAtmosphereSummary || '').trim();
 
-    const systemPrompt = (settings.worldProgressionSkeletonSystemPrompt || '')
+    let systemPrompt = (settings.worldProgressionSkeletonSystemPrompt || '')
         .replace(/\{factionCount\}/g, String(factionCount))
         .replace(/\{locationCount\}/g, String(locationCount))
         .replace(/\{npcCount\}/g, String(npcCount))
         .replace(/\{conflictCount\}/g, String(conflictCount));
+
+    let sourceLorebooksStr = '';
+    if (settings.worldProgressionSkeletonUseLorebooks) {
+        let sourceBookNames = Array.isArray(settings.worldProgressionSkeletonLorebookFilter)
+            ? settings.worldProgressionSkeletonLorebookFilter
+            : [];
+        if (sourceBookNames.length === 0) {
+            sourceBookNames = await getWorldInfoNamesSafe();
+        }
+        sourceLorebooksStr = await buildSkeletonLorebookSourceContext(
+            sourceBookNames,
+            bookName => ctx.loadWorldInfo(bookName),
+            { lorebookOnly: !!settings.worldProgressionSkeletonLorebookOnly },
+        );
+        if (settings.worldProgressionSkeletonLorebookOnly) {
+            if (!sourceLorebooksStr) {
+                throw new Error('Lorebook-only mode is enabled, but the selected source lorebooks contain no usable entries.');
+            }
+            systemPrompt += `\n\n## LOREBOOK-ONLY MODE — OVERRIDES EXACT COUNTS
+Only output entities explicitly mentioned in the supplied lorebook source material. Do not invent, infer, or extrapolate entities. Ignore the requested faction, location, NPC, and conflict counts; output the eligible entities established by the source material, and omit an empty category section.`;
+        }
+    }
 
     // Gather existing entity details to avoid duplication and provide full context
     let existingEntitiesStr = '';
@@ -4437,7 +4626,10 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
         }
     }
 
-    let userPrompt = `## ATMOSPHERE / DESCRIPTION\n${atmosphere || '(No atmosphere description provided — generate a generic fantasy world skeleton.)'}\n\n`;
+    let userPrompt = `## SKELETON SOURCE\n${atmosphere || '(No written Skeleton Source provided — use the other supplied source material.)'}\n\n`;
+    if (sourceLorebooksStr) {
+        userPrompt += `${sourceLorebooksStr}\n\n`;
+    }
     if (existingEntitiesStr) {
         userPrompt += `## EXISTING SKELETON ENTITIES\n${existingEntitiesStr}\n\n`;
     }
@@ -4521,7 +4713,7 @@ export async function runSkeletonGenerationPass(atmosphereSummary, append = fals
         const existing = new Set(settings.chatStates[chatId].campaignBooks || []);
         existing.add(skeletonBookName);
         settings.chatStates[chatId].campaignBooks = [...existing];
-        ctx.saveSettingsDebounced();
+        void saveSettings();
     }
 
     // Refresh the SillyTavern UI so it updates immediately without F5
@@ -4796,7 +4988,7 @@ ${rawDump}`;
 }
 
 /**
- * Generates a single paragraph Atmosphere Summary based on a lookback window of the chat.
+ * Generates a generalized single-paragraph Skeleton Source based on a chat lookback.
  * Uses sendStateRequest to execute the generation call.
  * @param {number} lookbackCount
  * @returns {Promise<string>}
@@ -4806,7 +4998,7 @@ export async function runAtmosphereGenerationPass(lookbackCount) {
     const ctx = SillyTavern.getContext();
     const chat = ctx.chat || [];
     if (chat.length === 0) {
-        throw new Error('No chat history available to generate atmosphere summary.');
+        throw new Error('No chat history available to generate Skeleton Source material.');
     }
 
     // Grab the last lookbackCount messages
@@ -4842,22 +5034,23 @@ export async function runAtmosphereGenerationPass(lookbackCount) {
     const formattedChatHistory = lines.join('\n\n');
 
     const systemPrompt =
-`You are a World Architect. Analyze the provided chat history segment and extract a concise, thematic Atmosphere Summary of the world setting.
+`You are a World Architect. Analyze the provided chat history segment and extract a concise, generalized Skeleton Source for world generation.
 
-## Atmosphere Summary Definition
-A single paragraph description of the social texture, recurring tensions, and thematic tone of this world.
-- Focus on the atmosphere, environment, social hierarchy, and mood.
-- Do NOT name specific characters or list specific plot events.
-- Keep it generalized to the setting.
-- Example: 'Poverty and desperation define daily life. The nobility maintains control through debt bondage. Corruption is endemic — even the church answers to noble patrons.'
+## Skeleton Source Definition
+A single paragraph describing the world's broad social texture, environment, hierarchy, technology or magic level, recurring tensions, and thematic tone.
+- Generalize from the setting rather than copying story entities verbatim.
+- Do NOT name or identify player characters, party members, NPCs, factions, institutions, locations, quests, or conflicts from the chat.
+- Do NOT list or summarize specific plot events.
+- Never turn a party member or current story participant into Skeleton Source material.
+- Do not invent facts unsupported by the chat.
 
-Output ONLY the single paragraph Atmosphere Summary. No preamble, no meta-commentary.`;
+Output ONLY the single-paragraph Skeleton Source. No preamble or meta-commentary.`;
 
     const userPrompt =
 `## RECENT CHAT HISTORY
 ${formattedChatHistory}
 
-Generate the Atmosphere Summary:`;
+Generate the Skeleton Source:`;
 
     const routerSettings = {
         connectionSource: settings.worldConnectionSource || 'default',
