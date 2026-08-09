@@ -1123,13 +1123,13 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 - Always use the exact macro string \`{{user}}\` when referring to the player. Do NOT write the plain word "user", "player", "Player", or the player's roleplay character name (like "Dave Davidson") in plain text in any entry updates or descriptions.
 - Write \`{{user}}\` bare — never followed by a class, profession, title, or parenthetical (e.g. write "{{user}} acquires the handgun", NOT "{{user}} (Fighter) acquires the handgun" or "{{user}} (Bodybuilder) acquires..."). The player's class/role is tracked elsewhere (the CHARACTER module); repeating it in every chronicle line wastes tokens and is redundant.
 - You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
-- You may update the Player Character's own Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new equipment text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
+- You may update the Player Character's own Worn Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new worn gear text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
 - Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
-- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.
+- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Worn Equipment means currently worn/carried gear only — not Body, coins, loot piles, or inventory lists.
 
 ## NPC CORE UPDATES (NPC only)
 - Body changes: output \`[[UPDATE_APPEARANCE: Book::UID or NPC Name | new body text]]\`. Body is signature/default physical look — not a transient outfit-of-the-scene.
-- Equipment changes: output \`[[UPDATE_EQUIPMENT: Book::UID or NPC Name | new equipment text]]\` whenever the narrative explicitly shows a change to what they're wearing/wielding.
+- Worn Equipment changes: output \`[[UPDATE_EQUIPMENT: Book::UID or NPC Name | new worn gear text]]\` whenever the narrative explicitly shows a change to what they're wearing/wielding. Do not put coins or inventory lists here.
 - Eligible UPDATE_CORE fields this pass: {{eligibleCoreFields}}.
   [[UPDATE_CORE: Book::UID or NPC Name | FieldName | New field text]]
 Use the exact FieldName. Do NOT log core updates as normal event/update entries.{{autoPassRestriction}}{{existingNpcNudge}}
@@ -1138,7 +1138,7 @@ Use the exact FieldName. Do NOT log core updates as normal event/update entries.
 Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anything, check ACTIVE MEMORY and ARCHIVE INDEX for a matching name (they may be listed under a different label — check keywords too).
 - If the entity ALREADY EXISTS (in ACTIVE MEMORY, in NEWLY ACTIVATED, or in the ARCHIVE INDEX): do NOT output a new [[NPC:...]]/[[LOC:...]]/[[FAC:...]] tag with a fresh [CORE] block for them, even if you don't currently see their full content. Instead:
   - To change Body: use [[UPDATE_APPEARANCE: Name | new text]].
-  - To change Equipment: use [[UPDATE_EQUIPMENT: Name | new text]].
+  - To change Worn Equipment: use [[UPDATE_EQUIPMENT: Name | new text]].
   - To change/add another eligible [CORE] field: use [[UPDATE_CORE: Name | FieldName | new text]].
   - To append a chronicle/timeline note: use the module's normal update format (e.g. re-use the [[EVENT:...]] name to accumulate, or update the existing entry) — never a second [CORE] block.
   - To bring an archived entry into full view first: use [[ACTIVATE: Name]].
@@ -1173,20 +1173,20 @@ Maximum Active Entities: **{{maxActivations}}**.
 - Do NOT create a lorebook entry for the player character under any circumstances.
 - Always use the exact macro string \`{{user}}\` when referring to the player in entry contents — bare, never with a class/profession parenthetical.
 - You may update the Player Character's own Body via commit.appearance with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
-- You may update the Player Character's own Equipment via commit.equipment the same way, whenever their visibly worn/carried gear changes.
+- You may update the Player Character's own Worn Equipment via commit.equipment the same way, whenever their visibly worn/carried gear changes.
 - Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
-- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.
+- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Worn Equipment means currently worn/carried gear only — not Body, coins, loot piles, or inventory lists.
 
 ## NPC CORE UPDATES
 - Body: use \`commit.appearance\` (signature/default physical look only — not a transient outfit-of-the-scene).
-- Equipment: use \`commit.equipment\` whenever their visibly worn/carried gear changes.
+- Worn Equipment: use \`commit.equipment\` whenever their visibly worn/carried gear changes. Not coins, loot piles, or inventory lists.
 - Eligible commit.core fields this pass: {{eligibleCoreFields}}.{{autoPassRestriction}}{{existingNpcNudge}}
 
 ## DO NOT RE-RECORD EXISTING ENTITIES
 Before using \`record\` for anyone or anything, check ACTIVE MEMORY, NEWLY ACTIVATED THIS TURN, and the ARCHIVE INDEX for a matching name (check keywords too, they may be listed under a different label).
 - If the entity ALREADY EXISTS anywhere in that context — even if you only see its label in the ARCHIVE INDEX with no full content — do NOT call \`record\` for it. Instead:
   - To change Body: use \`commit({"appearance": [{"id": "Book::UID or Name", "content": "..."}]})\`.
-  - To change Equipment: use \`commit({"equipment": [{"id": "Book::UID or Name", "content": "..."}]})\`.
+  - To change Worn Equipment: use \`commit({"equipment": [{"id": "Book::UID or Name", "content": "..."}]})\`.
   - To change/add another eligible [CORE] field: use \`commit({"core": [{"id": "Book::UID or Name", "field": "...", "content": "..."}]})\`.
   - To append new chronicle text: use \`commit({"update": [{"id": "Book::UID or Name", "content": "..."}]})\`.
   - To see its full content first: use \`read_entry\` or \`grep_lore\`, or \`activate\` it.

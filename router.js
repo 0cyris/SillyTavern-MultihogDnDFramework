@@ -63,7 +63,7 @@ function getLinkedPlayerCharacter() {
 }
 
 /**
- * Apply a Body or Equipment (only) patch to the linked PC card's flat bio string.
+ * Apply a Body or Worn Equipment (only) patch to the linked PC card's flat bio string.
  * Species/Personality/Background/etc. are never mutable by the Lorebook Agent for
  * the PC — those are the player's own, set at character creation.
  * @returns {{ ok: boolean, error?: string }}
@@ -71,9 +71,9 @@ function getLinkedPlayerCharacter() {
 function applyPcCoreUpdate(pc, field, content) {
     if (!pc) return { ok: false, error: 'No Player Character card linked' };
     if (!isAppearanceField(field) && !isEquipmentField(field)) {
-        return { ok: false, error: 'PC updates are limited to Body and Equipment' };
+        return { ok: false, error: 'PC updates are limited to Body and Worn Equipment' };
     }
-    const targetField = isEquipmentField(field) ? 'Equipment' : 'Body';
+    const targetField = isEquipmentField(field) ? 'Worn Equipment' : 'Body';
     const result = patchLabeledSection(pc.bio || '', targetField, content, { isPc: true });
     if (!result.ok) return { ok: false, error: result.error || 'Failed to patch PC bio' };
     pc.bio = result.text;
@@ -1007,20 +1007,20 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
             coreSections = DEFAULT_NPC_SECTIONS;
         }
         const sectionNamesList = coreSections.map(s => s.name).join(', ');
-        // Body and Equipment are exclusive to their dedicated tools; automatic passes may
+        // Body and Worn Equipment are exclusive to their dedicated tools; automatic passes may
         // only additionally touch Combat Profile via commit.core / UPDATE_CORE. Species and
         // the other identity fields (Personality, Background, Habits, Strengths, Flaws) only
         // unlock on a manual/Direct Prompt pass.
         const eligibleCoreFields = getEligibleCoreFieldNames(coreSections, isManual);
         const eligibleCoreFieldsList = eligibleCoreFields.join(', ');
         const autoPassCoreRestriction = !isManual
-            ? `\n- AUTOMATIC PASS RESTRICTION: Combat Profile is the only [CORE] field you may update this pass via UPDATE_CORE / commit.core. Do not modify Species, Personality, Background, Habits, Strengths, or Flaws unless the user gave an explicit instruction this turn (Direct Prompt). Body/Equipment changes use UPDATE_APPEARANCE / UPDATE_EQUIPMENT instead.`
-            : `\n- DIRECT PROMPT PASS: you may update any eligible [CORE] identity field (${eligibleCoreFieldsList}) when the user's instruction warrants it. Body/Equipment still use UPDATE_APPEARANCE / UPDATE_EQUIPMENT.`;
+            ? `\n- AUTOMATIC PASS RESTRICTION: Combat Profile is the only [CORE] field you may update this pass via UPDATE_CORE / commit.core. Do not modify Species, Personality, Background, Habits, Strengths, or Flaws unless the user gave an explicit instruction this turn (Direct Prompt). Body/Worn Equipment changes use UPDATE_APPEARANCE / UPDATE_EQUIPMENT instead.`
+            : `\n- DIRECT PROMPT PASS: you may update any eligible [CORE] identity field (${eligibleCoreFieldsList}) when the user's instruction warrants it. Body/Worn Equipment still use UPDATE_APPEARANCE / UPDATE_EQUIPMENT.`;
         const pcAppearanceGuidance = `
 - You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
-- You may update the Player Character's own Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new equipment text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
+- You may update the Player Character's own Worn Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new worn gear text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
 - Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
-- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Equipment means currently worn/carried gear — not Body.`;
+- Body means signature/default physical look (build, face, hair, features) — not a transient pose. Worn Equipment means currently worn/carried gear only — not Body, coins, loot piles, or inventory lists.`;
         const existingNpcChronicleNudge = `
 - For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
 
@@ -2263,7 +2263,7 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
     //    (or the linked Player Character card for Body/Equipment only).
     const coreUpdates = [
         ...(action.appearance || []).map(item => ({ id: item.id, field: 'Body', content: item.content })),
-        ...(action.equipment || []).map(item => ({ id: item.id, field: 'Equipment', content: item.content })),
+        ...(action.equipment || []).map(item => ({ id: item.id, field: 'Worn Equipment', content: item.content })),
         ...(action.core || [])
     ];
 
@@ -2548,7 +2548,7 @@ function parseBasicTags(text, archiveBooks) {
         }
     }
 
-    // UPDATE_EQUIPMENT tag parser: [[UPDATE_EQUIPMENT: Book::UID | new equipment text]] (patches Equipment)
+    // UPDATE_EQUIPMENT tag parser: [[UPDATE_EQUIPMENT: Book::UID | new worn gear text]] (patches Worn Equipment)
     const equipRegex = /\[\[UPDATE_EQUIPMENT:\s*([^|]+)\|([\s\S]*?)\]\]/gi;
     let eqm;
     while ((eqm = equipRegex.exec(text)) !== null) {

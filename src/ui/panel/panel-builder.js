@@ -967,7 +967,7 @@ export function createPanel(dependencies) {
             };
 
             const sectionIcons = {
-                'General': '📋', 'Species': '🧬', 'Body': '👁️', 'Equipment': '🎽',
+                'General': '📋', 'Species': '🧬', 'Body': '👁️', 'Worn Equipment': '🎽', 'Equipment': '🎽',
                 'Appearance/Species': '👁️', 'Appearance': '👁️', 'Personality': '🧠',
                 'Brief Background': '📜', 'Habits/Behaviors': '🔄', 'Habits': '🔄',
                 'Behaviors': '🔄', 'Relationship': '❤️',
@@ -990,7 +990,7 @@ export function createPanel(dependencies) {
                         const sectionColor = config ? config.color : (
                             name === 'Species' ? '#0ea5e9' :
                                 (name === 'Body' || name === 'Appearance/Species' || name === 'Appearance') ? '#d4a940' :
-                                    name === 'Equipment' ? '#f59e0b' :
+                                    name === 'Worn Equipment' || name === 'Equipment' ? '#f59e0b' :
                                         name === 'Personality' ? '#8b5cf6' :
                                     name === 'Brief Background' ? '#3b82f6' :
                                         name.includes('Habit') || name.includes('Behavior') ? '#10b981' :

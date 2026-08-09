@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.1.52] - 2026-08-09
+
+### Changed
+- **Worn Equipment**: Renamed the Lorebook Agent CORE field from Equipment to Worn Equipment (and clarified prompts) so LA treats it as visibly worn/carried gear — not coins, loot piles, or inventory lists. Legacy `Equipment:` headers in existing entries still patch in place.
+
 ## [7.1.51] - 2026-08-09
 
 ### Fixed
