@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.1.50] - 2026-08-09
+
+### Added
+- **Dungeon Reality Mapping (Experimental)**: New native `<dungeon_reality_and_hidden_mapping>` sysprompt section (below `<constraints>`) that builds a full hidden location map before high-risk exploration and resolves traps, stealth, and enemies against it. Toggleable under Components; on by default.
+- **XP rule**: Do not award XP as a consequence of a failed check.
+
+### Changed
+- **Settings overlay appearance**: Defaults to Light on first boot.
+
 ## [7.1.35] - 2026-08-08
 
 ### Added

@@ -37,7 +37,7 @@ describe('settings overlay', () => {
         expect(style).toContain('--rt-so-fg:');
         expect(style).toContain('Lift the floor');
         const defaults = readFileSync(new URL('../src/state/defaults.js', import.meta.url), 'utf8');
-        expect(defaults).toContain("settingsOverlayAppearance: 'dark'");
+        expect(defaults).toContain("settingsOverlayAppearance: 'light'");
     });
 
     it('maps Multihog primary sections to left-rail tabs and wires init before bindings', () => {

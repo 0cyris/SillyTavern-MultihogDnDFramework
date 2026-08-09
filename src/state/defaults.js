@@ -328,7 +328,7 @@ export function buildDefaultSettings() {
         savedThemes: {},
 
         /** Locked chrome for the floating settings window: 'dark' | 'light'. Independent of tracker/ST theme. */
-        settingsOverlayAppearance: 'dark',
+        settingsOverlayAppearance: 'light',
 
         systemPromptTemplate:
 
@@ -562,6 +562,8 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
             questsShowArchive: true,
 
             CYOA_mode: true,
+
+            dungeon_reality_and_hidden_mapping: true,
 
         },
 

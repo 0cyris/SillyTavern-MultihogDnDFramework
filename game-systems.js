@@ -355,7 +355,15 @@ export function isBlankSectionContent(content) {
 }
 
 /** Narrator Configuration tags whose enabled-state doubles as a base sysprompt toggle. */
-const KNOWN_TOGGLE_DEFAULTS = { loot: true, random_events: true, resting: true, party_bench: true, quests: true, CYOA_mode: false };
+const KNOWN_TOGGLE_DEFAULTS = {
+    loot: true,
+    random_events: true,
+    resting: true,
+    party_bench: true,
+    quests: true,
+    CYOA_mode: false,
+    dungeon_reality_and_hidden_mapping: true,
+};
 
 /** Checkbox ids from the Narrator Configuration panel, keyed by base sysprompt tag. */
 const NARRATOR_TOGGLE_IDS = {
@@ -366,6 +374,7 @@ const NARRATOR_TOGGLE_IDS = {
     quests: 'rpg_sysprompt_mod_quests',
     CYOA_mode: 'rpg_sysprompt_mod_cyoa_mode',
     relationship_tracking: 'rpg_sysprompt_mod_npc_rel_bars',
+    dungeon_reality_and_hidden_mapping: 'rpg_sysprompt_mod_dungeon_reality_and_hidden_mapping',
 };
 
 export function isSectionUnlocked(settings, tag) {

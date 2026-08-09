@@ -1096,10 +1096,21 @@ function syncOnboardingUI() {
 
 
     // Optional Components Sync
-    const mods = { 'loot': '#rt_onboarding_mod_loot', 'random_events': '#rt_onboarding_mod_random_events', 'resting': '#rt_onboarding_mod_resting', 'party_bench': '#rt_onboarding_mod_party_bench', 'CYOA_mode': '#rt_onboarding_mod_cyoa_mode' };
+    const mods = {
+        loot: '#rt_onboarding_mod_loot',
+        random_events: '#rt_onboarding_mod_random_events',
+        resting: '#rt_onboarding_mod_resting',
+        party_bench: '#rt_onboarding_mod_party_bench',
+        dungeon_reality_and_hidden_mapping: '#rt_onboarding_mod_dungeon_reality_and_hidden_mapping',
+        CYOA_mode: '#rt_onboarding_mod_cyoa_mode',
+    };
     for (const [key, id] of Object.entries(mods)) {
         const cb = /** @type {HTMLInputElement|null} */ (onboarding.querySelector(id));
-        if (cb) cb.checked = key === 'CYOA_mode' ? s.syspromptModules?.CYOA_mode === true : !!s.syspromptModules?.[key];
+        if (cb) {
+            cb.checked = key === 'CYOA_mode'
+                ? s.syspromptModules?.CYOA_mode === true
+                : (s.syspromptModules?.[key] ?? true);
+        }
     }
 
     // Time & Date sync — Character Creator + "Other ways to begin" drawer
@@ -2833,6 +2844,9 @@ async function showComponentsExplanation() {
     )}
                 ${card('⛺', 'Benched Party',
         `Tracks party members who are temporarily away from you — hospitalized, scouting ahead, captured, sent on a side task, etc. — in a separate [BENCHED PARTY] roster while reunion remains plausible. The GM is told what this means so it won't narrate them back at your side until the story brings them back on-screen. Benched members become eligible for off-screen simulation updates via World Reports (🌍), allowing the simulator to advance their individual subplots in the background. Turn off if you don't want temporary separations tracked separately from your active party.`
+    )}
+                ${card('🗺️', 'Dungeon Reality Mapping (Experimental)',
+        `When you enter a dungeon, ruin, stronghold, lair, or similar high-risk site, the narrator builds a full hidden map of the location before exploration, then resolves traps, stealth, sight lines, and enemies against that map — revealing only what you could actually perceive.`
     )}
                 ${card('🧭', 'CYOA Mode',
         `Choose-your-own-adventure style: the narrator ends outputs with numbered courses of action and fitting emojis so you can pick what to do next.`
@@ -8904,6 +8918,7 @@ RULES:
             { key: 'random_events', id: 'rpg_sysprompt_mod_random_events' },
             { key: 'resting', id: 'rpg_sysprompt_mod_resting' },
             { key: 'party_bench', id: 'rpg_sysprompt_mod_party_bench' },
+            { key: 'dungeon_reality_and_hidden_mapping', id: 'rpg_sysprompt_mod_dungeon_reality_and_hidden_mapping' },
             { key: 'CYOA_mode', id: 'rpg_sysprompt_mod_cyoa_mode' },
             { key: 'quests', id: 'rpg_sysprompt_mod_quests' },
         ];
