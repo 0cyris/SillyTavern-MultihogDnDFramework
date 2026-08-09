@@ -2,6 +2,11 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.1.51] - 2026-08-09
+
+### Fixed
+- **CHAT-BOUND Game Systems on new chat**: Unseen chats with Chat Link + Lock Control Room no longer keep previous-chat CHAT-BOUND activations enabled. Catalog items deactivate for the new chat; GLOBAL enablement and inherited Narrator Configuration stay intact.
+
 ## [7.1.50] - 2026-08-09
 
 ### Added
