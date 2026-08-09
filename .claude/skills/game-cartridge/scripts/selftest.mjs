@@ -196,6 +196,12 @@ expectRule('E003 unknown payload key', wrap({ ...clone(factory), bogus: 1 }), 'G
     const p = bundlePayload(); p.customFields[0].template = 'Foo: ((NOTREAL)) 2/6';
     expectRule('W020 unknown marker', wrap(p), 'GC-W020');
 }
+t('W020 does not false-positive on universal color-override syntax', () => {
+    const p = bundlePayload();
+    p.customFields[0].template = 'Foo: ((BAR - purple)) 2/6, ((PROGRESS - #ff0000)) 1/5, ((BAR - #ff0000 #0000ff)) 3/6';
+    const F = lint(wrap(p));
+    assert(!F.some((f) => f.id === 'GC-W020'), F.filter((f) => f.id === 'GC-W020').map((f) => f.message).join('; '));
+});
 {
     const p = bundlePayload(); p.customFields[0].template = 'Foo: ((BAR)) 2/6 *emphasis*';
     expectRule('W021 asterisk in template', wrap(p), 'GC-W021');

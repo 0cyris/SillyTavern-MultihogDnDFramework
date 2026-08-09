@@ -303,7 +303,10 @@ export function runLintRules({ wrapper, payload, payloadKeys, baseTags, markerKe
         for (const [fieldName, text] of [['template', f?.template], ['prompt', f?.prompt]]) {
             if (typeof text !== 'string') continue;
             for (const m of text.matchAll(MARKER_TOKEN_RE)) {
-                const token = m[1].split(/\s+-\s+#/)[0].trim().toUpperCase();
+                // Strip a universal-color-override suffix before checking the base
+                // marker name — either hex ("BAR - #ff0000") or named CSS color
+                // ("BAR - purple"), single or two-color gradient form.
+                const token = m[1].split(/\s+-\s+(?:#[0-9a-fA-F]{6}|[a-zA-Z]+)/)[0].trim().toUpperCase();
                 if (!markerKeySet.has(token)) {
                     add('GC-W020', 'warning', `$.payload.customFields[${i}].${fieldName}`, `((` + m[1] + `)) is not a known rendering marker — it renders as literal text`);
                 }
