@@ -11,7 +11,7 @@ export function buildInstantActionPromptSection(value) {
     if (!instructions) return '';
     return `
 
---- INSTANT ACTION INSTRUCTIONS (HIGHEST PRIORITY) ---
+--- INITIAL SETUP: ---
 ${instructions}
 Follow these instructions for the character, starting setting, premise, tone, or any other requested details. Where they conflict with randomly rolled defaults, these instructions win. Preserve all required output formatting.`;
 }
@@ -20,5 +20,5 @@ Follow these instructions for the character, starting setting, premise, tone, or
 export function buildInstantActionOpeningMessage(value) {
     const instructions = normalizeInstantActionInstructions(value);
     if (!instructions) return 'Begin the adventure';
-    return `Begin the adventure.\n\nInstant Action instructions:\n${instructions}`;
+    return `Begin the adventure.\n\nInitial Setup:\n${instructions}`;
 }

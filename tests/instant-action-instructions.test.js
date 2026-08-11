@@ -18,13 +18,13 @@ describe('Instant Action instructions', () => {
 
     it('sends the same guidance with the opening adventure message', () => {
         expect(buildInstantActionOpeningMessage('A storm-battered frontier town')).toBe(
-            'Begin the adventure.\n\nInstant Action instructions:\nA storm-battered frontier town',
+            'Begin the adventure.\n\nInitial Setup:\nA storm-battered frontier town',
         );
     });
 
     it('marks guidance as higher priority than randomized character defaults', () => {
         const section = buildInstantActionPromptSection('A 28-year-old female ranger with a crossbow');
-        expect(section).toContain('INSTANT ACTION INSTRUCTIONS (HIGHEST PRIORITY)');
+        expect(section).toContain('INITIAL SETUP:');
         expect(section).toContain('A 28-year-old female ranger with a crossbow');
         expect(section).toContain('these instructions win');
     });
@@ -40,6 +40,6 @@ describe('Instant Action instructions', () => {
         expect(quickStartSource).toMatch(/generateQuickStartCharacter\(\{[\s\S]*?instantActionInstructions,/);
         expect(quickStartSource).toContain('buildInstantActionOpeningMessage(instantActionInstructions)');
         expect(creatorSource).toContain('instantActionInstructions: opts.instantActionInstructions');
-        expect(creatorSource).toContain('Treat the randomly chosen class');
+        expect(creatorSource).toContain('If the Initial Setup specifies');
     });
 });

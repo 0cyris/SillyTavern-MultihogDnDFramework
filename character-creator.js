@@ -224,7 +224,7 @@ ${nameVal ? `• Use the provided name "${nameVal}" exactly; do not alter or rep
 • Do NOT output a [PARTY] block under any circumstances unless explicitly instructed.
 • Do NOT add quests or output a [QUESTS] block under any circumstances unless explicitly instructed.
 • ${instantActionInstructions
-    ? `Treat the randomly chosen class "${classRaw}" as a fallback. If the Instant Action instructions specify or clearly imply a different class, profession, or archetype, follow the instructions instead.`
+    ? `Treat the randomly chosen class "${classRaw}" as a fallback. If the Initial Setup specifies or clearly implies a different class, profession, or archetype, follow the Initial Setup instead.`
     : (isOther || isStoryFitting ? 'Invent the most fitting class for the setting and context.' : `Use the chosen class "${classRaw}" exactly as given — do not rename or substitute it.`)}
 • If the setting is non-fantasy and no class was specified, create a class that feels natural to the world — not a fantasy D&D class name.
 ${noLevel
