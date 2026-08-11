@@ -1987,7 +1987,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
 
                 <div class="rt-quickstart" id="rt-quickstart">
                     <div class="rt-quickstart-title">⚡ Instant Action</div>
-                    <div class="rt-quickstart-sub">Choose a genre, roll names until you find one you like, then begin. The extension uses your Narrator Configuration, rolls the rest of your character, builds a Lorebook Agent Player Card plus a name-only ST persona, and starts the adventure.</div>
+                    <div class="rt-quickstart-sub">Choose a genre, roll names until you find one you like, optionally guide the character or setting, then begin. The extension uses your Narrator Configuration, rolls everything you leave unspecified, builds a Lorebook Agent Player Card plus a name-only ST persona, and starts the adventure.</div>
                     <div class="rt-quickstart-genres" role="group" aria-label="Quick Start genre">
                         <button type="button" class="rt-quickstart-genre-btn" data-genre="fantasy" aria-pressed="false">⚔️ Fantasy</button>
                         <button type="button" class="rt-quickstart-genre-btn" data-genre="realistic" aria-pressed="false">🏙️ Modern</button>
@@ -1998,6 +1998,11 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                         <input type="text" class="rt-quickstart-name" id="rt-quickstart-name" placeholder="Roll or enter a name" aria-label="Instant Action character name" autocomplete="off" />
                         <button type="button" class="rt-quickstart-roll-btn" id="rt-quickstart-roll-name" disabled>🎲 Roll Name</button>
                     </div>
+                    <label class="rt-quickstart-instructions-label" for="rt-quickstart-instructions">
+                        <span>Optional instructions</span>
+                        <small>Guide the character, setting, premise, or tone. Anything left unspecified is still randomized.</small>
+                    </label>
+                    <textarea class="rt-quickstart-instructions" id="rt-quickstart-instructions" rows="2" maxlength="1000" placeholder="e.g. A 28-year-old female ranger with a crossbow, starting in a storm-battered frontier town" aria-label="Optional Instant Action instructions"></textarea>
                     <button type="button" class="rt-quickstart-begin-btn" id="rt-quickstart-begin" disabled>⚡ Begin Instant Action</button>
                     <div class="rt-quickstart-status" id="rt-quickstart-status">Select a genre, then roll a name</div>
                 </div>
@@ -2336,7 +2341,7 @@ function formatValueToCurrency(totalCp, detectedCurrency) {
                 <div style="font-size: 13px; opacity: 0.9; flex-shrink: 0; line-height: 1.4; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
                     <b style="color: var(--rt-accent); font-size: 14px;">Initial Setup:</b><br><br>
                     1. Create a character card for your "narrator" (e.g. Game Master). <b>Leave the card fields empty</b>, as the framework handles all logic via the system prompt.<br><br>
-                    2. Use one of the character creation options above to roll a new character. You can either use the Character Creator option to clearly specify your character, use Other Ways to Begin for a more rough description, or just use Instant Action to have the extension randomize everything beyond your name and adventure genre.<br><br>
+                    2. Use one of the character creation options above to roll a new character. You can either use the Character Creator option to clearly specify your character, use Other Ways to Begin for a more rough description, or use Instant Action to have the extension randomize everything you leave unspecified beyond your name and adventure genre.<br><br>
                     3. If you decide to use the hybrid RNG mode that combines tool calls with the pre-seeded RNG Queue used by the extension, ensure <b>function calling</b> is enabled. Otherwise the <b>RollTheDice</b> tool will not work.<br><br>
                     <div style="margin-top: 8px;">
                         🪙 <b>Token Optimization:</b> To reduce token costs, especially when in tool use mode, consider using a summarizer such as the <b>Summaryception</b> extension. Summarization combined with <b>Lorebook Agent</b> will guarantee the AI stays on track and keep token costs low.

@@ -8,6 +8,10 @@ import {
 } from './character-creator.js';
 import { saveSettings, autoApplySysprompt } from './src/app/runtime-bridge.js';
 import { pickGenreCharacterName } from './src/state/character-names.js';
+import {
+    buildInstantActionOpeningMessage,
+    normalizeInstantActionInstructions,
+} from './src/state/instant-action-instructions.js';
 
 /** @type {boolean} */
 let _quickStartRunning = false;
@@ -57,6 +61,9 @@ function setQuickStartBusy(rootEl, disabled) {
     rootEl.querySelectorAll('.rt-quickstart button, .rt-random-char-btn').forEach((btn) => {
         /** @type {HTMLButtonElement} */ (btn).disabled = disabled;
     });
+    rootEl.querySelectorAll('.rt-quickstart input, .rt-quickstart textarea').forEach((field) => {
+        /** @type {HTMLInputElement|HTMLTextAreaElement} */ (field).disabled = disabled;
+    });
     const genBtn = /** @type {HTMLButtonElement|null} */ (rootEl.querySelector('#rt-cr-generate-btn'));
     if (genBtn) genBtn.disabled = disabled;
 }
@@ -93,8 +100,9 @@ function sendOutgoingChatMessage(text) {
  * @param {string} genre
  * @param {HTMLElement|null} [rootEl]
  * @param {string} [selectedName]
+ * @param {string} [instructionText]
  */
-export async function runQuickStart(genre, rootEl = null, selectedName = '') {
+export async function runQuickStart(genre, rootEl = null, selectedName = '', instructionText = '') {
     if (_quickStartRunning) {
         toastr['info']('Quick Start is already running. Please wait.', 'Quick Start');
         return;
@@ -103,6 +111,7 @@ export async function runQuickStart(genre, rootEl = null, selectedName = '') {
     const validGenre = ['fantasy', 'realistic', 'scifi', 'horror'].includes(genre) ? genre : 'fantasy';
     const root = rootEl || /** @type {HTMLElement|null} */ (document.querySelector('.rt-empty'));
     const nameVal = String(selectedName || '').trim();
+    const instantActionInstructions = normalizeInstantActionInstructions(instructionText);
     if (!nameVal) {
         toastr['info']('Roll a character name before starting.', 'Quick Start');
         return;
@@ -126,14 +135,18 @@ export async function runQuickStart(genre, rootEl = null, selectedName = '') {
         const gearTier = s.onboardingGearTier || 'auto';
         const wordCount = parseInt(String(s.onboardingPersonaWords || '150'), 10) || 150;
         const genreLabel = GENRE_LABELS[validGenre] || validGenre;
+        const creationDetails = instantActionInstructions
+            ? `${genreLabel} · custom instructions · ${nameVal}`
+            : `${genreLabel} · ${className} · ${nameVal}`;
 
-        setQuickStartStatus(root, `Creating character (${genreLabel} · ${className} · ${nameVal})…`);
+        setQuickStartStatus(root, `Creating character (${creationDetails})…`);
         const { charName } = await generateQuickStartCharacter({
             genre: validGenre,
             className,
             level,
             gearTier,
             nameVal,
+            instantActionInstructions,
         });
 
         setQuickStartStatus(root, 'Creating Lorebook Agent Player Card…');
@@ -150,10 +163,11 @@ export async function runQuickStart(genre, rootEl = null, selectedName = '') {
         await activateSillyTavernPersona(charName);
 
         setQuickStartStatus(root, 'Starting adventure…');
-        sendOutgoingChatMessage('Begin the adventure');
+        sendOutgoingChatMessage(buildInstantActionOpeningMessage(instantActionInstructions));
 
-        setQuickStartStatus(root, `Ready — ${charName} (${className})`);
-        toastr['success'](`Quick Start ready: ${charName} · ${className}`, 'Quick Start');
+        const readyDetail = instantActionInstructions ? 'custom instructions' : className;
+        setQuickStartStatus(root, `Ready — ${charName} (${readyDetail})`);
+        toastr['success'](`Quick Start ready: ${charName} · ${readyDetail}`, 'Quick Start');
     } catch (err) {
         const msg = err?.message || String(err);
         console.error('[Quick Start]', err);
@@ -179,6 +193,7 @@ export function bindQuickStartEvents(rootEl) {
     const rollButton = /** @type {HTMLButtonElement|null} */ (section.querySelector('#rt-quickstart-roll-name'));
     const startButton = /** @type {HTMLButtonElement|null} */ (section.querySelector('#rt-quickstart-begin'));
     const nameInput = /** @type {HTMLInputElement|null} */ (section.querySelector('#rt-quickstart-name'));
+    const instructionsInput = /** @type {HTMLTextAreaElement|null} */ (section.querySelector('#rt-quickstart-instructions'));
     let selectedGenre = '';
     let selectedName = '';
 
@@ -224,6 +239,6 @@ export function bindQuickStartEvents(rootEl) {
         e.preventDefault();
         e.stopPropagation();
         if (!selectedGenre || !selectedName) return;
-        void runQuickStart(selectedGenre, rootEl, selectedName);
+        void runQuickStart(selectedGenre, rootEl, selectedName, instructionsInput?.value || '');
     });
 }

@@ -55,7 +55,7 @@ describe('genre character-name pools', () => {
         expect(rendererSource).toContain('id="rt-quickstart-begin"');
         expect(quickStartSource).toMatch(/selectedName = pickGenreCharacterName\(selectedGenre\)/);
         expect(quickStartSource).toMatch(/selectedName = nameInput\.value\.trim\(\)/);
-        expect(quickStartSource).toMatch(/runQuickStart\(selectedGenre, rootEl, selectedName\)/);
+        expect(quickStartSource).toMatch(/runQuickStart\(selectedGenre, rootEl, selectedName, instructionsInput\?\.value \|\| ''\)/);
         expect(quickStartSource).toMatch(/const nameVal = String\(selectedName \|\| ''\)\.trim\(\)/);
         expect(quickStartSource).toMatch(/generateQuickStartCharacter\(\{[\s\S]*?\bnameVal,/);
         expect(creatorSource).toMatch(/buildCharacterGenerationPrompt\(\{\s*nameVal: opts\.nameVal,/);
