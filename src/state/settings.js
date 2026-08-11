@@ -806,14 +806,37 @@ export function sanitizeCampaignPrefixString(raw) {
 
 /**
  * Prefix used for world activation and router: optional user override, else from chat id.
+ *
+ * When `routerCampaignPrefixOverride` is set, it applies only to the anchored chat
+ * (`routerCampaignPrefixOverrideAnchorChatId`). Legacy settings with an override but
+ * no anchor keep prior behavior for the active chat only — other chats derive from
+ * their own ids so Branch Campaign / cross-chat deactivate cannot share one stack.
+ *
  * @param {string} chatId
  * @returns {string}
  */
 export function getEffectiveRouterCampaignPrefix(chatId) {
     const s = getSettings();
     const ov = (s.routerCampaignPrefixOverride || '').trim();
-    if (ov) return sanitizeCampaignPrefixString(ov);
-    return sanitizeCampaignPrefixString(chatId || '');
+    const id = String(chatId || '');
+    if (!ov) return sanitizeCampaignPrefixString(id);
+
+    const sanitizedOv = sanitizeCampaignPrefixString(ov);
+    const anchor = (s.routerCampaignPrefixOverrideAnchorChatId || '').trim();
+    if (anchor) {
+        return id && id === anchor ? sanitizedOv : sanitizeCampaignPrefixString(id);
+    }
+
+    // Legacy unanchored override: only while evaluating the active chat.
+    try {
+        const ctx = SillyTavern.getContext();
+        const activeId = String(ctx?.getCurrentChatId?.() || ctx?.chatId || '');
+        if (id && activeId && id !== activeId) {
+            return sanitizeCampaignPrefixString(id);
+        }
+    } catch (_) { /* fall through */ }
+
+    return sanitizedOv;
 }
 
 // ── One-time data migrations ───────────────────────────────────────────────────
