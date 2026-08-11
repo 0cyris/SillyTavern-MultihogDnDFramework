@@ -2,6 +2,12 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.10.5] - 2026-08-11
+
+### Fixed
+- **First-pass Lorebook Agent undo**: The initial generated campaign can now be undone to a true empty baseline, with complete metadata restoration and lossless redo state.
+- **Rollback display consistency**: Undo, redo, and manual refresh now read authoritative lorebook data from disk instead of reviving deleted entries from historical logs or SillyTavern's stale cache.
+
 ## [7.10.4] - 2026-08-11
 
 ### Changed

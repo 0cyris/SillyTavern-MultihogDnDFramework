@@ -56,6 +56,7 @@ export function createPanel(dependencies) {
         buildLocationPath,
         buildNpcInstruction,
         canResizePanels,
+        captureRouterLoreState,
         checkAndTriggerAutoGenerations,
         clampFloatingPanelToViewport,
         resolveViewportClampedGeometry,
@@ -1287,7 +1288,10 @@ export function createPanel(dependencies) {
                     list.appendChild(pcDiv);
                 }
 
-                const forceFullRefresh = source === 'manual-button' || source === 'layout-toggle';
+                const forceFullRefresh = source === 'manual-button'
+                    || source === 'layout-toggle'
+                    || source === 'rollback'
+                    || source === 'redo';
                 const loadingDiv = document.createElement('div');
                 loadingDiv.id = 'rt-agent-manifest-loading';
                 loadingDiv.style.cssText = 'text-align: center; opacity: 0.5; font-size: 0.769em; padding: 10px;';
@@ -4908,6 +4912,7 @@ ${namingRule}`;
     // ── Lorebook Agent History Nav (← [LIVE] →) ─────────────────────────
     const agentActivity = wireAgentActivity({
         agentPanel,
+        captureRouterLoreState,
         getRouterTick,
         getSettings,
         reapplyRouterPass,

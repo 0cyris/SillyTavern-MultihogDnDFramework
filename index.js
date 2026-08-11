@@ -10,7 +10,7 @@ import { renderSubFieldByRule, tryRenderMarker, renderCustomBlockLine, stripMemo
 import { unregisterLogQuestTool, checkQuestDeadlines, renderQuestsAsPlainText } from './quests.js';
 import { initializeDebugViewer, toggleDebugViewer } from './debug-viewer.js';
 import { installSwipeSchedulerDebug } from './swipe-scheduler-debug.js';
-import { runRouterPass, rollbackRouterPass, reapplyRouterPass, getLorebookManifest, deleteLorebookEntry, updateLorebookEntry, disableManagedEntries, isRouterRunning, stopRouterPass, purgeWorldHistoryForChat, setLorebookEntryPinned } from './router.js';
+import { runRouterPass, rollbackRouterPass, reapplyRouterPass, captureRouterLoreState, getLorebookManifest, deleteLorebookEntry, updateLorebookEntry, disableManagedEntries, isRouterRunning, stopRouterPass, purgeWorldHistoryForChat, setLorebookEntryPinned } from './router.js';
 import { getRequestHeaders } from '../../../../script.js';
 import { fileToDataUrl, scaleImageTo512Square, scaleImageToLandscape, applyPortraitData, applyLocationImageData, renamePortraitEntity, reconcileMemoPortraitRenames, generatePortraitPrompt, generateNpcPortraitPrompt, generateLocationImagePrompt, showPortraitPromptPopup, generatePortraitDirect, autoGeneratePartyPortraits, removeAllPortraits, checkAndTriggerAutoGenerations, autoGenerateEnemyPortraits, forceCheckAutoGenerations, resetAutoGenerationTracking, resetRealtimeLocationGenerationFailure, stopRealtimeLocationGeneration, resolveLocationImageWithMeta, normalizeLocationPath, buildLocationPath, getLinkedPlayerCharacter, resolvePortraitSrcForPlayerCharacter, imageGenToast, triggerBackgroundPortraitGeneration } from './portraits.js';
 import { buildImmersionSceneState, renderImmersionViewHtml, getCurrentLocationText, loadLocationEntryByPath, loadNpcEntryByKey, maybeAutoGenerateImmersionSceneArt, runRealtimeSceneArtCheck, resetImmersionSceneArtTracking, hydrateImmersionSceneArtPath } from './immersion.js';
@@ -3908,6 +3908,7 @@ function createPanel() {
         buildLocationPath,
         buildNpcInstruction,
         canResizePanels,
+        captureRouterLoreState,
         checkAndTriggerAutoGenerations,
         clampFloatingPanelToViewport,
         resolveViewportClampedGeometry,

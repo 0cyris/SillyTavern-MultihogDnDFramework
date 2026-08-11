@@ -11,6 +11,11 @@ import {
     resolveCombatProfileGuidance,
     resolveExistingNpcNudge,
 } from './src/state/lorebook-runtime-fragments.js';
+import {
+    bookBelongsToCampaignPrefix as bookBelongsToPrefix,
+    getCreatedLorebookNames,
+    getLorebookSnapshotNames,
+} from './src/state/lorebook-history.js';
 
 let _routerRunning = false;
 let _routerNormalRunCount = 0; // tracks completed normal (non-cleanup) passes for auto-cleanup interval
@@ -156,9 +161,8 @@ function stripSkeletonFromRouterPools() {
  * Lorebook Agent archive fetch — excludes World Skeleton books.
  * @param {string} prefix
  * @param {object} ctx
- * @param {object} settings
  */
-async function fetchRouterArchiveBooks(prefix, ctx, settings) {
+async function fetchRouterArchiveBooks(prefix, ctx) {
     if (typeof ctx.updateWorldInfoList === 'function') {
         try { await ctx.updateWorldInfoList(); } catch (_) {}
     }
@@ -166,21 +170,11 @@ async function fetchRouterArchiveBooks(prefix, ctx, settings) {
     const inScope = (n) => !prefix || bookBelongsToPrefix(n, prefix);
     const scoped = new Set(prefix ? allBookNames.filter(inScope) : allBookNames);
 
-    const logBookNames = (settings.routerLog || [])
-        .flatMap(e => [...(e.record || []), ...(e.activate || [])].map(id => id.split('::')[0]))
-        .filter(Boolean);
-    for (const n of logBookNames) {
-        if (inScope(n) && !isSkeletonBookName(n)) scoped.add(n);
-    }
-
     const books = {};
     const loaded = await Promise.all([...scoped].map(async (n) => {
-        try {
-            const b = await ctx.loadWorldInfo(n);
-            return b?.entries ? [n, b] : null;
-        } catch (_) {
-            return null;
-        }
+        const b = await loadWorldInfoFresh(n, ctx);
+        if (!b?.entries) throw new Error(`Cannot safely load campaign lorebook "${n}".`);
+        return [n, b];
     }));
     for (const row of loaded) {
         if (row) books[row[0]] = row[1];
@@ -203,23 +197,6 @@ function grepLoreInBooks(allBooks, query) {
         }
     }
     return hits;
-}
-
-/**
- * Returns true if `bookName` belongs to the given `prefix`.
- * Exact match: bookName === prefix, OR bookName === prefix + '_' + <single-word suffix>
- * (suffix must contain no underscores to prevent "Assistant" from matching
- * "Assistant_2026_05_13_NPCs" which belongs to a different longer prefix).
- * @param {string} bookName
- * @param {string} prefix
- */
-function bookBelongsToPrefix(bookName, prefix) {
-    if (!prefix) return false;
-    const lowerBook = String(bookName).toLowerCase();
-    const lowerPref = String(prefix).toLowerCase();
-    if (lowerBook === lowerPref) return true;
-    const rest = lowerBook.startsWith(lowerPref + '_') ? lowerBook.slice(lowerPref.length + 1) : null;
-    return rest !== null && !rest.includes('_');
 }
 
 /**
@@ -291,23 +268,28 @@ function broadcastStep(type, content, metadata = {}) {
 async function getWorldInfoNamesSafe(options = {}) {
     const fullProbe = options.fullProbe !== false;
     const ctx = SillyTavern.getContext();
-    const namesSet = new Set();
+    const frontendNames = new Set();
     
     // 1. Check frontend registry (may be stale or incomplete if books aren't linked yet)
-    if (typeof ctx.getWorldInfoNames === 'function') {
-        const res = await ctx.getWorldInfoNames();
-        if (Array.isArray(res)) res.forEach(n => namesSet.add(n));
-    } else if (typeof ctx.getLorebookList === 'function') {
-        const res = await ctx.getLorebookList();
-        if (Array.isArray(res)) res.forEach(n => namesSet.add(n));
-    }
+    try {
+        if (typeof ctx.getWorldInfoNames === 'function') {
+            const res = await ctx.getWorldInfoNames();
+            if (Array.isArray(res)) res.forEach(n => frontendNames.add(n));
+        } else if (typeof ctx.getLorebookList === 'function') {
+            const res = await ctx.getLorebookList();
+            if (Array.isArray(res)) res.forEach(n => frontendNames.add(n));
+        }
+    } catch (_) {}
 
     if (!fullProbe) {
-        return [...namesSet];
+        return [...frontendNames];
     }
 
-    // 2. Unconditionally probe the backend API (ground truth of what exists on disk).
-    // This prevents the agent from missing newly cloned books if the frontend hasn't refreshed.
+    // 2. Probe the backend API. Once either backend endpoint answers, its result
+    // is authoritative: unioning it with the frontend registry would resurrect
+    // deleted lorebooks that still exist only in SillyTavern's in-memory cache.
+    const backendNames = new Set();
+    let backendResponded = false;
     try {
         const r = await fetch('/api/settings/get', { 
             method: 'POST', 
@@ -317,7 +299,8 @@ async function getWorldInfoNamesSafe(options = {}) {
         if (r.ok) {
             const j = await r.json();
             if (Array.isArray(j?.world_names)) {
-                j.world_names.forEach(n => namesSet.add(n));
+                backendResponded = true;
+                j.world_names.forEach(n => backendNames.add(n));
             }
         }
     } catch (_) {}
@@ -328,12 +311,153 @@ async function getWorldInfoNamesSafe(options = {}) {
         if (r.ok) {
             const j = await r.json();
             if (Array.isArray(j)) {
-                j.forEach(entry => { if (entry?.file_id) namesSet.add(entry.file_id); });
+                backendResponded = true;
+                j.forEach(entry => { if (entry?.file_id) backendNames.add(entry.file_id); });
             }
         }
     } catch (_) {}
 
-    return [...namesSet];
+    return backendResponded ? [...backendNames] : [...frontendNames];
+}
+
+function cloneRouterValue(value, fallback) {
+    return JSON.parse(JSON.stringify(value ?? fallback));
+}
+
+function getRouterChatId(ctx = SillyTavern.getContext()) {
+    return (typeof globalThis._rpgCurrentChatId === 'function' && globalThis._rpgCurrentChatId())
+        || ctx?.chatId
+        || null;
+}
+
+function buildRouterLoreState(settings, { prefix, chatId, bookSnapshots }) {
+    const chatState = chatId ? settings.chatStates?.[chatId] : null;
+    return {
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        campaignPrefix: prefix || '',
+        chatId,
+        campaignBookNames: Object.keys(bookSnapshots || {}),
+        campaignBooks: cloneRouterValue(chatState?.campaignBooks, []),
+        activeRouterKeys: cloneRouterValue(settings.activeRouterKeys, []),
+        activeWorldKeys: cloneRouterValue(settings.activeWorldKeys, []),
+        keywordActivatedKeys: cloneRouterValue(settings.keywordActivatedKeys, []),
+        pinnedRouterKeys: cloneRouterValue(settings.pinnedRouterKeys, []),
+        routerLog: cloneRouterValue(settings.routerLog, []),
+        pcCharacterBlockSeeded: !!settings.pcCharacterBlockSeeded,
+        routerLastRunChatLength: settings.routerLastRunChatLength ?? 0,
+        routerLastRunAt: settings.routerLastRunAt ?? 0,
+        bookSnapshots: cloneRouterValue(bookSnapshots, {}),
+    };
+}
+
+/** Loads current disk data, bypassing SillyTavern's worldInfoCache. */
+async function loadWorldInfoFresh(bookName, ctx = SillyTavern.getContext()) {
+    try {
+        const response = await fetch('/api/worldinfo/get', {
+            method: 'POST',
+            headers: getRequestHeaders(),
+            body: JSON.stringify({ name: bookName }),
+        });
+        // A completed backend response is authoritative, including "not found".
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data && typeof data === 'object' && data.entries ? data : null;
+    } catch (_) {
+        // Compatibility fallback for old builds where the direct endpoint is unavailable.
+        try {
+            const data = await ctx.loadWorldInfo(bookName);
+            return data?.entries ? data : null;
+        } catch (_) {
+            return null;
+        }
+    }
+}
+
+async function evictWorldInfoCache(bookName) {
+    try {
+        const { worldInfoCache } = await import('../../../world-info.js');
+        worldInfoCache?.delete?.(bookName);
+    } catch (_) {
+        // The direct, authoritative reads below still keep the Agent UI correct on old builds.
+    }
+}
+
+async function updateWorldInfoCache(bookName, bookData) {
+    try {
+        const { worldInfoCache } = await import('../../../world-info.js');
+        if (typeof worldInfoCache?.set !== 'function') return false;
+        worldInfoCache.set(bookName, bookData);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+async function deleteWorldInfoFresh(bookName) {
+    const response = await fetch('/api/worldinfo/delete', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ name: bookName }),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to delete ${bookName}: HTTP ${response.status}`);
+    }
+    await evictWorldInfoCache(bookName);
+}
+
+async function saveWorldInfoSnapshot(bookName, bookData, ctx, operationLabel) {
+    const response = await fetch('/api/worldinfo/edit', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ name: bookName, data: bookData }),
+    });
+    if (!response.ok) {
+        throw new Error(`${operationLabel}: failed to restore ${bookName}: HTTP ${response.status}`);
+    }
+    const cacheUpdated = await updateWorldInfoCache(bookName, bookData);
+    if (!cacheUpdated && typeof ctx.saveWorldInfo === 'function') {
+        try { await ctx.saveWorldInfo(bookName, bookData); } catch (_) { /* backend write already succeeded */ }
+    }
+}
+
+/** Captures the complete current campaign state for lossless redo. */
+export async function captureRouterLoreState() {
+    const settings = getSettings();
+    const ctx = SillyTavern.getContext();
+    const prefix = getLivePrefix();
+    const chatId = getRouterChatId(ctx);
+    const names = prefix
+        ? (await getWorldInfoNamesSafe()).filter(name => bookBelongsToPrefix(name, prefix) && !isSkeletonBookName(name))
+        : [];
+    const bookSnapshots = {};
+    for (const name of names) {
+        const book = await loadWorldInfoFresh(name, ctx);
+        if (!book) {
+            throw new Error(`Cannot safely snapshot current lorebook "${name}".`);
+        }
+        bookSnapshots[name] = book;
+    }
+    return buildRouterLoreState(settings, { prefix, chatId, bookSnapshots });
+}
+
+async function finalizeRouterHistorySnapshot(runId) {
+    if (!runId) return;
+    const settings = getSettings();
+    const snapshot = (settings.routerHistory || []).find(entry => entry?.runId === runId);
+    if (!snapshot) return;
+    const prefix = snapshot.campaignPrefix || getLivePrefix();
+    if (!prefix) {
+        snapshot.createdBookNames = [];
+        snapshot.deletedBookNames = [];
+        return;
+    }
+    const currentNames = (await getWorldInfoNamesSafe())
+        .filter(name => bookBelongsToPrefix(name, prefix) && !isSkeletonBookName(name));
+    const before = new Set(getLorebookSnapshotNames(snapshot));
+    const after = new Set(currentNames);
+    snapshot.createdBookNames = currentNames.filter(name => !before.has(name));
+    snapshot.deletedBookNames = [...before].filter(name => !after.has(name));
+    void saveSettings();
 }
 
 /**
@@ -390,7 +514,7 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
         }
 
         async function fetchArchiveBooks() {
-            return fetchRouterArchiveBooks(prefix, ctx, settings);
+            return fetchRouterArchiveBooks(prefix, ctx);
         }
 
         let archiveBooks = await fetchArchiveBooks();
@@ -400,14 +524,12 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
 
         // ?? Snapshot state BEFORE this pass (for rollback) ??????????????????
         {
-            const snapshot = {
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                activeRouterKeys: JSON.parse(JSON.stringify(settings.activeRouterKeys || [])),
-                activeWorldKeys: JSON.parse(JSON.stringify(settings.activeWorldKeys || [])),
-                routerLastRunChatLength: settings.routerLastRunChatLength ?? 0,
-                bookSnapshots: {},
-                runId: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            };
+            const snapshot = buildRouterLoreState(settings, {
+                prefix,
+                chatId: getRouterChatId(ctx),
+                bookSnapshots: archiveBooks,
+            });
+            snapshot.runId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
             _routerSnapshotRunId = snapshot.runId;
             _routerPrePassWatermark = snapshot.routerLastRunChatLength;
             _routerTriggerMsg = [...(ctx.chat || [])].reverse().find(m => !m.is_user && !m.is_system);
@@ -1538,6 +1660,10 @@ ${adjustedSharedContext}`;
         // Cleanup passes never reach this line (they return earlier), so no extra guard is needed.
         persistRouterLastRunTimestamp();
 
+        // Record the exact book-level delta while the pass is still the newest action.
+        // Rollback can then remove only books proven to have been created by this pass.
+        await finalizeRouterHistorySnapshot(_routerSnapshotRunId);
+
         // Manual passes don't go through onGenerationEnded's throttle reset — treat like an auto run.
         if (typeof globalThis._rpgResetRouterAutoTick === 'function') {
             globalThis._rpgResetRouterAutoTick('lore_agent_pass_complete');
@@ -2297,14 +2423,79 @@ async function applyAction(action, allBooks = {}, currentTime = '', breadcrumb =
     return { success: true, errors, recordedIds };
 }
 
+function restoreRouterLoreMetadata(settings, snapshot, removedBookNames = []) {
+    const has = key => Object.prototype.hasOwnProperty.call(snapshot || {}, key);
+    const restore = (key, fallback) => {
+        if (has(key)) settings[key] = cloneRouterValue(snapshot[key], fallback);
+    };
+
+    restore('activeRouterKeys', []);
+    restore('activeWorldKeys', []);
+    restore('keywordActivatedKeys', []);
+    restore('pinnedRouterKeys', []);
+    restore('routerLog', []);
+    if (has('pcCharacterBlockSeeded')) settings.pcCharacterBlockSeeded = !!snapshot.pcCharacterBlockSeeded;
+    if (has('routerLastRunAt')) settings.routerLastRunAt = snapshot.routerLastRunAt ?? 0;
+
+    const chatId = snapshot.chatId || getRouterChatId();
+    if (chatId) {
+        if (!settings.chatStates) settings.chatStates = {};
+        if (!settings.chatStates[chatId]) settings.chatStates[chatId] = {};
+        const chatState = settings.chatStates[chatId];
+        const removed = new Set(removedBookNames);
+        const priorOwnership = has('campaignBooks')
+            ? cloneRouterValue(snapshot.campaignBooks, [])
+            : getLorebookSnapshotNames(snapshot);
+        chatState.campaignBooks = [...new Set([
+            ...(chatState.campaignBooks || []).filter(name => !removed.has(name)),
+            ...priorOwnership,
+        ])];
+    }
+}
+
+async function recoverRouterLoreState(recoveryState, attemptedState, originalHistory, settings, ctx) {
+    if (!recoveryState) return;
+    const prefix = recoveryState.campaignPrefix || attemptedState?.campaignPrefix || getLivePrefix();
+    const recoveryNames = new Set(Object.keys(recoveryState.bookSnapshots || {}));
+
+    // A failed restore may have recreated a book that did not exist in the state
+    // being recovered. Only those attempted snapshot names are eligible for deletion.
+    for (const name of Object.keys(attemptedState?.bookSnapshots || {})) {
+        if (recoveryNames.has(name)) continue;
+        if (!prefix || !bookBelongsToPrefix(name, prefix) || isSkeletonBookName(name)) continue;
+        const currentNames = await getWorldInfoNamesSafe();
+        if (currentNames.includes(name)) await deleteWorldInfoFresh(name);
+    }
+
+    for (const [name, book] of Object.entries(recoveryState.bookSnapshots || {})) {
+        await saveWorldInfoSnapshot(name, book, ctx, 'Rollback recovery');
+    }
+    restoreRouterLoreMetadata(settings, recoveryState);
+    const chatId = recoveryState.chatId || getRouterChatId(ctx);
+    if (chatId && Object.prototype.hasOwnProperty.call(recoveryState, 'campaignBooks')) {
+        if (!settings.chatStates) settings.chatStates = {};
+        if (!settings.chatStates[chatId]) settings.chatStates[chatId] = {};
+        settings.chatStates[chatId].campaignBooks = cloneRouterValue(recoveryState.campaignBooks, []);
+    }
+    settings.routerHistory = originalHistory;
+    if (recoveryState.routerLastRunChatLength !== undefined) {
+        settings.routerLastRunChatLength = recoveryState.routerLastRunChatLength;
+    }
+    if (typeof ctx.updateWorldInfoList === 'function') {
+        try { await ctx.updateWorldInfoList(); } catch (_) {}
+    }
+    void saveSettings();
+}
+
 /**
  * Restores a past lorebook snapshot from routerHistory.
  * - Deletes any lorebook that was CREATED during the pass (wasn't in snapshot).
  * - Overwrites any lorebook that was MODIFIED during the pass back to its pre-pass content.
  * @param {number} index - 0 = most recent pre-pass snapshot.
+ * @param {object|null} recoveryState - Optional caller-captured post-pass state.
  * @returns {Promise<boolean>}
  */
-export async function rollbackRouterPass(index = 0) {
+export async function rollbackRouterPass(index = 0, recoveryState = null) {
     const settings = getSettings();
     const ctx = SillyTavern.getContext();
     const history = settings.routerHistory || [];
@@ -2316,48 +2507,33 @@ export async function rollbackRouterPass(index = 0) {
 
     const snapshot = history[index];
     if (!snapshot) return false;
+    let safeRecoveryState = recoveryState;
 
     try {
-        const prePassBooks = new Set(Object.keys(snapshot.bookSnapshots || {}));
-        const prefix = getLivePrefix();
+        const prefix = snapshot.campaignPrefix || getLivePrefix();
 
-        // -- Step 1: Delete lorebooks that were CREATED during the pass --------
-        // Only consider books under the live campaign prefix. If the prefix is missing,
-        // scanning "all" lorebooks would treat every unrelated book as newly created
-        // and delete or wipe anything not present in this pass's snapshot.
+        // -- Step 1: Delete lorebooks proven to be CREATED during the pass ------
+        // The stored campaign prefix and exact modern delta keep unrelated books
+        // out of scope. Legacy snapshots use recorded entry IDs conservatively.
         const allCurrentNames = await getWorldInfoNamesSafe();
-        const scopedCurrent = prefix
-            ? allCurrentNames.filter(n => bookBelongsToPrefix(n, prefix))
+        const createdBookNames = prefix
+            ? getCreatedLorebookNames({
+                snapshot,
+                currentNames: allCurrentNames,
+                currentRouterLog: settings.routerLog || [],
+                historyIndex: index,
+                prefix,
+            }).filter(name => !isSkeletonBookName(name))
             : [];
         if (!prefix && allCurrentNames.length) {
-            console.warn('[RPG Tracker] Rollback: no campaign prefix — skipping delete-new-books step (would otherwise touch the entire lore library).');
+            console.warn('[RPG Tracker] Rollback: no campaign prefix; no lorebooks will be deleted.');
         }
 
-        for (const bookName of scopedCurrent) {
-            if (prePassBooks.has(bookName)) continue; // Pre-existed ? restore below, don't delete
-            // This book was CREATED during the pass ? permanently delete it
-            let deleted = false;
-            try {
-                const delRes = await fetch('/api/worldinfo/delete', {
-                    method: 'POST',
-                    headers: getRequestHeaders(),
-                    body: JSON.stringify({ name: bookName })
-                });
-                deleted = delRes.ok;
-            } catch (_) { /* endpoint may not exist on older ST builds */ }
+        // Take a complete disk-backed recovery copy before the first mutation.
+        safeRecoveryState = safeRecoveryState || await captureRouterLoreState();
 
-            if (!deleted) {
-                // Fallback: clear all entries so the book is effectively empty
-                const emptyBook = { entries: {}, name: bookName, scan_depth: 4, token_budget: 400, recursive: false, extensions: {} };
-                await fetch('/api/worldinfo/edit', {
-                    method: 'POST',
-                    headers: getRequestHeaders(),
-                    body: JSON.stringify({ name: bookName, data: emptyBook })
-                });
-                if (typeof ctx.saveWorldInfo === 'function') {
-                    try { await ctx.saveWorldInfo(bookName, emptyBook); } catch (_) {}
-                }
-            }
+        for (const bookName of createdBookNames) {
+            await deleteWorldInfoFresh(bookName);
         }
 
         // Re-index so ST knows about deletions before we start restoring
@@ -2367,24 +2543,16 @@ export async function rollbackRouterPass(index = 0) {
 
         // -- Step 2: Restore pre-pass lorebooks to their snapshotted state -----
         for (const [bookName, bookData] of Object.entries(snapshot.bookSnapshots || {})) {
-            const saveRes = await fetch('/api/worldinfo/edit', {
-                method: 'POST',
-                headers: getRequestHeaders(),
-                body: JSON.stringify({ name: bookName, data: bookData })
-            });
-            if (!saveRes.ok) {
-                console.error(`[RPG Tracker] Rollback: failed to restore ${bookName}: HTTP ${saveRes.status}`);
-                continue;
-            }
-            // Bust ST in-memory cache so the UI sees the restored data immediately
-            if (typeof ctx.saveWorldInfo === 'function') {
-                try { await ctx.saveWorldInfo(bookName, bookData); } catch (_) { /* non-fatal */ }
-            }
+            await saveWorldInfoSnapshot(bookName, bookData, ctx, 'Rollback');
         }
 
-        // -- Step 3: Restore active keys ---------------------------------------
-        settings.activeRouterKeys = JSON.parse(JSON.stringify(snapshot.activeRouterKeys || []));
-        settings.activeWorldKeys = JSON.parse(JSON.stringify(snapshot.activeWorldKeys || []));
+        // -- Step 3: Restore all Lorebook Agent-owned state --------------------
+        if (!Object.prototype.hasOwnProperty.call(snapshot, 'routerLog') && createdBookNames.length > 0) {
+            // Compatibility for pre-7.10.5 snapshots. Removing the pass log is
+            // essential because old UI fast paths used it as a book-name fallback.
+            settings.routerLog = (settings.routerLog || []).slice(Math.max(1, index + 1));
+        }
+        restoreRouterLoreMetadata(settings, snapshot, createdBookNames);
 
         // -- Step 4: Restore "since last run" watermark and trim history --------
         settings.routerHistory = history.slice(index + 1);
@@ -2394,10 +2562,15 @@ export async function rollbackRouterPass(index = 0) {
             void saveSettings();
         }
 
-        document.dispatchEvent(new CustomEvent('rt_lore_agent_updated'));
+        document.dispatchEvent(new CustomEvent('rt_lore_agent_updated', { detail: { source: 'rollback' } }));
         return true;
     } catch (e) {
         console.error('[RPG Tracker] Rollback failed:', e);
+        try {
+            await recoverRouterLoreState(safeRecoveryState, snapshot, [...history], settings, ctx);
+        } catch (recoveryError) {
+            console.error('[RPG Tracker] Rollback recovery also failed:', recoveryError);
+        }
         return false;
     }
 }
@@ -2412,36 +2585,37 @@ export async function rollbackRouterPass(index = 0) {
 export async function reapplyRouterPass(prePassSnapshot, postPassState) {
     const settings = getSettings();
     const ctx = SillyTavern.getContext();
+    const originalHistory = [...(settings.routerHistory || [])];
+    let safeRecoveryState = null;
 
     try {
+        safeRecoveryState = await captureRouterLoreState();
         // Step 1: Put the pre-pass snapshot back so the user can undo again
         if (!settings.routerHistory) settings.routerHistory = [];
         settings.routerHistory.unshift(prePassSnapshot);
         if (settings.routerHistory.length > 5) settings.routerHistory.length = 5;
 
+        // Re-delete only books the original pass is known to have deleted.
+        const prefix = postPassState.campaignPrefix || prePassSnapshot.campaignPrefix || getLivePrefix();
+        const deletedBookNames = Array.isArray(prePassSnapshot.deletedBookNames)
+            ? prePassSnapshot.deletedBookNames.filter(name => prefix && bookBelongsToPrefix(name, prefix) && !isSkeletonBookName(name))
+            : [];
+        const currentNames = new Set(await getWorldInfoNamesSafe());
+        for (const bookName of deletedBookNames) {
+            if (currentNames.has(bookName)) await deleteWorldInfoFresh(bookName);
+        }
+
         // Step 2: Restore lorebooks to the post-pass state
         for (const [bookName, bookData] of Object.entries(postPassState.bookSnapshots || {})) {
-            const saveRes = await fetch('/api/worldinfo/edit', {
-                method: 'POST',
-                headers: getRequestHeaders(),
-                body: JSON.stringify({ name: bookName, data: bookData })
-            });
-            if (!saveRes.ok) {
-                console.error(`[RPG Tracker] Redo: failed to restore ${bookName}: HTTP ${saveRes.status}`);
-                continue;
-            }
-            if (typeof ctx.saveWorldInfo === 'function') {
-                try { await ctx.saveWorldInfo(bookName, bookData); } catch (_) {}
-            }
+            await saveWorldInfoSnapshot(bookName, bookData, ctx, 'Redo');
         }
 
         if (typeof ctx.updateWorldInfoList === 'function') {
             try { await ctx.updateWorldInfoList(); } catch (_) {}
         }
 
-        // Step 3: Restore active keys to the post-pass state
-        settings.activeRouterKeys = JSON.parse(JSON.stringify(postPassState.activeRouterKeys || []));
-        settings.activeWorldKeys = JSON.parse(JSON.stringify(postPassState.activeWorldKeys || []));
+        // Step 3: Restore all Agent-owned metadata to the post-pass state.
+        restoreRouterLoreMetadata(settings, postPassState, deletedBookNames);
 
         if (postPassState.routerLastRunChatLength !== undefined) {
             persistRouterLastRunWatermark(postPassState.routerLastRunChatLength);
@@ -2449,10 +2623,15 @@ export async function reapplyRouterPass(prePassSnapshot, postPassState) {
             void saveSettings();
         }
 
-        document.dispatchEvent(new CustomEvent('rt_lore_agent_updated'));
+        document.dispatchEvent(new CustomEvent('rt_lore_agent_updated', { detail: { source: 'redo' } }));
         return true;
     } catch (e) {
         console.error('[RPG Tracker] Redo failed:', e);
+        try {
+            await recoverRouterLoreState(safeRecoveryState, postPassState, originalHistory, settings, ctx);
+        } catch (recoveryError) {
+            console.error('[RPG Tracker] Redo recovery also failed:', recoveryError);
+        }
         return false;
     }
 }
@@ -2762,26 +2941,18 @@ export async function getLorebookManifest(skipUpdate = false) {
     if (!prefix) return [];
     const scopedSet = new Set(names.filter(n => bookBelongsToPrefix(n, prefix)));
     
-    // Fallback 1: books referenced in activeRouterKeys (not yet in registry)
-    const activeBookNames = (settings.activeRouterKeys || [])
-        .map(k => k.split('::')[0])
-        .filter(Boolean);
-    for (const n of activeBookNames) {
-        if (isSkeletonBookName(n)) continue;
-        if (!scopedSet.has(n) && bookBelongsToPrefix(n, prefix)) {
-            scopedSet.add(n);
-        }
-    }
-    
-    // Fallback 2: books referenced in routerLog records (catches deactivated entries
-    // whose books are no longer in activeRouterKeys nor in ST's registry yet)
-    const logBookNames = (settings.routerLog || [])
-        .flatMap(e => [...(e.record || []), ...(e.activate || [])].map(id => id.split('::')[0]))
-        .filter(Boolean);
-    for (const n of logBookNames) {
-        if (isSkeletonBookName(n)) continue;
-        if (!scopedSet.has(n) && bookBelongsToPrefix(n, prefix)) {
-            scopedSet.add(n);
+    // The fast path may supplement a lagging frontend registry with active IDs.
+    // Full refreshes use backend names only; historical fallbacks there would
+    // resurrect books that rollback already deleted.
+    if (skipUpdate) {
+        const activeBookNames = (settings.activeRouterKeys || [])
+            .map(k => k.split('::')[0])
+            .filter(Boolean);
+        for (const n of activeBookNames) {
+            if (isSkeletonBookName(n)) continue;
+            if (!scopedSet.has(n) && bookBelongsToPrefix(n, prefix)) {
+                scopedSet.add(n);
+            }
         }
     }
 
@@ -2816,7 +2987,7 @@ export async function getLorebookManifest(skipUpdate = false) {
     const booksToLoad = [...scopedSet].filter(n => !isSkeletonBookName(n));
     const loadedBooks = await Promise.all(booksToLoad.map(async (n) => {
         try {
-            const b = await ctx.loadWorldInfo(n);
+            const b = skipUpdate ? await ctx.loadWorldInfo(n) : await loadWorldInfoFresh(n, ctx);
             return b?.entries ? { bookName: n, entries: b.entries } : null;
         } catch (_) {
             return null;
