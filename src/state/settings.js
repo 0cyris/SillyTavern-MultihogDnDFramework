@@ -3,7 +3,7 @@
  * Self-binds into settings-ref so leaf modules can call getSettings() safely.
  */
 
-import { MODULE_NAME, DEFAULT_PC_SECTIONS } from './schema-sections.js';
+import { MODULE_NAME, DEFAULT_PC_SECTIONS, DEFAULT_NPC_SECTIONS } from './schema-sections.js';
 import { DEFAULT_MODULES } from './default-modules.js';
 import { buildDefaultSettings } from './defaults.js';
 import { isOlderThan } from './versions.js';
@@ -20,6 +20,7 @@ import {
     setRealtimeVisualizationDisabled,
 } from './realtime-visualization-guard.js';
 import { migrateChatSetupCatalogs } from './chat-setup.js';
+import { LOREBOOK_RUNTIME_FRAGMENT_KEYS } from './lorebook-runtime-fragments.js';
 
 // Re-entrancy guard: some migration blocks below call buildNpcInstruction()/
 // buildLocInstruction()/buildFacInstruction(), which themselves call
@@ -688,6 +689,49 @@ function getSettingsInternal(extensionSettings) {
             swapQuestsHomebrewOrder(snapshot?.setup?.syspromptSectionOrder);
         }
         s.settingsVersion = '5.5.16';
+    }
+
+    // 5.5.17: remove Barnaby {{example}}, expose runtime fragments, NPC word targets → overall totals.
+    if (isOlderThan(s.settingsVersion, '5.5.17')) {
+        if (typeof s.routerBasicSystemPromptTemplate === 'string') {
+            s.routerBasicSystemPromptTemplate = s.routerBasicSystemPromptTemplate
+                .replace(/\n\{\{example\}\}\s*$/u, '')
+                .replace(/\{\{example\}\}\s*$/u, '');
+        }
+
+        const defaults = buildDefaultSettings();
+        for (const key of LOREBOOK_RUNTIME_FRAGMENT_KEYS) {
+            if (typeof s[key] !== 'string' || !s[key]) {
+                s[key] = String(defaults[key] ?? '');
+            }
+        }
+
+        const sectionCount = (Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0)
+            ? s.npcCoreSections.length
+            : DEFAULT_NPC_SECTIONS.length;
+        const prevMajor = Number(s.npcMajorWords);
+        const prevMinor = Number(s.npcMinorWords);
+        if (Number.isFinite(prevMajor) && prevMajor > 0) {
+            s.npcMajorWords = Math.max(1, Math.min(5000, Math.round(prevMajor * sectionCount)));
+        } else {
+            s.npcMajorWords = defaults.npcMajorWords;
+        }
+        if (Number.isFinite(prevMinor) && prevMinor > 0) {
+            s.npcMinorWords = Math.max(1, Math.min(5000, Math.round(prevMinor * sectionCount)));
+        } else {
+            s.npcMinorWords = defaults.npcMinorWords;
+        }
+        s.npcWordTargetRescaleNotice = {
+            fromMajor: Number.isFinite(prevMajor) ? prevMajor : null,
+            fromMinor: Number.isFinite(prevMinor) ? prevMinor : null,
+            toMajor: s.npcMajorWords,
+            toMinor: s.npcMinorWords,
+            sectionCount,
+        };
+        if (s.routerModules?.npc) {
+            s.routerModules.npc.instruction = buildNpcInstruction(s.npcMajorWords, s.npcMinorWords, false, s);
+        }
+        s.settingsVersion = '5.5.17';
     }
 
     if (s.pcCoreSections && Array.isArray(s.pcCoreSections) && s.pcCoreSections.length === 6) {

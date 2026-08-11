@@ -2,6 +2,13 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.10.4] - 2026-08-11
+
+### Changed
+- **Removed Barnaby few-shot**: The Lorebook Agent Basic Mode no longer injects the hardcoded `{{example}}` / Barnaby sample NPC that was overriding word-target instructions.
+- **Editable runtime prompt fragments**: Combat Profile guidance, auto/manual pass restrictions, existing-NPC chronicle nudge, and relationship-section wording are now editable templates (Lorebook Agent → System Prompt → Runtime Prompt Fragments) instead of hardcoded router strings.
+- **NPC word targets are overall totals**: Major/Minor NPC targets now mean "exactly N words across the whole [CORE] block" (matching PC framing), not per-section minimums. Existing installs are rescaled by section count (defaults 225 / 135).
+
 ## [7.1.52] - 2026-08-09
 
 ### Changed

@@ -1414,17 +1414,17 @@ export function createPanel(dependencies) {
                                     <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:14px;">When disabled, NPCs use the compact list view (like Events/Locations) and NPC portrait auto-generation is turned off.</div>
 
                                     <div style="margin-bottom:14px;">
-                                        <label style="font-size:12px;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">Major NPC Section Word Target</label>
-                                        <input type="number" id="rt-npc-major-words" value="${curS.npcMajorWords ?? 25}" min="1" max="1000" step="5"
+                                        <label style="font-size:12px;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">Major NPC Total Word Target</label>
+                                        <input type="number" id="rt-npc-major-words" value="${curS.npcMajorWords ?? 225}" min="1" max="5000" step="5"
                                             style="width:100%;background:rgba(0,0,0,0.4);color:white;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 10px;font-size:13px;box-sizing:border-box;">
-                                        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;">Recurring, plot-important NPCs. Default: 25 words per section</div>
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;">Recurring, plot-important NPCs. Default: 225 words total across all sections</div>
                                     </div>
 
                                     <div style="margin-bottom:14px;">
-                                        <label style="font-size:12px;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">Minor NPC Section Word Target</label>
-                                        <input type="number" id="rt-npc-minor-words" value="${curS.npcMinorWords ?? 15}" min="1" max="1000" step="5"
+                                        <label style="font-size:12px;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">Minor NPC Total Word Target</label>
+                                        <input type="number" id="rt-npc-minor-words" value="${curS.npcMinorWords ?? 135}" min="1" max="5000" step="5"
                                             style="width:100%;background:rgba(0,0,0,0.4);color:white;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 10px;font-size:13px;box-sizing:border-box;">
-                                        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;">Shopkeepers, guards, one-off encounters. Default: 15 words per section</div>
+                                        <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;">Shopkeepers, guards, one-off encounters. Default: 135 words total across all sections</div>
                                     </div>
 
                                     <div style="margin-bottom:6px;display:flex;align-items:center;gap:10px;">
@@ -1494,8 +1494,8 @@ export function createPanel(dependencies) {
                                         // Track word count values via closure — updated by input events,
                                         // read at save time. Initialized to current saved values so
                                         // leaving them unchanged correctly preserves the user's setting.
-                                        let newMajor = curS.npcMajorWords ?? 25;
-                                        let newMinor = curS.npcMinorWords ?? 15;
+                                        let newMajor = curS.npcMajorWords ?? 225;
+                                        let newMinor = curS.npcMinorWords ?? 135;
                                         let newRelMax = getNpcRelationshipMax(curS);
 
                                         setTimeout(() => {
@@ -1570,8 +1570,8 @@ export function createPanel(dependencies) {
                                         });
 
                                         if (result) {
-                                            const finalMajor = Math.max(1, Math.min(1000, newMajor));
-                                            const finalMinor = Math.max(1, Math.min(1000, newMinor));
+                                            const finalMajor = Math.max(1, Math.min(5000, newMajor));
+                                            const finalMinor = Math.max(1, Math.min(5000, newMinor));
                                             const finalRelMax = getNpcRelationshipMax({ npcRelationshipMax: newRelMax });
 
                                             const updS = getSettings();
@@ -3302,7 +3302,7 @@ RULES:
                 }
             } catch (_) { }
 
-            const npcInstruction = buildNpcInstruction(s.npcMajorWords || 25, s.npcMinorWords || 15, !!s.ignoreNpcImportLimits, s);
+            const npcInstruction = buildNpcInstruction(s.npcMajorWords || 225, s.npcMinorWords || 135, !!s.ignoreNpcImportLimits, s);
 
             const coreSections = s.npcCoreSections && Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0 ? s.npcCoreSections : DEFAULT_NPC_SECTIONS;
             const sectionNamesList = coreSections.map(sec => sec.name).join(', ');

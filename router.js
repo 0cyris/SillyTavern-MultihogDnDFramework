@@ -6,6 +6,11 @@ import { recordSchedulerEvent } from './swipe-scheduler-debug.js';
 import { saveSettings } from './src/app/runtime-bridge.js';
 import { buildSkeletonLorebookSourceContext } from './src/features/world-progression/skeleton-lorebooks.js';
 import { buildNpcRelationshipInstruction } from './src/state/relationship-prompts.js';
+import {
+    resolveAutoPassRestriction,
+    resolveCombatProfileGuidance,
+    resolveExistingNpcNudge,
+} from './src/state/lorebook-runtime-fragments.js';
 
 let _routerRunning = false;
 let _routerNormalRunCount = 0; // tracks completed normal (non-cleanup) passes for auto-cleanup interval
@@ -96,27 +101,6 @@ function applyPcCoreUpdate(pc, field, content) {
 }
 
 /** Router guidance when ACTIVE COMBAT STATE is injected this turn. */
-function buildCombatProfileRouterGuidance(hasCombat, mode = 'basic') {
-    if (!hasCombat) return '';
-    const scopeRule = `- CRITICAL — ONE COMBATANT PER PROFILE: a Combat Profile is ONLY that single combatant's own stat block — their "Name: HP" line through their "Status:" line, nothing more. NEVER copy the "COMBAT ROUND N" header, the ENEMIES:/NON-PARTY ALLIES: section headers, or any *other* combatant's block into it. If you are updating Schwarzenegev, the Combat Profile content contains Schwarzenegev's block alone — Schwarzenegger's stats (or anyone else's) do NOT belong in it, even though they appear in the same [COMBAT] section.`;
-    if (mode === 'agent') {
-        return `
-## COMBAT PROFILE (ACTIVE COMBAT STATE provided this turn)
-- **Existing NPCs** (listed in ACTIVE MEMORY with an ID): use \`commit({"core": [{"id": "Book::UID or NPC Name", "field": "Combat Profile", "content": "verbatim stats from [COMBAT]"}]})\`. Do NOT re-record the full NPC via \`record\` or embed a new \`[CORE]\` block in \`update\`.
-- **Brand-new combatants** with no lorebook entry yet: include \`Combat Profile:\` inside \`[CORE]\` in a \`record\` item.
-- Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.
-${scopeRule}
-- Example (updating only "Schwarzenegev", ignoring every other combatant listed alongside it): \`commit({"core": [{"id": "Schwarzenegev", "field": "Combat Profile", "content": "Schwarzenegev: 40/45 HP\\nAtt/def: Argument Ender (1 attack, +8 / 2d10+4 Piercing) | Armor (AC: 16)\\nSaves: Fort unknown, Ref unknown, Will unknown\\nAbilities: None declared\\nOther: Temporary allied combatant\\nStatus: (-) Wounded (until healed), Active (this combat)"}]})\``;
-    }
-    return `
-## COMBAT PROFILE (ACTIVE COMBAT STATE provided this turn)
-- **Existing NPCs** (in ACTIVE MEMORY or ARCHIVE): output \`[[UPDATE_CORE: NPC Name | Combat Profile | verbatim stats from [COMBAT]]]\` — NOT a full \`[[NPC:...]]\` re-record.
-- **Brand-new combatants** with no existing entry: include \`Combat Profile:\` inside \`[CORE]\` in a new \`[[NPC:...]]\` record.
-- Copy stats verbatim from ## ACTIVE COMBAT STATE only — never infer from GM prose.
-${scopeRule}
-- Example: \`[[UPDATE_CORE: Marcus Thorne | Combat Profile | Marcus Thorne: 12/12 HP\\nAtt/def: Longsword (1 attack, +5 / 1d8+2 Slashing) | Chainmail (AC: 15)\\nSaves: Fort +4, Ref +2, Will +1\\nAbilities: None declared\\nStatus: Healthy]]\``;
-}
-
 /**
  * Resolve Book::UID or plain NPC label to a full lore entry id.
  * @returns {Promise<string|null>}
@@ -578,8 +562,8 @@ export async function runRouterPass(narrativeOutput, manualPrompt = null, custom
         const activeCombatSection = activeCombatBlock
             ? `## ACTIVE COMBAT STATE (canonical mechanical stats — use this as the source for NPC Combat Profiles, not the GM prose)\n${activeCombatBlock}\n\n`
             : '';
-        const combatProfileGuidanceBasic = buildCombatProfileRouterGuidance(!!activeCombatBlock, 'basic');
-        const combatProfileGuidanceAgent = buildCombatProfileRouterGuidance(!!activeCombatBlock, 'agent');
+        const combatProfileGuidanceBasic = resolveCombatProfileGuidance(settings, !!activeCombatBlock, 'basic');
+        const combatProfileGuidanceAgent = resolveCombatProfileGuidance(settings, !!activeCombatBlock, 'agent');
 
         // Cold-start: once per chat, seed the LA prompt with the PC [CHARACTER] block so
         // Equipment updates can be grounded in actual equipped gear/mechanics. Later passes
@@ -1013,16 +997,13 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
         // unlock on a manual/Direct Prompt pass.
         const eligibleCoreFields = getEligibleCoreFieldNames(coreSections, isManual);
         const eligibleCoreFieldsList = eligibleCoreFields.join(', ');
-        const autoPassCoreRestriction = !isManual
-            ? `\n- AUTOMATIC PASS RESTRICTION: Combat Profile is the only [CORE] field you may update this pass via UPDATE_CORE / commit.core. Do not modify Species, Personality, Background, Habits, Strengths, or Flaws unless the user gave an explicit instruction this turn (Direct Prompt). Body/Worn Equipment changes use UPDATE_APPEARANCE / UPDATE_EQUIPMENT instead.`
-            : `\n- DIRECT PROMPT PASS: you may update any eligible [CORE] identity field (${eligibleCoreFieldsList}) when the user's instruction warrants it. Body/Worn Equipment still use UPDATE_APPEARANCE / UPDATE_EQUIPMENT.`;
+        const autoPassCoreRestriction = resolveAutoPassRestriction(settings, isManual, eligibleCoreFieldsList);
         const pcAppearanceGuidance = `
 - You may update the Player Character's own Body via \`[[UPDATE_APPEARANCE: {{user}} | new body text]]\` (basic) or \`commit.appearance\` with id \`{{user}}\` / \`player\` / \`pc\` / the PC's name when their signature look permanently changes.
 - You may update the Player Character's own Worn Equipment via \`[[UPDATE_EQUIPMENT: {{user}} | new worn gear text]]\` (basic) or \`commit.equipment\` the same way, whenever their visibly worn/carried gear changes.
 - Never touch the PC's Species/Personality/Background/Habits/Strengths/Flaws, and never create a new PC lorebook entry.
 - Body means signature/default physical look (build, face, hair, features) — not a transient pose. Worn Equipment means currently worn/carried gear only — not Body, coins, loot piles, or inventory lists.`;
-        const existingNpcChronicleNudge = `
-- For notable existing-NPC moments that do not change any [CORE] field, still append a timestamped chronicle/EVENT line so the beat is not lost.`;
+        const existingNpcChronicleNudge = resolveExistingNpcNudge(settings);
 
         // -- Basic Mode (tag-based, one-shot, no tool calling) -----------------
         if (settings.routerBasicMode) {
@@ -1050,42 +1031,12 @@ Action: commit({"rewrite": [{"id": "Eldoria_Events::3", "content": "Compressed v
             modularPrompt = modularPrompt.replace(/\{\{#if_world\}\}|\{\{\/if_world\}\}|\{\{dayStr\}\}|\{\{prevDay\}\}/g, '');
 
             const relSection = settings.npcRelationshipBars
-                ? buildRouterRelationshipInstruction(getNpcRelationshipMax(settings)).trim()
+                ? buildRouterRelationshipInstruction(getNpcRelationshipMax(settings), settings).trim()
                 : '';
 
-            // coreSections and sectionNamesList are defined above
-            // Build the example [CORE] lines dynamically from configured sections
-            const exampleLineByName = {
-                'species': 'Human.',
-                'body': 'A burly man with a scar on his cheek.',
-                'equipment': 'Leather apron, heavy gloves, a hammer at his belt.',
-                'appearance/species': 'A burly human blacksmith with a scar on his cheek.',
-                'appearance': 'A burly human blacksmith with a scar on his cheek.',
-                'personality': 'Gruff but reliable.',
-                'brief background': 'Retired from the militia to open his own forge.',
-                'background': 'Retired from the militia to open his own forge.',
-                'habits/behaviors': 'Wipes his brow with a greasy rag.',
-                'habits & behaviors': 'Wipes his brow with a greasy rag.',
-            };
-            let exampleCoreLines = coreSections.slice(0, 6)
-                .map(sec => `${sec.name}: ${exampleLineByName[sec.name.trim().toLowerCase()] || 'Notable detail here.'}`)
-                .join('\n')
-                .trim();
-            const exampleBlock = `Example:
-Thought: I see a new NPC named Barnaby in Khelt's Rust-Lantern District. I will record him and the tavern.
-[[NPC: Barnaby | [CORE]
-${exampleCoreLines}
-[/CORE] | Barnaby, blacksmith, ally]]
-[[LOC: Khelt :: Rust-Lantern District :: Barnaby's Forge | [CORE]
-A squat iron building managing mining contracts; soot-stained walls and a clanging workshop floor.
-[/CORE] | Barnaby's Forge, forge, Khelt, Rust-Lantern]]
-[[FAC: Iron Syndicate | Wary of outsiders after the forge raid; still dominant in the industrial quarter. | [CORE]Founded by ex-mercenaries forty years ago; controls scrap tariffs and smuggling. Lieutenant Marna Voss handles street enforcement.[/CORE] | Iron Syndicate, Khelt, faction, smuggling]]
-
-(Note: The above Barnaby entry is a structural format example only. Do not output a profile like this exactly; you must strictly obey <CORE LENGTH TARGETS> and word target requirements for the NPC size.)`;
-
             // Resolve the Basic Mode system prompt from the editable template.
-            // All previously-hardcoded sections now live in routerBasicSystemPromptTemplate
-            // (see defaults.js). Users can edit/remove any section including {{example}}.
+            // Runtime-dependent fragments (combat guidance, pass restrictions, etc.) are
+            // expanded from editable settings templates — see defaults.js.
             const basicRawTemplate = settings.routerBasicSystemPromptTemplate || '';
             const maxActNum = settings.routerMaxActivations || 8;
             const basicSystemPrompt = adjustPromptTimestamps(
@@ -1104,7 +1055,6 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
                         autoPassRestriction: autoPassCoreRestriction,
                         existingNpcNudge: existingNpcChronicleNudge,
                         combatProfileGuidance: combatProfileGuidanceBasic.trim(),
-                        example: exampleBlock,
                     },
                 ),
                 settings
@@ -1349,7 +1299,7 @@ A squat iron building managing mining contracts; soot-stained walls and a clangi
             // routerAgentSharedContextTemplate (see defaults.js).
             const agentRawTemplate = settings.routerAgentSharedContextTemplate || '';
             const agentRelSection = settings.npcRelationshipBars
-                ? buildNpcRelationshipInstruction(getNpcRelationshipMax(settings)).trim()
+                ? buildNpcRelationshipInstruction(getNpcRelationshipMax(settings), settings).trim()
                 : '';
             const maxActNumAgent = settings.routerMaxActivations || 8;
             const sharedContext = adjustPromptTimestamps(
