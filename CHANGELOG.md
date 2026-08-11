@@ -2,7 +2,7 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
-## [7.10.7] - 2026-08-11
+## [7.20.0] - 2026-08-11
 
 ### Changed
 - **Initial Setup label**: Instant Action guidance is labeled `Initial Setup:` in the character-generation prompt and opening adventure message.
