@@ -688,8 +688,12 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
 
         routerCampaignPrefixOverride: "",
 
-        /** ST chat id for which `routerCampaignPrefixOverride` applies; empty = legacy (override only when chatId === active ctx chat id). */
-
+        /**
+         * ST chat id for which `routerCampaignPrefixOverride` applies.
+         * Empty = legacy (override only when chatId === active ctx chat id).
+         * Set whenever the override field is edited so Branch Campaign / rename
+         * cannot keep writing into another chat's lorebook stack.
+         */
         routerCampaignPrefixOverrideAnchorChatId: "",
 
         routerLookback: 4,

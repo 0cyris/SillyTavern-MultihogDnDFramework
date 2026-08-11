@@ -9191,7 +9191,19 @@ RULES:
         updateSettingsLorePrefixReadout();
 
         $('#rpg_tracker_router_prefix_override').val(settings.routerCampaignPrefixOverride || '').on('input', function () {
-            settings.routerCampaignPrefixOverride = String($(this).val() || '');
+            const raw = String($(this).val() || '');
+            settings.routerCampaignPrefixOverride = raw;
+            if (raw.trim()) {
+                const ctx = SillyTavern.getContext();
+                settings.routerCampaignPrefixOverrideAnchorChatId = String(
+                    runtimeState.currentChatId || ctx.getCurrentChatId?.() || ctx.chatId || '',
+                );
+            } else {
+                settings.routerCampaignPrefixOverrideAnchorChatId = '';
+            }
+            const ctx = SillyTavern.getContext();
+            const chatId = runtimeState.currentChatId || ctx.getCurrentChatId?.() || ctx.chatId || '';
+            settings.routerCampaignPrefix = getEffectiveRouterCampaignPrefix(chatId);
             saveSettings();
             updateSettingsLorePrefixReadout();
         });
