@@ -7,6 +7,15 @@ import { MODULE_NAME } from './schema-sections.js';
 import { DEFAULT_MODULES } from './default-modules.js';
 import { getDefaultPortraitLocationSystemPrompt } from './portrait-prompts.js';
 import { adjustPromptTimestamps } from './router-utils.js';
+import {
+    DEFAULT_ROUTER_AUTO_PASS_RESTRICTION,
+    DEFAULT_ROUTER_COMBAT_PROFILE_GUIDANCE_AGENT,
+    DEFAULT_ROUTER_COMBAT_PROFILE_GUIDANCE_BASIC,
+    DEFAULT_ROUTER_EXISTING_NPC_NUDGE,
+    DEFAULT_ROUTER_MANUAL_PASS_RESTRICTION,
+    DEFAULT_ROUTER_REL_SECTION_AGENT,
+    DEFAULT_ROUTER_REL_SECTION_BASIC,
+} from './lorebook-runtime-fragments.js';
 
 /**
  * Keep shipped Lorebook prompts compact. Empty spacer lines add no meaning,
@@ -241,9 +250,9 @@ export function buildDefaultSettings() {
 
         pcSectionPresets: {},
 
-        npcMajorWords: 25,
+        npcMajorWords: 225,
 
-        npcMinorWords: 15,
+        npcMinorWords: 135,
 
         npcRelationshipMaxDefault: 150,
 
@@ -679,8 +688,12 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
 
         routerCampaignPrefixOverride: "",
 
-        /** ST chat id for which `routerCampaignPrefixOverride` applies; empty = legacy (override only when chatId === active ctx chat id). */
-
+        /**
+         * ST chat id for which `routerCampaignPrefixOverride` applies.
+         * Empty = legacy (override only when chatId === active ctx chat id).
+         * Set whenever the override field is edited so Branch Campaign / rename
+         * cannot keep writing into another chat's lorebook stack.
+         */
         routerCampaignPrefixOverrideAnchorChatId: "",
 
         routerLookback: 4,
@@ -952,9 +965,13 @@ When recording a new entry, keep the lorebook category separate from the entity 
 
 
 
-- Use the "category" field for the type (NPC, LOC, FAC, QUEST, EVENT, or a custom tag).
+- **REQUIRED category field:** Every \`record\` item MUST include \`"category": "NPC"|"LOC"|"FAC"|"QUEST"|"EVENT"\` (or an enabled custom tag). This field alone chooses which lorebook receives the entry (NPCs / Locations / Factions / …). Omitting it dumps the entry into the wrong book.
 
-- Use the "label" field for the entity name only. Do NOT prefix labels with the category tag.
+- Use the "category" field for the type. Never rely on the label, \`::\` hierarchy, or [CORE] content to imply the book — those do not route.
+
+- Use the "label" field for the entity name only. Do NOT prefix labels with the category tag. Location labels may use \`" :: "\` hierarchy (e.g. "Kalvermoor :: The Ring") AND must still set \`"category": "LOC"\`.
+
+- NPC people get \`"category": "NPC"\` with a plain name label (no \`::\`). Locations get \`"category": "LOC"\`.
 
 - **IMPORTANT FOR KEYWORDS (KEYS):** Always include the entity's own name/title (without any timestamps like "Day 1", "Day 2", "12:15 AM", etc.) in the list of keywords. The title itself (stripped of timestamps) is the most reliable trigger, so it must be present as a keyword. For example, if the entry title is "[12:15 AM, Day 2] Defense of Ironbelly's Workshop", the keys list MUST include "Defense of Ironbelly's Workshop".
 
@@ -963,6 +980,10 @@ When recording a new entry, keep the lorebook category separate from the entity 
 
 
 Correct examples:
+
+- {"label": "Lissa", "category": "NPC", "keys": ["Lissa", "rope-keeper"], "content": "[CORE]\\nSpecies: …\\n[/CORE]"}
+
+- {"label": "Kalvermoor :: The Handler's Rest", "category": "LOC", "keys": ["The Handler's Rest", "Kalvermoor", "tavern"], "content": "[CORE]\\nA weathered tavern…\\n[/CORE]"}
 
 - {"label": "Iron Syndicate", "category": "FAC", "keys": ["Iron Syndicate", "faction"]}
 
@@ -973,6 +994,10 @@ Correct examples:
 
 
 Incorrect examples:
+
+- {"label": "Lissa", "keys": ["Lissa"], "content": "[CORE]…"} (MISSING required "category": "NPC" — will not land in the NPCs lorebook)
+
+- {"label": "Kalvermoor :: The Ring", "keys": ["The Ring"], "content": "[CORE]…"} (MISSING required "category": "LOC" — \`::\` nesting is not a category)
 
 - {"label": "FAC: Iron Syndicate", "category": "FAC", "keys": ["faction"]} (missing the entity name keyword)
 
@@ -1132,7 +1157,9 @@ Example: [[FAC: Iron Syndicate | ...]]  NOT  [[FAC: Khelt :: Iron Syndicate | ..
 - Worn Equipment changes: output \`[[UPDATE_EQUIPMENT: Book::UID or NPC Name | new worn gear text]]\` whenever the narrative explicitly shows a change to what they're wearing/wielding. Do not put coins or inventory lists here.
 - Eligible UPDATE_CORE fields this pass: {{eligibleCoreFields}}.
   [[UPDATE_CORE: Book::UID or NPC Name | FieldName | New field text]]
-Use the exact FieldName. Do NOT log core updates as normal event/update entries.{{autoPassRestriction}}{{existingNpcNudge}}
+Use the exact FieldName. Do NOT log core updates as normal event/update entries.
+{{autoPassRestriction}}
+{{existingNpcNudge}}
 
 ## DO NOT RE-RECORD EXISTING ENTITIES
 Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anything, check ACTIVE MEMORY and ARCHIVE INDEX for a matching name (they may be listed under a different label — check keywords too).
@@ -1154,8 +1181,7 @@ Before outputting [[NPC:...]], [[LOC:...]], [[FAC:...]], etc. for anyone or anyt
 5. Do NOT create any entry for the player character (e.g. "Player" or "Dave Davidson").
 6. CRITICAL: Do NOT blindly copy the formatting or sections of other characters found in ACTIVE MEMORY. You MUST strictly use ONLY the sections instructed below ({{sectionNames}}) for NPCs and ignore any other sections.
 7. Output your thoughts first, then the tags.
-
-{{example}}`),
+`),
 
         // ── Agent Mode shared context template ────────────────────────────────
         // The complete context appended to the agent instructions in Agent Mode.
@@ -1180,7 +1206,9 @@ Maximum Active Entities: **{{maxActivations}}**.
 ## NPC CORE UPDATES
 - Body: use \`commit.appearance\` (signature/default physical look only — not a transient outfit-of-the-scene).
 - Worn Equipment: use \`commit.equipment\` whenever their visibly worn/carried gear changes. Not coins, loot piles, or inventory lists.
-- Eligible commit.core fields this pass: {{eligibleCoreFields}}.{{autoPassRestriction}}{{existingNpcNudge}}
+- Eligible commit.core fields this pass: {{eligibleCoreFields}}.
+{{autoPassRestriction}}
+{{existingNpcNudge}}
 
 ## DO NOT RE-RECORD EXISTING ENTITIES
 Before using \`record\` for anyone or anything, check ACTIVE MEMORY, NEWLY ACTIVATED THIS TURN, and the ARCHIVE INDEX for a matching name (check keywords too, they may be listed under a different label).
@@ -1201,7 +1229,9 @@ World Skeleton lorebooks (names ending in _Skeleton) are hidden seed data for Wo
 Campaign Root: "{{campaignRoot}}"
   NPCs -> "{{campaignNpcBook}}"
   Locations -> "{{campaignLocBook}}" (etc.)
-Location hierarchy: use " :: " separator in labels (e.g. "Khelt :: Rust-Lantern District :: The Guilded Anvil").
+**Routing:** every new \`record\` MUST set \`"category"\` to match the target book above (\`NPC\` → NPCs book, \`LOC\` → Locations, etc.). Labels and \`::\` paths do NOT choose the book — only \`category\` does.
+Location hierarchy: use " :: " separator in labels (e.g. "Khelt :: Rust-Lantern District :: The Guilded Anvil") together with \`"category": "LOC"\`.
+NPC people use a plain name label and \`"category": "NPC"\` (never put people under a \`::\` path).
 Include the entity name/title itself (without timestamps like "[Day 1]") as a keyword, plus any ancestor location names (e.g. keys: ["The Guilded Anvil", "Khelt", "Rust-Lantern District", "tavern"]).
 **Keyword cap: maximum 6 per entry.** Keep only the most essential trigger words.
 
@@ -1214,6 +1244,15 @@ Include the entity name/title itself (without timestamps like "[Day 1]") as a ke
 
 ## FIELD INSTRUCTIONS
 {{fieldInstructions}}`),
+
+        // Editable runtime fragments injected into Basic/Agent templates at request time.
+        routerCombatProfileGuidanceBasicTemplate: prepareShippedLorebookPromptTemplate(DEFAULT_ROUTER_COMBAT_PROFILE_GUIDANCE_BASIC),
+        routerCombatProfileGuidanceAgentTemplate: prepareShippedLorebookPromptTemplate(DEFAULT_ROUTER_COMBAT_PROFILE_GUIDANCE_AGENT),
+        routerAutoPassRestrictionTemplate: prepareShippedLorebookPromptTemplate(DEFAULT_ROUTER_AUTO_PASS_RESTRICTION),
+        routerManualPassRestrictionTemplate: prepareShippedLorebookPromptTemplate(DEFAULT_ROUTER_MANUAL_PASS_RESTRICTION),
+        routerExistingNpcNudgeTemplate: prepareShippedLorebookPromptTemplate(DEFAULT_ROUTER_EXISTING_NPC_NUDGE),
+        routerRelSectionBasicTemplate: prepareShippedLorebookPromptTemplate(DEFAULT_ROUTER_REL_SECTION_BASIC),
+        routerRelSectionAgentTemplate: prepareShippedLorebookPromptTemplate(DEFAULT_ROUTER_REL_SECTION_AGENT),
 
         categoryRenderOptions: {},
 
@@ -1430,7 +1469,7 @@ You may be asked to use Markers: ((PLS)), ((B)), ((XB)), ((BDG)), ((HGT)). These
 
 /** Latest settings migration version — factory reset skips legacy upgrade paths at or below this. */
 
-export const FACTORY_SETTINGS_VERSION = '5.5.16';
+export const FACTORY_SETTINGS_VERSION = '5.5.17';
 
 
 /** Remove extension UI keys from localStorage so a factory reset does not rehydrate stale panel state. */

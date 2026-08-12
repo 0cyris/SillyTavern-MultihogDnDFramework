@@ -3,7 +3,7 @@
  * Self-binds into settings-ref so leaf modules can call getSettings() safely.
  */
 
-import { MODULE_NAME, DEFAULT_PC_SECTIONS } from './schema-sections.js';
+import { MODULE_NAME, DEFAULT_PC_SECTIONS, DEFAULT_NPC_SECTIONS } from './schema-sections.js';
 import { DEFAULT_MODULES } from './default-modules.js';
 import { buildDefaultSettings } from './defaults.js';
 import { isOlderThan } from './versions.js';
@@ -20,6 +20,7 @@ import {
     setRealtimeVisualizationDisabled,
 } from './realtime-visualization-guard.js';
 import { migrateChatSetupCatalogs } from './chat-setup.js';
+import { LOREBOOK_RUNTIME_FRAGMENT_KEYS } from './lorebook-runtime-fragments.js';
 
 // Re-entrancy guard: some migration blocks below call buildNpcInstruction()/
 // buildLocInstruction()/buildFacInstruction(), which themselves call
@@ -507,6 +508,32 @@ function getSettingsInternal(extensionSettings) {
         }
     }
 
+    // ── MIGRATION: Require explicit category on lorebook record commits (v7.10+) ──────
+    if (s.routerSystemPromptTemplate && !s.routerSystemPromptTemplate.includes('REQUIRED category field')) {
+        if (s.routerSystemPromptTemplate.includes('<formatting>')) {
+            s.routerSystemPromptTemplate = s.routerSystemPromptTemplate.replace(
+                'When recording a new entry, keep the lorebook category separate from the entity label.',
+                'When recording a new entry, keep the lorebook category separate from the entity label.\n\n- **REQUIRED category field:** Every `record` item MUST include `"category": "NPC"|"LOC"|"FAC"|"QUEST"|"EVENT"` (or an enabled custom tag). This field alone chooses which lorebook receives the entry (NPCs / Locations / Factions / …). Omitting it dumps the entry into the wrong book.\n- Location labels may use `" :: "` hierarchy AND must still set `"category": "LOC"`. NPC people get `"category": "NPC"` with a plain name label (no `::`).'
+            );
+            if (!s.routerSystemPromptTemplate.includes('MISSING required "category": "NPC"')) {
+                s.routerSystemPromptTemplate = s.routerSystemPromptTemplate.replace(
+                    'Incorrect examples:',
+                    'Incorrect examples:\n\n- {"label": "Lissa", "keys": ["Lissa"], "content": "[CORE]…"} (MISSING required "category": "NPC" — will not land in the NPCs lorebook)\n\n- {"label": "Kalvermoor :: The Ring", "keys": ["The Ring"], "content": "[CORE]…"} (MISSING required "category": "LOC" — `::` nesting is not a category)'
+                );
+            }
+        }
+    }
+    if (s.routerAgentSharedContextTemplate && !s.routerAgentSharedContextTemplate.includes('only `category` does')) {
+        s.routerAgentSharedContextTemplate = s.routerAgentSharedContextTemplate.replace(
+            'Locations -> "{{campaignLocBook}}" (etc.)\nLocation hierarchy:',
+            'Locations -> "{{campaignLocBook}}" (etc.)\n**Routing:** every new `record` MUST set `"category"` to match the target book above (`NPC` → NPCs book, `LOC` → Locations, etc.). Labels and `::` paths do NOT choose the book — only `category` does.\nLocation hierarchy:'
+        );
+        s.routerAgentSharedContextTemplate = s.routerAgentSharedContextTemplate.replace(
+            'Location hierarchy: use " :: " separator in labels (e.g. "Khelt :: Rust-Lantern District :: The Guilded Anvil").\nInclude the entity name/title itself',
+            'Location hierarchy: use " :: " separator in labels (e.g. "Khelt :: Rust-Lantern District :: The Guilded Anvil") together with `"category": "LOC"`.\nNPC people use a plain name label and `"category": "NPC"` (never put people under a `::` path).\nInclude the entity name/title itself'
+        );
+    }
+
     // ── MIGRATION: Update World Progression System Prompt with Quests/Events rule (v3.4.4+) ──────
     if (s.worldProgressionSystemPrompt && !s.worldProgressionSystemPrompt.includes('QUESTS and EVENTS are historical records')) {
         s.worldProgressionSystemPrompt = s.worldProgressionSystemPrompt.replace(
@@ -664,6 +691,49 @@ function getSettingsInternal(extensionSettings) {
         s.settingsVersion = '5.5.16';
     }
 
+    // 5.5.17: remove Barnaby {{example}}, expose runtime fragments, NPC word targets → overall totals.
+    if (isOlderThan(s.settingsVersion, '5.5.17')) {
+        if (typeof s.routerBasicSystemPromptTemplate === 'string') {
+            s.routerBasicSystemPromptTemplate = s.routerBasicSystemPromptTemplate
+                .replace(/\n\{\{example\}\}\s*$/u, '')
+                .replace(/\{\{example\}\}\s*$/u, '');
+        }
+
+        const defaults = buildDefaultSettings();
+        for (const key of LOREBOOK_RUNTIME_FRAGMENT_KEYS) {
+            if (typeof s[key] !== 'string' || !s[key]) {
+                s[key] = String(defaults[key] ?? '');
+            }
+        }
+
+        const sectionCount = (Array.isArray(s.npcCoreSections) && s.npcCoreSections.length > 0)
+            ? s.npcCoreSections.length
+            : DEFAULT_NPC_SECTIONS.length;
+        const prevMajor = Number(s.npcMajorWords);
+        const prevMinor = Number(s.npcMinorWords);
+        if (Number.isFinite(prevMajor) && prevMajor > 0) {
+            s.npcMajorWords = Math.max(1, Math.min(5000, Math.round(prevMajor * sectionCount)));
+        } else {
+            s.npcMajorWords = defaults.npcMajorWords;
+        }
+        if (Number.isFinite(prevMinor) && prevMinor > 0) {
+            s.npcMinorWords = Math.max(1, Math.min(5000, Math.round(prevMinor * sectionCount)));
+        } else {
+            s.npcMinorWords = defaults.npcMinorWords;
+        }
+        s.npcWordTargetRescaleNotice = {
+            fromMajor: Number.isFinite(prevMajor) ? prevMajor : null,
+            fromMinor: Number.isFinite(prevMinor) ? prevMinor : null,
+            toMajor: s.npcMajorWords,
+            toMinor: s.npcMinorWords,
+            sectionCount,
+        };
+        if (s.routerModules?.npc) {
+            s.routerModules.npc.instruction = buildNpcInstruction(s.npcMajorWords, s.npcMinorWords, false, s);
+        }
+        s.settingsVersion = '5.5.17';
+    }
+
     if (s.pcCoreSections && Array.isArray(s.pcCoreSections) && s.pcCoreSections.length === 6) {
         // We check by ID rather than name, because the legacy version might have had "Appearance" instead of "Appearance/Species"
         const idsMatch = s.pcCoreSections.every((sec, idx) => sec.id === DEFAULT_PC_SECTIONS[idx].id);
@@ -780,14 +850,37 @@ export function sanitizeCampaignPrefixString(raw) {
 
 /**
  * Prefix used for world activation and router: optional user override, else from chat id.
+ *
+ * When `routerCampaignPrefixOverride` is set, it applies only to the anchored chat
+ * (`routerCampaignPrefixOverrideAnchorChatId`). Legacy settings with an override but
+ * no anchor keep prior behavior for the active chat only — other chats derive from
+ * their own ids so Branch Campaign / cross-chat deactivate cannot share one stack.
+ *
  * @param {string} chatId
  * @returns {string}
  */
 export function getEffectiveRouterCampaignPrefix(chatId) {
     const s = getSettings();
     const ov = (s.routerCampaignPrefixOverride || '').trim();
-    if (ov) return sanitizeCampaignPrefixString(ov);
-    return sanitizeCampaignPrefixString(chatId || '');
+    const id = String(chatId || '');
+    if (!ov) return sanitizeCampaignPrefixString(id);
+
+    const sanitizedOv = sanitizeCampaignPrefixString(ov);
+    const anchor = (s.routerCampaignPrefixOverrideAnchorChatId || '').trim();
+    if (anchor) {
+        return id && id === anchor ? sanitizedOv : sanitizeCampaignPrefixString(id);
+    }
+
+    // Legacy unanchored override: only while evaluating the active chat.
+    try {
+        const ctx = SillyTavern.getContext();
+        const activeId = String(ctx?.getCurrentChatId?.() || ctx?.chatId || '');
+        if (id && activeId && id !== activeId) {
+            return sanitizeCampaignPrefixString(id);
+        }
+    } catch (_) { /* fall through */ }
+
+    return sanitizedOv;
 }
 
 // ── One-time data migrations ───────────────────────────────────────────────────

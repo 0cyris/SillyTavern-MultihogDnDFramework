@@ -7,9 +7,11 @@ import {
     cloneCampaignStackToPrefix,
     deleteWorldInfoBooks,
 } from './clone-campaign-stack.js';
-
-const COMPANION_BY_CHAT_KEY = 'rpg_tracker_companion_by_chat_v1';
-const MEMO_RECOVERY_KEY = 'rpg_tracker_memo_recovery_v1';
+import {
+    COMPANION_BY_CHAT_KEY,
+    MEMO_RECOVERY_KEY,
+    copyLocalChatMapEntry,
+} from './local-chat-map.js';
 
 /** @type {Set<string>} */
 const _pendingBranchSeeds = new Set();
@@ -28,75 +30,6 @@ export function isBranchSeedInProgress(chatId) {
  */
 export function clearBranchSeedGuard(chatId) {
     if (chatId) _pendingBranchSeeds.delete(String(chatId));
-}
-
-/**
- * @param {string} key
- * @returns {Record<string, any>}
- */
-function readLocalChatMap(key) {
-    try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return {};
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch (_) {
-        return {};
-    }
-}
-
-/**
- * @param {string} key
- * @param {Record<string, any>} map
- */
-function writeLocalChatMap(key, map) {
-    try {
-        localStorage.setItem(key, JSON.stringify(map));
-    } catch (err) {
-        console.warn('[RPG Tracker] Could not persist local chat map:', key, err);
-    }
-}
-
-/**
- * Deep-copy a localStorage chat-keyed map entry from oldId → newId (copy, not move).
- * @param {string} storageKey
- * @param {string} oldId
- * @param {string} newId
- */
-export function copyLocalChatMapEntry(storageKey, oldId, newId) {
-    if (!oldId || !newId || oldId === newId) return;
-    const map = readLocalChatMap(storageKey);
-    if (!Object.prototype.hasOwnProperty.call(map, oldId)) return;
-    try {
-        map[newId] = JSON.parse(JSON.stringify(map[oldId]));
-        if (map[newId] && typeof map[newId] === 'object' && 'ts' in map[newId]) {
-            map[newId].ts = Date.now();
-        }
-        writeLocalChatMap(storageKey, map);
-    } catch (err) {
-        console.warn('[RPG Tracker] Failed to copy local map entry:', storageKey, err);
-    }
-}
-
-/**
- * Move a localStorage chat-keyed map entry (for rename).
- * @param {string} storageKey
- * @param {string} oldId
- * @param {string} newId
- */
-export function moveLocalChatMapEntry(storageKey, oldId, newId) {
-    if (!oldId || !newId || oldId === newId) return;
-    const map = readLocalChatMap(storageKey);
-    if (!Object.prototype.hasOwnProperty.call(map, oldId)) return;
-    if (Object.prototype.hasOwnProperty.call(map, newId)) {
-        // Prefer existing new; drop old to avoid stale orphan.
-        delete map[oldId];
-        writeLocalChatMap(storageKey, map);
-        return;
-    }
-    map[newId] = map[oldId];
-    delete map[oldId];
-    writeLocalChatMap(storageKey, map);
 }
 
 /**
@@ -292,6 +225,17 @@ export async function branchCampaignChat(deps) {
         copyLocalChatMapEntry(COMPANION_BY_CHAT_KEY, oldId, newChatId);
         copyLocalChatMapEntry(MEMO_RECOVERY_KEY, oldId, newChatId);
 
+        // Keep Campaign Prefix Override on the SOURCE chat. Otherwise the branch
+        // inherits a global/legacy override and keeps writing into the original
+        // lorebook stack while cloned books under newPrefix sit unused.
+        const ov = (s.routerCampaignPrefixOverride || '').trim();
+        if (ov) {
+            const anchor = (s.routerCampaignPrefixOverrideAnchorChatId || '').trim();
+            if (!anchor || anchor === newChatId) {
+                s.routerCampaignPrefixOverrideAnchorChatId = oldId;
+            }
+        }
+
         let saved = false;
         try {
             await Promise.resolve(saveSettings(true));
@@ -363,4 +307,9 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
-export { COMPANION_BY_CHAT_KEY, MEMO_RECOVERY_KEY };
+export {
+    COMPANION_BY_CHAT_KEY,
+    MEMO_RECOVERY_KEY,
+    copyLocalChatMapEntry,
+    moveLocalChatMapEntry,
+} from './local-chat-map.js';
