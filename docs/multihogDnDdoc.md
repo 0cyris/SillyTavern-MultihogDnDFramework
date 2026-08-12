@@ -111,11 +111,11 @@ The system rejects the traditional ST use of character cards, which are meant fo
 
 ### Instant Action (fastest path)
 
-On an empty tracker, use Instant Action / Quick Start by genre (**Fantasy**, **Modern**, **Sci-Fi**, **Horror**). Select a genre first, then use **Roll Name** as many times as you like or type/edit a name yourself. You can also enter optional instructions for the character, starting setting, premise, or tone; specified details override rolled defaults, while everything you omit remains randomized. Once the displayed name is one you want to keep, choose **Begin Instant Action**. The pipeline is sequential:
+On an empty tracker, use Instant Action / Quick Start by genre (**Fantasy**, **Modern**, **Sci-Fi**, **Horror**). Select a genre, optionally type or roll a name (leave it blank for the AI to choose), and optionally enter an **Initial Setup** for the character, starting setting, premise, or tone. Specified details override rolled defaults, while everything you omit remains randomized. Choose the Player Card word count you want, then select **Begin Instant Action**. The pipeline is sequential:
 
 1. Applies your current Narrator Configuration (settings + sysprompt).
-2. Keeps your selected first-name / surname combination, picks a random archetype from the genre, then generates a character sheet into the State Tracker. Optional instructions are treated as higher priority than the random archetype.
-3. Generates a rich **Player Card** for Lorebook Agent, then creates/selects a SillyTavern persona with the same name and an empty description. The name-only ST persona controls the sender label without duplicating Player Card content in the prompt.
+2. Keeps a supplied name or invents one when blank, picks a random archetype from the genre, then generates a character sheet into the State Tracker. Initial Setup details are treated as higher priority than the random archetype.
+3. Generates a **Player Card** at the selected word count for Lorebook Agent, using both the character sheet and the same Initial Setup. It then creates/selects a SillyTavern persona with the same name and an empty description. The name-only ST persona controls the sender label without duplicating Player Card content in the prompt.
 4. Sends `Begin the adventure` together with any optional instructions so the narrator's opening matches the requested character, setting, and premise.
 
 Character-sheet generation sends the model only the active tracker-module instructions as its system prompt. The full State Extractor core prompt is reserved for ordinary tracking and manual tracker commands.

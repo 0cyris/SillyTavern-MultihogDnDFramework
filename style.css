@@ -2266,6 +2266,34 @@
     cursor: wait;
 }
 
+.rt-quickstart-player-card-length {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px;
+    align-items: center;
+    color: var(--rt-text, #e8e4f5);
+    font-size: 0.78em;
+}
+
+.rt-quickstart-player-card-length label {
+    font-weight: 650;
+}
+
+.rt-quickstart-player-card-length select,
+.rt-quickstart-player-card-length input {
+    box-sizing: border-box;
+    height: 30px;
+    min-width: 92px;
+    padding: 3px 6px;
+    border-radius: 5px;
+    font-size: 11px;
+}
+
+.rt-quickstart-player-card-length input {
+    width: 76px;
+    min-width: 76px;
+}
+
 .rt-quickstart-roll-btn,
 .rt-quickstart-begin-btn {
     padding: 8px 12px;

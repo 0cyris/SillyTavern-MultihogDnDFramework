@@ -1,8 +1,17 @@
 export const MAX_INSTANT_ACTION_INSTRUCTION_LENGTH = 1000;
+export const DEFAULT_INSTANT_ACTION_PLAYER_CARD_WORDS = 150;
 
 /** Normalize one-time Instant Action guidance without persisting it into later turns. */
 export function normalizeInstantActionInstructions(value) {
     return String(value || '').trim().slice(0, MAX_INSTANT_ACTION_INSTRUCTION_LENGTH);
+}
+
+/** Resolve the Instant Action Player Card length, including the custom option. */
+export function resolveInstantActionPlayerCardWords(selection, customValue) {
+    const rawValue = selection === 'other' ? customValue : selection;
+    const parsed = Number.parseInt(String(rawValue || ''), 10);
+    if (!Number.isFinite(parsed)) return DEFAULT_INSTANT_ACTION_PLAYER_CARD_WORDS;
+    return Math.max(50, Math.min(5000, parsed));
 }
 
 /** Prompt section shared with Instant Action character generation. */

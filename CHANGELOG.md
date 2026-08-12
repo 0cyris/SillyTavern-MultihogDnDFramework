@@ -2,6 +2,15 @@
 
 All notable changes to the **Multihog D&D Framework** will be documented in this file.
 
+## [7.20.1] - 2026-08-12
+
+### Changed
+- **Optional Instant Action names**: A rolled or typed name is no longer required. Leave the name blank and the AI chooses one; the roll button remains available as an option.
+- **Instant Action Player Card length**: Quick Start now offers preset and custom word counts from 50–5000 words.
+
+### Fixed
+- **Initial Setup reaches the Player Card**: Character details, setting, premise, and tone are now passed to Player Card/persona generation as well as the state memo creator and opening narrator message.
+
 ## [7.20.0] - 2026-08-11
 
 ### Changed
